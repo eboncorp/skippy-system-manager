@@ -1,0 +1,876 @@
+#!/bin/bash
+
+# TidyTux - Comprehensive Linux System Cleanup Utility
+# Version 1.0.0
+# Created: March 2, 2025
+# 
+# Features:
+#  - File cleanup and organization
+#  - System maintenance
+#  - Application cache cleanup
+#  - Duplicate file detection
+#  - Docker cleanup
+#  - Browser cache cleanup
+#  - Performance monitoring
+
+VERSION="1.0.0"
+PROGRAM_NAME="TidyTux"
+PROGRAM_DESCRIPTION="Comprehensive Linux System Cleanup Utility"
+GITHUB_REPO="https://github.com/username/tidytux"  # Placeholder - update with actual repo if created
+
+set -e  # Exit on error
+set -u  # Exit on undefined variable
+
+# Check if running as root
+if [ "$(id -u)" -eq 0 ]; then
+    echo "This script should NOT be run as root" >&2
+    exit 1
+fi
+
+# Color definitions
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Command line arguments
+INTERACTIVE=true
+SKIP_CONFIRMATION=false
+VERBOSE=false
+SCHEDULE=false
+REPORT_ONLY=false
+
+# Performance tracking
+START_TIME=$(date +%s)
+INITIAL_DISK_USAGE=$(df -h --output=used "$HOME" | tail -1 | tr -d ' ')
+
+# Create a backup directory with timestamp
+BACKUP_DIR="$HOME/.tidytux/backups/backup_$(date +%Y%m%d_%H%M%S)"
+LOG_FILE="$BACKUP_DIR/tidytux_log.txt"
+
+# Function for logging
+log() {
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    # Make sure log directory exists before writing
+    if [ ! -d "$(dirname "$LOG_FILE")" ]; then
+        mkdir -p "$(dirname "$LOG_FILE")"
+    fi
+    
+    if [ "$INTERACTIVE" = true ] || [ "$VERBOSE" = true ]; then
+        echo -e "${BLUE}[$timestamp]${NC} $1"
+    fi
+    
+    # Always write to log file regardless of interactive mode
+    echo "[$timestamp] $1" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g" >> "$LOG_FILE" 
+}
+
+# Function for confirmation
+confirm() {
+    if [ "$SKIP_CONFIRMATION" = true ]; then
+        return 0
+    fi
+    
+    echo -e "${YELLOW}$1 [y/N]${NC}"
+    read -r -t 60 response || {
+        echo -e "\n${RED}No response, assuming no.${NC}"
+        return 1
+    }
+    
+    case "$response" in
+        [yY][eE][sS]|[yY]) 
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Parse command-line options
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -y|--yes)
+                SKIP_CONFIRMATION=true
+                shift
+                ;;
+            -q|--quiet)
+                INTERACTIVE=false
+                SKIP_CONFIRMATION=true
+                shift
+                ;;
+            -v|--verbose)
+                VERBOSE=true
+                shift
+                ;;
+            -s|--schedule)
+                SCHEDULE=true
+                shift
+                ;;
+            -r|--report-only)
+                REPORT_ONLY=true
+                shift
+                ;;
+            -c|--check)
+                check_for_updates
+                exit 0
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            --version)
+                echo -e "${GREEN}$PROGRAM_NAME${NC} version ${CYAN}$VERSION${NC}"
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+}
+
+# Show help information
+show_help() {
+    echo -e "${GREEN}$PROGRAM_NAME v$VERSION${NC} - $PROGRAM_DESCRIPTION"
+    echo
+    echo "Usage: $0 [OPTIONS]"
+    echo
+    echo "Options:"
+    echo "  -y, --yes         Skip all confirmations (assume yes)"
+    echo "  -q, --quiet       Run in non-interactive mode (no output except errors)"
+    echo "  -v, --verbose     Show verbose output"
+    echo "  -s, --schedule    Set up a scheduled cleanup task"
+    echo "  -r, --report-only Only report issues, don't make changes"
+    echo "  -c, --check       Check for updates"
+    echo "  -h, --help        Show this help message"
+    echo
+    echo "Example: $0 --yes --verbose"
+    echo "         $0 --schedule"
+}
+
+# Check for updates
+check_for_updates() {
+    echo -e "${BLUE}Checking for updates...${NC}"
+    echo -e "Current version: ${CYAN}$VERSION${NC}"
+    
+    # This is a placeholder for an actual update check
+    # In a real implementation, you would fetch the latest version from a server
+    echo -e "${YELLOW}Update check functionality is a placeholder.${NC}"
+    echo -e "To check for updates, visit: $GITHUB_REPO"
+    
+    # Example of what a real update check might look like:
+    # if command -v curl &> /dev/null; then
+    #     LATEST_VERSION=$(curl -s "$GITHUB_REPO/releases/latest" | grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+" | cut -c 2-)
+    #     if [ "$LATEST_VERSION" != "$VERSION" ]; then
+    #         echo -e "${GREEN}New version available: $LATEST_VERSION${NC}"
+    #         echo -e "Download from: $GITHUB_REPO/releases/latest"
+    #     else
+    #         echo -e "${GREEN}You have the latest version.${NC}"
+    #     fi
+    # else
+    #     echo -e "${YELLOW}curl not installed. Cannot check for updates.${NC}"
+    # fi
+}
+
+# Create backup directory
+create_backup_dir() {
+    log "Creating backup directory at $BACKUP_DIR"
+    mkdir -p "$BACKUP_DIR"
+    chmod 700 "$BACKUP_DIR"  # Secure permissions
+    
+    # Create version file in backup dir
+    echo "$PROGRAM_NAME version $VERSION" > "$BACKUP_DIR/version.txt"
+    echo "Backup created on $(date)" >> "$BACKUP_DIR/version.txt"
+    echo "User: $(whoami)" >> "$BACKUP_DIR/version.txt"
+    echo "Hostname: $(hostname)" >> "$BACKUP_DIR/version.txt"
+    echo "System: $(uname -a)" >> "$BACKUP_DIR/version.txt"
+}
+
+# Install required tools if missing
+install_required_tools() {
+    local missing_tools=()
+    
+    # Check for essential tools
+    for tool in ncdu fdupes; do
+        if ! command -v "$tool" &> /dev/null; then
+            missing_tools+=("$tool")
+        fi
+    done
+    
+    if [ ${#missing_tools[@]} -eq 0 ]; then
+        return 0
+    fi
+    
+    log "Some recommended tools are missing: ${missing_tools[*]}"
+    
+    if confirm "Would you like to install missing tools (${missing_tools[*]})?"; then
+        log "Installing missing tools..."
+        sudo apt update
+        for tool in "${missing_tools[@]}"; do
+            log "Installing $tool..."
+            sudo apt install -y "$tool"
+            if [ $? -eq 0 ]; then
+                log "${GREEN}$tool installed successfully${NC}"
+            else
+                log "${RED}Failed to install $tool${NC}"
+            fi
+        done
+    else
+        log "Skipping tool installation. Some features may be limited."
+    fi
+}
+
+# Check disk space
+check_disk_space() {
+    log "Checking disk space..."
+    df -h "$HOME" | grep -v "Filesystem" | tee -a "$LOG_FILE"
+    
+    # Check if disk space is critically low
+    AVAILABLE_SPACE=$(df --output=avail "$HOME" | tail -1)
+    if [ "$AVAILABLE_SPACE" -lt 1048576 ]; then  # Less than 1GB
+        log "${RED}WARNING: Very low disk space (less than 1GB available)${NC}"
+        log "Some cleanup operations may fail due to insufficient space"
+        
+        if confirm "Would you like to run emergency cleanup to free up space?"; then
+            log "Running emergency cleanup..."
+            sudo apt clean
+            sudo journalctl --vacuum-time=1d
+            rm -rf ~/.cache/thumbnails/*
+            log "Emergency cleanup completed"
+        fi
+    fi
+    
+    # Install ncdu if not already installed
+    if ! command -v ncdu &> /dev/null; then
+        if confirm "ncdu (disk usage analyzer) is not installed. Would you like to install it?"; then
+            log "Installing ncdu..."
+            sudo apt update && sudo apt install -y ncdu
+        fi
+    fi
+}
+
+# Clean installation packages
+clean_deb_files() {
+    log "Looking for .deb installation packages..."
+    
+    # Find .deb files in home directory and Downloads
+    DEB_FILES=$(find "$HOME" -maxdepth 2 -name "*.deb" -type f)
+    
+    if [ -z "$DEB_FILES" ]; then
+        log "No .deb files found in home directory"
+    else
+        log "Found the following .deb files:"
+        echo "$DEB_FILES" | tee -a "$LOG_FILE"
+        
+        if confirm "Would you like to move these .deb files to the backup directory?"; then
+            mkdir -p "$BACKUP_DIR/deb_files"
+            for file in $DEB_FILES; do
+                log "Moving $file to backup..."
+                mv "$file" "$BACKUP_DIR/deb_files/"
+            done
+            log "${GREEN}All .deb files have been moved to $BACKUP_DIR/deb_files/${NC}"
+        fi
+    fi
+}
+
+# Organize Downloads folder
+organize_downloads() {
+    DOWNLOADS="$HOME/Downloads"
+    
+    if [ ! -d "$DOWNLOADS" ]; then
+        log "${YELLOW}Downloads directory not found${NC}"
+        return
+    fi
+    
+    log "Organizing Downloads folder..."
+    
+    # Create category directories
+    mkdir -p "$DOWNLOADS/documents"
+    mkdir -p "$DOWNLOADS/archives"
+    mkdir -p "$DOWNLOADS/software"
+    mkdir -p "$DOWNLOADS/images"
+    mkdir -p "$DOWNLOADS/scripts"
+    mkdir -p "$DOWNLOADS/other"
+    
+    # Move files by extension
+    if confirm "Would you like to organize your Downloads folder by file type?"; then
+        # Documents
+        find "$DOWNLOADS" -maxdepth 1 -type f \( -name "*.pdf" -o -name "*.doc" -o -name "*.docx" -o -name "*.txt" -o -name "*.odt" -o -name "*.rtf" -o -name "*.qbo" -o -name "*.csv" \) -exec mv {} "$DOWNLOADS/documents/" \;
+        
+        # Archives
+        find "$DOWNLOADS" -maxdepth 1 -type f \( -name "*.zip" -o -name "*.tar.gz" -o -name "*.tar" -o -name "*.gz" -o -name "*.bz2" -o -name "*.xz" -o -name "*.rar" \) -exec mv {} "$DOWNLOADS/archives/" \;
+        
+        # Software
+        find "$DOWNLOADS" -maxdepth 1 -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.exe" -o -name "*.msi" -o -name "*.dmg" \) -exec mv {} "$DOWNLOADS/software/" \;
+        
+        # Images
+        find "$DOWNLOADS" -maxdepth 1 -type f \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" -o -name "*.gif" -o -name "*.svg" -o -name "*.bmp" \) -exec mv {} "$DOWNLOADS/images/" \;
+        
+        # Scripts
+        find "$DOWNLOADS" -maxdepth 1 -type f \( -name "*.sh" -o -name "*.bash" -o -name "*.py" -o -name "*.pl" -o -name "*.rb" -o -name "*.js" -o -name "*.md" \) -exec mv {} "$DOWNLOADS/scripts/" \;
+        
+        log "${GREEN}Downloads folder organized by file type${NC}"
+    fi
+    
+    # Special handling for financial documents
+    if confirm "Would you like to move financial documents to your Documents folder?"; then
+        FINANCE_DIR="$HOME/Documents/Financial"
+        mkdir -p "$FINANCE_DIR"
+        
+        # Look for likely financial documents
+        FINANCE_DOCS=$(find "$DOWNLOADS/documents" -type f \( -name "*statement*" -o -name "*tax*" -o -name "*W2*" -o -name "*1099*" -o -name "*1120*" -o -name "*8949*" -o -name "*Schedule*" -o -name "*Form*" -o -name "*transaction*" -o -name "*.qbo" -o -name "*budget*" \))
+        
+        if [ -n "$FINANCE_DOCS" ]; then
+            for doc in $FINANCE_DOCS; do
+                log "Moving financial document: $(basename "$doc")"
+                mv "$doc" "$FINANCE_DIR/"
+            done
+            log "${GREEN}Financial documents moved to $FINANCE_DIR${NC}"
+        else
+            log "No obvious financial documents found"
+        fi
+    fi
+}
+
+# Handle duplicate scripts
+clean_duplicate_scripts() {
+    log "Looking for duplicate scripts..."
+    
+    # Check for ethereum node setup scripts
+    NODE_SCRIPTS=$(find "$HOME" -name "production-ready-ethereum-node-setup-script*.sh")
+    
+    if [ -n "$NODE_SCRIPTS" ]; then
+        log "Found multiple ethereum node setup scripts:"
+        echo "$NODE_SCRIPTS" | tee -a "$LOG_FILE"
+        
+        if confirm "Would you like to keep only the latest version?"; then
+            mkdir -p "$BACKUP_DIR/scripts"
+            
+            # Find the most recently modified script
+            LATEST_SCRIPT=$(ls -t $NODE_SCRIPTS | head -1)
+            
+            for script in $NODE_SCRIPTS; do
+                if [ "$script" != "$LATEST_SCRIPT" ]; then
+                    log "Moving $script to backup..."
+                    mv "$script" "$BACKUP_DIR/scripts/"
+                fi
+            done
+            
+            log "${GREEN}Kept only the latest script: $LATEST_SCRIPT${NC}"
+        fi
+    fi
+    
+    # Check for server setup scripts
+    SERVER_SCRIPTS=$(find "$HOME" -name "server-setup-script*.sh")
+    
+    if [ -n "$SERVER_SCRIPTS" ]; then
+        log "Found multiple server setup scripts:"
+        echo "$SERVER_SCRIPTS" | tee -a "$LOG_FILE"
+        
+        if confirm "Would you like to keep only the latest version?"; then
+            mkdir -p "$BACKUP_DIR/scripts"
+            
+            # Find the most recently modified script
+            LATEST_SCRIPT=$(ls -t $SERVER_SCRIPTS | head -1)
+            
+            for script in $SERVER_SCRIPTS; do
+                if [ "$script" != "$LATEST_SCRIPT" ]; then
+                    log "Moving $script to backup..."
+                    mv "$script" "$BACKUP_DIR/scripts/"
+                fi
+            done
+            
+            log "${GREEN}Kept only the latest script: $LATEST_SCRIPT${NC}"
+        fi
+    fi
+}
+
+# Clean snap packages
+clean_snap_packages() {
+    if ! command -v snap &> /dev/null; then
+        log "${YELLOW}snap not installed, skipping snap cleanup${NC}"
+        return
+    fi
+    
+    log "Checking for old snap revisions..."
+    
+    # List all disabled snap packages
+    DISABLED_SNAPS=$(snap list --all | grep disabled || echo "")
+    
+    if [ -z "$DISABLED_SNAPS" ]; then
+        log "No disabled snap revisions found"
+    else
+        log "Found disabled snap revisions:"
+        echo "$DISABLED_SNAPS" | tee -a "$LOG_FILE"
+        
+        if confirm "Would you like to remove old snap revisions?"; then
+            log "Setting snap retention policy to 2 revisions..."
+            sudo snap set system refresh.retain=2
+            
+            log "Removing old snap revisions..."
+            snap list --all | awk '/disabled/{print $1, $3}' | while read snapname revision; do
+                log "Removing $snapname revision $revision..."
+                sudo snap remove "$snapname" --revision="$revision"
+            done
+            
+            log "${GREEN}Old snap revisions removed${NC}"
+        fi
+    fi
+}
+
+# Find and handle duplicate files
+find_duplicate_files() {
+    log "Checking for duplicate files..."
+    
+    # Install fdupes if not already installed
+    if ! command -v fdupes &> /dev/null; then
+        if confirm "fdupes (duplicate file finder) is not installed. Would you like to install it?"; then
+            log "Installing fdupes..."
+            sudo apt update && sudo apt install -y fdupes
+        else
+            log "Skipping duplicate file detection (fdupes not installed)"
+            return
+        fi
+    fi
+    
+    # Create duplicate files report
+    DUPES_REPORT="$BACKUP_DIR/duplicate_files.txt"
+    log "Scanning for duplicate files (this may take a while)..."
+    
+    if [ "$VERBOSE" = true ]; then
+        fdupes -r "$HOME" | tee "$DUPES_REPORT"
+    else
+        fdupes -r "$HOME" > "$DUPES_REPORT"
+    fi
+    
+    # Count number of duplicate file sets
+    DUPE_SETS=$(grep -c "^$" "$DUPES_REPORT" || echo "0")
+    
+    if [ "$DUPE_SETS" -eq 0 ]; then
+        log "No duplicate files found"
+        return
+    fi
+    
+    TOTAL_DUPES=$(grep -v "^$" "$DUPES_REPORT" | wc -l)
+    WASTED_SPACE=$(grep -v "^$" "$DUPES_REPORT" | xargs -I{} du -ch "{}" 2>/dev/null | grep total$ | tail -1 | cut -f1)
+    
+    log "Found ${CYAN}$DUPE_SETS${NC} sets of duplicate files with ${CYAN}$TOTAL_DUPES${NC} total files"
+    log "Potential space savings: ${CYAN}$WASTED_SPACE${NC}"
+    
+    if [ "$REPORT_ONLY" = true ]; then
+        log "Duplicate file report saved to $DUPES_REPORT"
+        return
+    fi
+    
+    if confirm "Would you like to review and clean up duplicate files?"; then
+        # Make a backup copy of the report
+        cp "$DUPES_REPORT" "$DUPES_REPORT.bak"
+        
+        # Open the report in a text editor if interactive
+        if [ "$INTERACTIVE" = true ]; then
+            if command -v nano &> /dev/null; then
+                log "Opening duplicate file report in nano..."
+                nano "$DUPES_REPORT"
+            else
+                log "Opening duplicate file report in less..."
+                less "$DUPES_REPORT"
+            fi
+        fi
+        
+        if confirm "Would you like to interactively remove duplicate files?"; then
+            log "Starting interactive duplicate file removal..."
+            fdupes -rd "$HOME"
+            log "${GREEN}Duplicate file cleanup completed${NC}"
+        fi
+    fi
+}
+
+# Clean Docker resources if installed
+clean_docker() {
+    if ! command -v docker &> /dev/null; then
+        log "${YELLOW}Docker not installed, skipping Docker cleanup${NC}"
+        return
+    fi
+    
+    log "Checking Docker resources..."
+    
+    # Check if Docker service is running
+    if ! systemctl is-active --quiet docker; then
+        log "${YELLOW}Docker service is not running, skipping Docker cleanup${NC}"
+        return
+    fi
+    
+    # Get Docker disk usage
+    DOCKER_USAGE=$(docker system df 2>/dev/null || echo "Docker not responding")
+    log "Current Docker disk usage:"
+    echo "$DOCKER_USAGE" | tee -a "$LOG_FILE"
+    
+    if confirm "Would you like to clean up unused Docker resources?"; then
+        log "Removing unused Docker containers..."
+        docker container prune -f
+        
+        log "Removing unused Docker images..."
+        docker image prune -f
+        
+        log "Removing unused Docker volumes..."
+        docker volume prune -f
+        
+        log "Removing unused Docker networks..."
+        docker network prune -f
+        
+        # Get new Docker disk usage
+        NEW_DOCKER_USAGE=$(docker system df)
+        log "${GREEN}Docker cleanup completed${NC}"
+        log "New Docker disk usage:"
+        echo "$NEW_DOCKER_USAGE" | tee -a "$LOG_FILE"
+    fi
+}
+
+# Clean browser caches
+clean_browser_caches() {
+    log "Checking browser caches..."
+    
+    # Chrome/Chromium cache
+    CHROME_CACHE="$HOME/.cache/google-chrome"
+    CHROMIUM_CACHE="$HOME/.cache/chromium"
+    BRAVE_CACHE="$HOME/.config/BraveSoftware/Brave-Browser/Default/Cache"
+    
+    # Firefox cache
+    FIREFOX_CACHE="$HOME/.mozilla/firefox"
+    FIREFOX_PROFILE=$(find "$FIREFOX_CACHE" -name "*.default*" -type d 2>/dev/null | head -1)
+    
+    # Calculate total cache size
+    CACHE_SIZE=0
+    
+    if [ -d "$CHROME_CACHE" ]; then
+        CHROME_SIZE=$(du -sh "$CHROME_CACHE" | cut -f1)
+        log "Chrome cache: ${CYAN}$CHROME_SIZE${NC}"
+        CACHE_SIZE=$((CACHE_SIZE + $(du -s "$CHROME_CACHE" | cut -f1)))
+    fi
+    
+    if [ -d "$CHROMIUM_CACHE" ]; then
+        CHROMIUM_SIZE=$(du -sh "$CHROMIUM_CACHE" | cut -f1)
+        log "Chromium cache: ${CYAN}$CHROMIUM_SIZE${NC}"
+        CACHE_SIZE=$((CACHE_SIZE + $(du -s "$CHROMIUM_CACHE" | cut -f1)))
+    fi
+    
+    if [ -d "$BRAVE_CACHE" ]; then
+        BRAVE_SIZE=$(du -sh "$BRAVE_CACHE" | cut -f1)
+        log "Brave cache: ${CYAN}$BRAVE_SIZE${NC}"
+        CACHE_SIZE=$((CACHE_SIZE + $(du -s "$BRAVE_CACHE" | cut -f1)))
+    fi
+    
+    if [ -n "$FIREFOX_PROFILE" ]; then
+        FIREFOX_CACHE_DIR="$FIREFOX_PROFILE/Cache"
+        if [ -d "$FIREFOX_CACHE_DIR" ]; then
+            FIREFOX_SIZE=$(du -sh "$FIREFOX_CACHE_DIR" | cut -f1)
+            log "Firefox cache: ${CYAN}$FIREFOX_SIZE${NC}"
+            CACHE_SIZE=$((CACHE_SIZE + $(du -s "$FIREFOX_CACHE_DIR" | cut -f1)))
+        fi
+    fi
+    
+    CACHE_SIZE_MB=$(echo "$CACHE_SIZE / 1024" | bc)
+    log "Total browser cache size: ${CYAN}${CACHE_SIZE_MB}MB${NC}"
+    
+    if [ "$CACHE_SIZE" -eq 0 ]; then
+        log "No browser caches found"
+        return
+    fi
+    
+    if confirm "Would you like to clean browser caches?"; then
+        # Close browsers first
+        log "Checking for running browsers..."
+        BROWSERS_RUNNING=false
+        
+        for browser in chrome chromium brave firefox; do
+            if pgrep -x "$browser" > /dev/null; then
+                log "${YELLOW}$browser is running and should be closed before cleaning cache${NC}"
+                BROWSERS_RUNNING=true
+            fi
+        done
+        
+        if [ "$BROWSERS_RUNNING" = true ]; then
+            if ! confirm "Browsers are still running. Continue anyway?"; then
+                log "Skipping browser cache cleanup"
+                return
+            fi
+        fi
+        
+        # Clean Chrome cache
+        if [ -d "$CHROME_CACHE" ]; then
+            log "Cleaning Chrome cache..."
+            rm -rf "$CHROME_CACHE"/*
+        fi
+        
+        # Clean Chromium cache
+        if [ -d "$CHROMIUM_CACHE" ]; then
+            log "Cleaning Chromium cache..."
+            rm -rf "$CHROMIUM_CACHE"/*
+        fi
+        
+        # Clean Brave cache
+        if [ -d "$BRAVE_CACHE" ]; then
+            log "Cleaning Brave cache..."
+            rm -rf "$BRAVE_CACHE"/*
+        fi
+        
+        # Clean Firefox cache
+        if [ -d "$FIREFOX_CACHE_DIR" ]; then
+            log "Cleaning Firefox cache..."
+            rm -rf "$FIREFOX_CACHE_DIR"/*
+        fi
+        
+        log "${GREEN}Browser caches cleaned${NC}"
+    fi
+}
+
+# Clean system journals
+clean_system_journals() {
+    if ! command -v journalctl &> /dev/null; then
+        log "${YELLOW}journalctl not available, skipping journal cleanup${NC}"
+        return
+    fi
+    
+    log "Checking system journal size..."
+    
+    JOURNAL_SIZE=$(journalctl --disk-usage | cut -d " " -f7-8)
+    log "Current journal size: ${CYAN}$JOURNAL_SIZE${NC}"
+    
+    if confirm "Would you like to clean up system journals?"; then
+        log "Cleaning system journals older than 7 days..."
+        sudo journalctl --vacuum-time=7d
+        
+        NEW_JOURNAL_SIZE=$(journalctl --disk-usage | cut -d " " -f7-8)
+        log "${GREEN}Journal cleanup completed${NC}"
+        log "New journal size: ${CYAN}$NEW_JOURNAL_SIZE${NC}"
+    fi
+}
+
+# Run system maintenance tasks
+system_maintenance() {
+    if confirm "Would you like to run system maintenance tasks (apt clean, autoremove)?"; then
+        log "Running apt clean..."
+        sudo apt clean
+        
+        log "Running apt autoremove..."
+        sudo apt autoremove -y
+        
+        log "Cleaning package lists..."
+        sudo rm -rf /var/lib/apt/lists/*
+        
+        log "Cleaning thumbnails cache..."
+        rm -rf ~/.cache/thumbnails/*
+        
+        log "${GREEN}System maintenance tasks completed${NC}"
+    fi
+    
+    if confirm "Would you like to check for and remove old kernel packages (BE CAREFUL)?"; then
+        CURRENT_KERNEL=$(uname -r | sed "s/\(.*\)-\([^0-9]\+\)/\1/")
+        log "Current kernel: $CURRENT_KERNEL"
+        
+        OLD_KERNELS=$(dpkg -l 'linux-*' | sed '/^ii/!d;/'"$CURRENT_KERNEL"'/d;s/^[^ ]* [^ ]* \([^ ]*\).*/\1/;/[0-9]/!d')
+        
+        if [ -z "$OLD_KERNELS" ]; then
+            log "No old kernel packages found"
+        else
+            log "Found old kernel packages:"
+            echo "$OLD_KERNELS" | tee -a "$LOG_FILE"
+            
+            if confirm "${RED}WARNING: This will remove old kernel packages. Make sure your system is stable. Continue?${NC}"; then
+                log "Removing old kernel packages..."
+                sudo apt purge $OLD_KERNELS -y
+                log "${GREEN}Old kernel packages removed${NC}"
+            fi
+        fi
+    fi
+}
+
+# Set up scheduled cleaning
+setup_scheduled_cleaning() {
+    if command -v crontab &> /dev/null; then
+        log "Setting up scheduled cleaning..."
+        
+        # Get current script path
+        SCRIPT_PATH=$(readlink -f "$0")
+        
+        # Create a temp file for crontab
+        TEMP_CRON=$(mktemp)
+        crontab -l > "$TEMP_CRON" 2>/dev/null || echo "# $PROGRAM_NAME scheduled tasks" > "$TEMP_CRON"
+        
+        # Remove any existing TidyTux cron jobs to avoid duplicates
+        grep -v "$PROGRAM_NAME" "$TEMP_CRON" > "${TEMP_CRON}.new"
+        mv "${TEMP_CRON}.new" "$TEMP_CRON"
+        
+        # Choose schedule
+        echo "Select schedule for automated cleanup:"
+        echo "1) Weekly (Sunday at 2am)"
+        echo "2) Monthly (1st of month at 3am)"
+        echo "3) Daily (every day at 4am)"
+        read -r -p "Choose schedule [1-3]: " schedule_choice
+        
+        case "$schedule_choice" in
+            1)
+                echo "# $PROGRAM_NAME v$VERSION weekly cleanup" >> "$TEMP_CRON"
+                echo "0 2 * * 0 $SCRIPT_PATH --yes --quiet" >> "$TEMP_CRON"
+                SCHEDULE_MSG="weekly (Sunday at 2am)"
+                ;;
+            2)
+                echo "# $PROGRAM_NAME v$VERSION monthly cleanup" >> "$TEMP_CRON"
+                echo "0 3 1 * * $SCRIPT_PATH --yes --quiet" >> "$TEMP_CRON"
+                SCHEDULE_MSG="monthly (1st of month at 3am)"
+                ;;
+            3)
+                echo "# $PROGRAM_NAME v$VERSION daily cleanup" >> "$TEMP_CRON"
+                echo "0 4 * * * $SCRIPT_PATH --yes --quiet" >> "$TEMP_CRON"
+                SCHEDULE_MSG="daily (every day at 4am)"
+                ;;
+            *)
+                log "${YELLOW}Invalid choice, using weekly schedule${NC}"
+                echo "# $PROGRAM_NAME v$VERSION weekly cleanup" >> "$TEMP_CRON"
+                echo "0 2 * * 0 $SCRIPT_PATH --yes --quiet" >> "$TEMP_CRON"
+                SCHEDULE_MSG="weekly (Sunday at 2am)"
+                ;;
+        esac
+        
+        # Install new crontab
+        crontab "$TEMP_CRON"
+        rm "$TEMP_CRON"
+        
+        log "${GREEN}Scheduled cleanup set up for $SCHEDULE_MSG${NC}"
+        log "Use 'crontab -l' to view and 'crontab -e' to modify schedule"
+    else
+        log "${YELLOW}crontab not available, skipping scheduled cleanup${NC}"
+    fi
+}
+
+# Show disk usage summary
+disk_usage_summary() {
+    # Calculate space saved
+    FINAL_DISK_USAGE=$(df -h --output=used "$HOME" | tail -1 | tr -d ' ')
+    
+    log "${GREEN}===== Disk Usage Summary =====${NC}"
+    log "Before cleanup: ${CYAN}$INITIAL_DISK_USAGE${NC}"
+    log "After cleanup:  ${CYAN}$FINAL_DISK_USAGE${NC}"
+    
+    # Get time elapsed
+    END_TIME=$(date +%s)
+    RUNTIME=$((END_TIME - START_TIME))
+    MINUTES=$((RUNTIME / 60))
+    SECONDS=$((RUNTIME % 60))
+    
+    log "Script runtime: ${CYAN}${MINUTES}m ${SECONDS}s${NC}"
+    
+    if command -v ncdu &> /dev/null && confirm "Would you like to see detailed disk usage with ncdu?"; then
+        log "Running ncdu on home directory..."
+        ncdu "$HOME"
+    else
+        log "Top 10 largest directories/files:"
+        du -sh "$HOME"/* | sort -hr | head -10 | tee -a "$LOG_FILE"
+    fi
+}
+
+# Main execution
+main() {
+    # Process command line arguments
+    parse_arguments "$@"
+    
+    # Create backup directory structure right away (fix for logging issue)
+    mkdir -p "$BACKUP_DIR"
+    
+    if [ "$INTERACTIVE" = true ]; then
+        clear
+        echo -e "${GREEN}========== $PROGRAM_NAME v$VERSION ==========${NC}"
+        echo -e "${CYAN}$PROGRAM_DESCRIPTION${NC}"
+        echo -e "${YELLOW}This utility will clean up your system by:${NC}"
+        echo "  - Moving .deb installation files to backup"
+        echo "  - Organizing your Downloads folder"
+        echo "  - Managing duplicate scripts"
+        echo "  - Cleaning up old snap revisions"
+        echo "  - Cleaning browser caches" 
+        echo "  - Cleaning Docker resources (if installed)"
+        echo "  - Finding and removing duplicate files"
+        echo "  - Running system maintenance tasks"
+        echo "  - Showing disk usage information"
+        echo
+        echo -e "${RED}IMPORTANT: This script will move files around your system.${NC}"
+        echo -e "${RED}A backup will be created at $BACKUP_DIR${NC}"
+        echo
+        
+        if ! confirm "Do you want to proceed?"; then
+            echo "Cleanup canceled. Exiting..."
+            exit 0
+        fi
+    fi
+    
+    # Create backup directory
+    create_backup_dir
+    
+    # Check for required tools
+    install_required_tools
+    
+    # Start the cleanup process
+    check_disk_space
+    
+    # If report only mode, just gather information
+    if [ "$REPORT_ONLY" = true ]; then
+        log "Running in report-only mode (no changes will be made)"
+        find_duplicate_files
+        clean_deb_files
+        disk_usage_summary
+        log "$PROGRAM_NAME completed in report-only mode"
+        exit 0
+    fi
+    
+    # Run all cleanup tasks
+    # Use subshells for parallelization where possible
+    (clean_deb_files) &
+    (organize_downloads) &
+    wait  # Wait for parallel tasks to complete
+    
+    clean_duplicate_scripts
+    clean_snap_packages
+    find_duplicate_files
+    clean_docker
+    clean_browser_caches
+    clean_system_journals
+    system_maintenance
+    
+    # Show final summary
+    disk_usage_summary
+    
+    echo
+    log "${GREEN}========== $PROGRAM_NAME Completed ==========${NC}"
+    log "Backup created at: $BACKUP_DIR"
+    log "Log file: $LOG_FILE"
+    echo
+    
+    # Set up scheduled cleaning if requested
+    if [ "$SCHEDULE" = true ]; then
+        setup_scheduled_cleaning
+    elif [ "$INTERACTIVE" = true ]; then
+        if confirm "Would you like to set up scheduled automatic cleaning?"; then
+            setup_scheduled_cleaning
+        fi
+    fi
+    
+    if [ "$INTERACTIVE" = true ] && confirm "Would you like to see a summary of actions taken?"; then
+        if command -v less &> /dev/null; then
+            less "$LOG_FILE"
+        else
+            cat "$LOG_FILE"
+        fi
+    fi
+    
+    log "$PROGRAM_NAME v$VERSION completed successfully"
+}
+
+# Run the main function with all arguments
+main "$@"

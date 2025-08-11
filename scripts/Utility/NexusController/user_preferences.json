@@ -1,0 +1,79 @@
+{
+  "wizard_version": "1.0",
+  "completed_at": "2025-08-03T02:16:25.693256",
+  "github": {
+    "username": "eboncorp",
+    "has_work_account": false,
+    "active_repos": "https://github.com/eboncorp/chainlink-node-setup, https://github.com/eboncorp/ethereum-node-manager.sh, https://github.com/eboncorp/ethereum-node-setup, https://github.com/eboncorp/full_eth_node_setup",
+    "backup_configs": false,
+    "auto_ssh_keys": false
+  },
+  "cloud": {
+    "providers": [
+      "DigitalOcean"
+    ],
+    "primary_provider": "DigitalOcean",
+    "instance_count": "1-5",
+    "cost_monitoring": true,
+    "containers": [
+      "Docker"
+    ],
+    "vpn_preference": "no prefrence, but i do have a nordvpn account."
+  },
+  "infrastructure": {
+    "network_type": "Home lab (single location)",
+    "other_servers": "just the local machine im on now, but plan on adding more rackmount servers.",
+    "databases": null,
+    "development_stack": [
+      "Python",
+      "JavaScript/Node.js",
+      "Go",
+      "Rust",
+      "Java",
+      "C/C++",
+      "PHP",
+      "Ruby",
+      "Other"
+    ],
+    "other_languages": "shell"
+  },
+  "security": {
+    "level": "High Security (balanced security with some convenience)",
+    "backup_strategy": "Both cloud and local",
+    "monitoring_level": "Standard (health + alerts)"
+  },
+  "workflow": {
+    "ide": [
+      "VS Code"
+    ],
+    "shell": "Bash",
+    "operating_systems": [
+      "Ubuntu/Debian",
+      "Windows (WSL)"
+    ],
+    "automation_preferences": "updates.",
+    "terminal_multiplexer": "Terminal tabs/windows only"
+  },
+  "features": {
+    "interface_preference": "CLI + Web dashboard",
+    "notification_integrations": [
+      "Email alerts"
+    ],
+    "desired_automation": [
+      "Infrastructure as Code (Terraform/Ansible)",
+      "CI/CD Pipeline automation",
+      "Automated testing and deployment",
+      "Log aggregation and analysis",
+      "Performance monitoring and optimization",
+      "Cost optimization recommendations",
+      "Security vulnerability scanning",
+      "Backup verification and testing"
+    ],
+    "priorities": [
+      "Security and compliance",
+      "Integration capabilities",
+      "Comprehensive monitoring"
+    ],
+    "additional_comments": "not at the moment."
+  }
+}
