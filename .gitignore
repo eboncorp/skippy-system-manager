@@ -1,0 +1,37 @@
+# Sensitive files to exclude from Git
+# Sensitive files and directories
+.ssh/
+*.odt
+*token*
+*key*
+*.pem
+*.p12
+*.pfx
+config.yaml
+secrets/
+.env
+.env.*
+personal/
+private/
+*.log
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+
+# Large downloads and archives
+Downloads/
+archives/
+*.zip
+*.tar.gz
+*.pdf
+*.exe
+*.dmg
+*.AppImage
+*.deb
+
+# Personal documents
+GoogleDrive/
+OneDrive/
+Dropbox/
+Personal/
