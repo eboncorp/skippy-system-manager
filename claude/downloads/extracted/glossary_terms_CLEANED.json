@@ -1,0 +1,639 @@
+[
+  {
+    "name": "Appropriation",
+    "definition": "Money officially allocated by Metro Council for a specific purpose. Once appropriated, departments can spend it. Think of it like Congress approving funding - it's the formal permission to spend taxpayer dollars.",
+    "full_text": "Money officially allocated by Metro Council for a specific purpose. Once appropriated, departments can spend it. Think of it like Congress approving funding - it's the formal permission to spend taxpayer dollars.",
+    "category": "Budget & Finance",
+    "section": "BUDGET BASICS"
+  },
+  {
+    "name": "Audit",
+    "definition": "Independent review of city finances to ensure accuracy and compliance. Annual audits required by law.\n\n---",
+    "full_text": "Independent review of city finances to ensure accuracy and compliance. Annual audits required by law.\n\n---",
+    "category": "Health & Social Services",
+    "section": "ACCOUNTABILITY TERMS"
+  },
+  {
+    "name": "Bail Reform",
+    "definition": "Reducing reliance on cash bail (where only rich people can afford to leave jail before trial) and using risk assessment instead. Keeps dangerous people locked up, releases low-risk people, saves money.",
+    "full_text": "Reducing reliance on cash bail (where only rich people can afford to leave jail before trial) and using risk assessment instead. Keeps dangerous people locked up, releases low-risk people, saves money.",
+    "category": "Criminal Justice",
+    "section": "CRIMINAL JUSTICE TERMS"
+  },
+  {
+    "name": "Balanced Budget",
+    "definition": "Revenue equals expenditures - no deficit spending. Required by law for Louisville. Dave's budget is fully balanced.",
+    "full_text": "Revenue equals expenditures - no deficit spending. Required by law for Louisville. Dave's budget is fully balanced.",
+    "category": "Budget & Finance",
+    "section": "FINANCIAL TERMS"
+  },
+  {
+    "name": "Bond",
+    "definition": "A loan the city takes out for major capital projects (like building a new library). Paid back over many years, similar to a mortgage.",
+    "full_text": "A loan the city takes out for major capital projects (like building a new library). Paid back over many years, similar to a mortgage.",
+    "category": "Budget & Finance",
+    "section": "FINANCIAL TERMS"
+  },
+  {
+    "name": "Budget Variance",
+    "definition": "The difference between what was budgeted and what was actually spent. If we budget $10M for roads and spend $12M, the variance is $2M over. We track this in real-time so you can hold us accountable.",
+    "full_text": "The difference between what was budgeted and what was actually spent. If we budget $10M for roads and spend $12M, the variance is $2M over. We track this in real-time so you can hold us accountable.",
+    "category": "Budget & Finance",
+    "section": "BUDGET BASICS"
+  },
+  {
+    "name": "Capital Budget",
+    "definition": "Money spent on long-term assets like buildings, roads, and equipment that last multiple years. If it lasts longer than one year, it's usually \"capital\" spending. Building a mini substation is capital; paying the officers who work there is operating.",
+    "full_text": "Money spent on long-term assets like buildings, roads, and equipment that last multiple years. If it lasts longer than one year, it's usually \"capital\" spending. Building a mini substation is capital; paying the officers who work there is operating.",
+    "category": "Budget & Finance",
+    "section": "BUDGET BASICS"
+  },
+  {
+    "name": "Capital Outlay",
+    "definition": "Purchases of equipment, vehicles, or infrastructure that last multiple years. A new fire truck is capital outlay. Gasoline for the fire truck is operating expense.",
+    "full_text": "Purchases of equipment, vehicles, or infrastructure that last multiple years. A new fire truck is capital outlay. Gasoline for the fire truck is operating expense.",
+    "category": "Budget & Finance",
+    "section": "SPENDING CATEGORIES"
+  },
+  {
+    "name": "Co-Responder Model",
+    "definition": "Police officer + mental health professional responding together to certain calls. Better outcomes, safer for everyone.",
+    "full_text": "Police officer + mental health professional responding together to certain calls. Better outcomes, safer for everyone.",
+    "category": "Criminal Justice",
+    "section": "CRIMINAL JUSTICE TERMS"
+  },
+  {
+    "name": "Community Detective",
+    "definition": "Police detective assigned to a specific district focused on preventing crime through community relationships, not just solving crimes after they happen. They know the neighborhood, the people, the problems. They build trust before incidents occur.",
+    "full_text": "Police detective assigned to a specific district focused on preventing crime through community relationships, not just solving crimes after they happen. They know the neighborhood, the people, the problems. They build trust before incidents occur.",
+    "category": "Budget & Finance",
+    "section": "PROGRAMS IN DAVE'S BUDGET"
+  },
+  {
+    "name": "Community Input",
+    "definition": "Opportunities for residents to provide feedback on programs and priorities. Monthly community meetings, participatory budgeting, etc.",
+    "full_text": "Opportunities for residents to provide feedback on programs and priorities. Monthly community meetings, participatory budgeting, etc.",
+    "category": "Health & Social Services",
+    "section": "ACCOUNTABILITY TERMS"
+  },
+  {
+    "name": "Community Policing",
+    "definition": "Police strategy where officers build relationships with community members through regular positive contact, not just emergency response. The foundation of mini substations.",
+    "full_text": "Police strategy where officers build relationships with community members through regular positive contact, not just emergency response. The foundation of mini substations.",
+    "category": "Criminal Justice",
+    "section": "CRIMINAL JUSTICE TERMS"
+  },
+  {
+    "name": "Community Trust",
+    "definition": "How much residents trust police and government. Mini substations increase trust by average of 35% in cities using this model.",
+    "full_text": "How much residents trust police and government. Mini substations increase trust by average of 35% in cities using this model.",
+    "category": "Health & Social Services",
+    "section": "PROGRAM OUTCOMES"
+  },
+  {
+    "name": "Community Wellness Center",
+    "definition": "One-stop facility providing primary healthcare (nurse practitioners), mental health counseling, substance abuse treatment, social services navigation, and community programs. Think of it as a neighborhood health hub - not a hospital, but a place where you can get care for the things that often lead to emergencies.",
+    "full_text": "One-stop facility providing primary healthcare (nurse practitioners), mental health counseling, substance abuse treatment, social services navigation, and community programs. Think of it as a neighborhood health hub - not a hospital, but a place where you can get care for the things that often lead to emergencies.",
+    "category": "Budget & Finance",
+    "section": "PROGRAMS IN DAVE'S BUDGET"
+  },
+  {
+    "name": "Competitive Pay",
+    "definition": "Salaries comparable to private sector jobs or surrounding jurisdictions. Dave's budget brings Louisville Metro salaries in line with surrounding counties and competitive with similar private sector positions. Essential for attracting and retaining quality employees.",
+    "full_text": "Salaries comparable to private sector jobs or surrounding jurisdictions. Dave's budget brings Louisville Metro salaries in line with surrounding counties and competitive with similar private sector positions. Essential for attracting and retaining quality employees.",
+    "category": "Health & Social Services",
+    "section": "EMPLOYEE COMPENSATION TERMS"
+  },
+  {
+    "name": "Conflict Mediation",
+    "definition": "Community-based dispute resolution that addresses conflicts before they turn violent. Trained mediators help resolve disputes without police or criminal justice involvement.",
+    "full_text": "Community-based dispute resolution that addresses conflicts before they turn violent. Trained mediators help resolve disputes without police or criminal justice involvement.",
+    "category": "Criminal Justice",
+    "section": "CRIMINAL JUSTICE TERMS"
+  },
+  {
+    "name": "Cost Savings",
+    "definition": "Money saved through prevention vs. crisis response. Wellness centers save $1.80 for every $1 spent. Youth programs save ~$150,000 per youth kept out of juvenile justice system.",
+    "full_text": "Money saved through prevention vs. crisis response. Wellness centers save $1.80 for every $1 spent. Youth programs save ~$150,000 per youth kept out of juvenile justice system.",
+    "category": "Health & Social Services",
+    "section": "PROGRAM OUTCOMES"
+  },
+  {
+    "name": "Cost-Benefit Analysis",
+    "definition": "Comparing the costs of a program to its benefits to determine if it's worth the investment. Dave's budget programs all have positive cost-benefit ratios based on evidence from other cities.\n\n---",
+    "full_text": "Comparing the costs of a program to its benefits to determine if it's worth the investment. Dave's budget programs all have positive cost-benefit ratios based on evidence from other cities.\n\n---",
+    "category": "Budget & Finance",
+    "section": "FINANCIAL TERMS"
+  },
+  {
+    "name": "Debt Ceiling",
+    "definition": "Legal limit on how much the city can borrow. Set by state law and local ordinance.",
+    "full_text": "Legal limit on how much the city can borrow. Set by state law and local ordinance.",
+    "category": "Budget & Finance",
+    "section": "FINANCIAL TERMS"
+  },
+  {
+    "name": "Debt Service",
+    "definition": "Money used to pay back bonds (loans) the city took out for major projects. Like a mortgage payment. Louisville pays approximately $30M/year in debt service for past projects.",
+    "full_text": "Money used to pay back bonds (loans) the city took out for major projects. Like a mortgage payment. Louisville pays approximately $30M/year in debt service for past projects.",
+    "category": "Budget & Finance",
+    "section": "SPENDING CATEGORIES"
+  },
+  {
+    "name": "Deficit",
+    "definition": "When spending exceeds revenue. Louisville cannot legally run a deficit in the general fund. Dave's budget has zero deficit.",
+    "full_text": "When spending exceeds revenue. Louisville cannot legally run a deficit in the general fund. Dave's budget has zero deficit.",
+    "category": "Budget & Finance",
+    "section": "FINANCIAL TERMS"
+  },
+  {
+    "name": "Diversion Programs",
+    "definition": "Alternatives to jail for non-violent offenders (treatment, community service, monitoring). More effective than incarceration and much cheaper.",
+    "full_text": "Alternatives to jail for non-violent offenders (treatment, community service, monitoring). More effective than incarceration and much cheaper.",
+    "category": "Criminal Justice",
+    "section": "CRIMINAL JUSTICE TERMS"
+  },
+  {
+    "name": "Don't Have ID?",
+    "definition": "You can still vote by signing an affidavit stating you are the registered voter.\n\n---",
+    "full_text": "You can still vote by signing an affidavit stating you are the registered voter.\n\n---",
+    "category": "Voting & Elections",
+    "section": "VOTING & ELECTIONS TERMS"
+  },
+  {
+    "name": "Educational Benefits",
+    "definition": "Programs that help employees pay for college, job training, or professional development. Dave's budget includes tuition assistance for employees pursuing education that advances their career. Helps retain employees and improves workforce quality.",
+    "full_text": "Programs that help employees pay for college, job training, or professional development. Dave's budget includes tuition assistance for employees pursuing education that advances their career. Helps retain employees and improves workforce quality.",
+    "category": "Health & Social Services",
+    "section": "EMPLOYEE COMPENSATION TERMS"
+  },
+  {
+    "name": "Evidence-Based Budgeting",
+    "definition": "Making spending decisions based on proven results from research and other cities' experiences, not political promises or assumptions. Dave's budget is based on outcomes from 50+ cities using similar approaches.",
+    "full_text": "Making spending decisions based on proven results from research and other cities' experiences, not political promises or assumptions. Dave's budget is based on outcomes from 50+ cities using similar approaches.",
+    "category": "Budget & Finance",
+    "section": "KEY BUDGET CONCEPTS"
+  },
+  {
+    "name": "Executive Branch",
+    "definition": "The Mayor and departments that implement laws and deliver services. The \"doers\" of government.",
+    "full_text": "The Mayor and departments that implement laws and deliver services. The \"doers\" of government.",
+    "category": "Government Structure",
+    "section": "GOVERNANCE TERMS"
+  },
+  {
+    "name": "Fire Prevention Centers",
+    "definition": "Community facilities focused on teaching fire safety, conducting free home inspections, installing smoke detectors, and preventing fires before they start. Especially focused on seniors and high-risk populations.",
+    "full_text": "Community facilities focused on teaching fire safety, conducting free home inspections, installing smoke detectors, and preventing fires before they start. Especially focused on seniors and high-risk populations.",
+    "category": "Budget & Finance",
+    "section": "PROGRAMS IN DAVE'S BUDGET"
+  },
+  {
+    "name": "Fiscal Year (FY)",
+    "definition": "Louisville's budget year runs from July 1 to June 30. FY 2025-2026 means July 1, 2025 through June 30, 2026. It's confusing, but most governments don't use the calendar year for budgets.",
+    "full_text": "Louisville's budget year runs from July 1 to June 30. FY 2025-2026 means July 1, 2025 through June 30, 2026. It's confusing, but most governments don't use the calendar year for budgets.",
+    "category": "Budget & Finance",
+    "section": "BUDGET BASICS"
+  },
+  {
+    "name": "Greenberg's Budget",
+    "definition": "Mayor Greenberg's approved $1.2 billion budget for FY 2025-2026. Traditional approach with centralized services and reactive policing.",
+    "full_text": "Mayor Greenberg's approved $1.2 billion budget for FY 2025-2026. Traditional approach with centralized services and reactive policing.",
+    "category": "Budget & Finance",
+    "section": "BUDGET COMPARISON TERMS"
+  },
+  {
+    "name": "Insurance Premium Tax",
+    "definition": "Tax on insurance policies (auto, home, life, etc.). The state collects it and shares a portion with cities. You don't see this directly - it's built into your insurance premiums.",
+    "full_text": "Tax on insurance policies (auto, home, life, etc.). The state collects it and shares a portion with cities. You don't see this directly - it's built into your insurance premiums.",
+    "category": "Budget & Finance",
+    "section": "REVENUE TERMS"
+  },
+  {
+    "name": "Intergovernmental Revenue",
+    "definition": "Money the city receives from state and federal governments, usually through grants. Like when the federal government gives money for roads or community development projects.",
+    "full_text": "Money the city receives from state and federal governments, usually through grants. Like when the federal government gives money for roads or community development projects.",
+    "category": "Budget & Finance",
+    "section": "REVENUE TERMS"
+  },
+  {
+    "name": "Jefferson County Clerk",
+    "definition": "- Website: jeffersoncountyclerk.org\n- Phone: (502) 574-6100\n- Address: 527 W Jefferson St, Louisville, KY 40202",
+    "full_text": "- Website: jeffersoncountyclerk.org\n- Phone: (502) 574-6100\n- Address: 527 W Jefferson St, Louisville, KY 40202",
+    "category": "Louisville-Specific",
+    "section": "IMPORTANT CONTACTS & RESOURCES"
+  },
+  {
+    "name": "Kentucky Attorney General",
+    "definition": "- Election Fraud Hotline: 1-800-328-VOTE (8683)\n- Website: ag.ky.gov",
+    "full_text": "- Election Fraud Hotline: 1-800-328-VOTE (8683)\n- Website: ag.ky.gov",
+    "category": "Louisville-Specific",
+    "section": "IMPORTANT CONTACTS & RESOURCES"
+  },
+  {
+    "name": "Kentucky State Board of Elections",
+    "definition": "- Website: elect.ky.gov\n- Phone: (502) 573-7100",
+    "full_text": "- Website: elect.ky.gov\n- Phone: (502) 573-7100",
+    "category": "Louisville-Specific",
+    "section": "IMPORTANT CONTACTS & RESOURCES"
+  },
+  {
+    "name": "Key Performance Indicators (KPIs)",
+    "definition": "Measurable goals used to track program success. Example: \"Reduce violent crime by 15% in Year 2\" is a KPI.",
+    "full_text": "Measurable goals used to track program success. Example: \"Reduce violent crime by 15% in Year 2\" is a KPI.",
+    "category": "Health & Social Services",
+    "section": "ACCOUNTABILITY TERMS"
+  },
+  {
+    "name": "League of Women Voters of Louisville",
+    "definition": "- Nonpartisan voter education\n- Website: lwvlouisville.org\n- Publishes voter guides",
+    "full_text": "- Nonpartisan voter education\n- Website: lwvlouisville.org\n- Publishes voter guides",
+    "category": "Louisville-Specific",
+    "section": "IMPORTANT CONTACTS & RESOURCES"
+  },
+  {
+    "name": "Legal Aid Society",
+    "definition": "- Free legal help for low-income residents\n- Phone: (502) 584-1254\n- Website: laslou.org",
+    "full_text": "- Free legal help for low-income residents\n- Phone: (502) 584-1254\n- Website: laslou.org",
+    "category": "Louisville-Specific",
+    "section": "IMPORTANT CONTACTS & RESOURCES"
+  },
+  {
+    "name": "Legislative Branch",
+    "definition": "Metro Council that makes laws and approves budgets. The \"rule-makers\" of government.",
+    "full_text": "Metro Council that makes laws and approves budgets. The \"rule-makers\" of government.",
+    "category": "Government Structure",
+    "section": "GOVERNANCE TERMS"
+  },
+  {
+    "name": "Line Item",
+    "definition": "A specific spending category in the budget (e.g., \"Police Officer Salaries\" or \"Park Maintenance\"). The more line items you see, the more transparent the budget. Our budget has 831 line items - most detailed mayoral budget Louisville has ever seen.",
+    "full_text": "A specific spending category in the budget (e.g., \"Police Officer Salaries\" or \"Park Maintenance\"). The more line items you see, the more transparent the budget. Our budget has 831 line items - most detailed mayoral budget Louisville has ever seen.",
+    "category": "Budget & Finance",
+    "section": "BUDGET BASICS"
+  },
+  {
+    "name": "Louisville Courier-Journal",
+    "definition": "- Local news and government coverage\n- Website: courier-journal.com",
+    "full_text": "- Local news and government coverage\n- Website: courier-journal.com",
+    "category": "Louisville-Specific",
+    "section": "IMPORTANT CONTACTS & RESOURCES"
+  },
+  {
+    "name": "Louisville Free Public Library",
+    "definition": "- Free access to government documents\n- Computers and internet access\n- Help navigating government websites\n\n---",
+    "full_text": "- Free access to government documents\n- Computers and internet access\n- Help navigating government websites\n\n---",
+    "category": "Louisville-Specific",
+    "section": "IMPORTANT CONTACTS & RESOURCES"
+  },
+  {
+    "name": "Louisville Public Media",
+    "definition": "- Website: louisvillepublicmedia.org",
+    "full_text": "- Website: louisvillepublicmedia.org",
+    "category": "Louisville-Specific",
+    "section": "IMPORTANT CONTACTS & RESOURCES"
+  },
+  {
+    "name": "Mental Health Crisis Response Team",
+    "definition": "Social workers or mental health professionals paired with police officers (or responding alone when appropriate) to mental health emergencies. When someone is having a mental health crisis, they need trained counseling, not just law enforcement.",
+    "full_text": "Social workers or mental health professionals paired with police officers (or responding alone when appropriate) to mental health emergencies. When someone is having a mental health crisis, they need trained counseling, not just law enforcement.",
+    "category": "Budget & Finance",
+    "section": "PROGRAMS IN DAVE'S BUDGET"
+  },
+  {
+    "name": "Mental Health Services",
+    "definition": "Counseling, therapy, psychiatric care for mental health conditions. Wellness centers provide this, reducing reliance on emergency rooms and police.",
+    "full_text": "Counseling, therapy, psychiatric care for mental health conditions. Wellness centers provide this, reducing reliance on emergency rooms and police.",
+    "category": "Health & Social Services",
+    "section": "HEALTH & SOCIAL SERVICES TERMS"
+  },
+  {
+    "name": "Metrics",
+    "definition": "Measurements used to assess program effectiveness. Crime rates, ER visit rates, graduation rates, etc.",
+    "full_text": "Measurements used to assess program effectiveness. Crime rates, ER visit rates, graduation rates, etc.",
+    "category": "Health & Social Services",
+    "section": "ACCOUNTABILITY TERMS"
+  },
+  {
+    "name": "Metro Council",
+    "definition": "Louisville's 26-member legislative body that passes laws and approves the budget. Like city council in other cities, but called \"Metro Council\" because of our city-county merger. 26 districts, each with one council member.",
+    "full_text": "Louisville's 26-member legislative body that passes laws and approves the budget. Like city council in other cities, but called \"Metro Council\" because of our city-county merger. 26 districts, each with one council member.",
+    "category": "Government Structure",
+    "section": "GOVERNANCE TERMS"
+  },
+  {
+    "name": "Mini Police Substation",
+    "definition": "Small neighborhood police office (approximately 5,000 square feet) with officers assigned to walk and bike patrols in the immediate area. Not a traditional distant precinct - more like a neighborhood police post. Officers work out of here and patrol on foot so you see them and know them.",
+    "full_text": "Small neighborhood police office (approximately 5,000 square feet) with officers assigned to walk and bike patrols in the immediate area. Not a traditional distant precinct - more like a neighborhood police post. Officers work out of here and patrol on foot so you see them and know them.",
+    "category": "Budget & Finance",
+    "section": "PROGRAMS IN DAVE'S BUDGET"
+  },
+  {
+    "name": "Occupational Tax",
+    "definition": "Tax on wages earned by people working in Louisville (currently 1.45% for city services, 0.75% for county services = 2.2% total). If you work in Louisville, this comes out of every paycheck whether you live here or not. It's one of the largest revenue sources.",
+    "full_text": "Tax on wages earned by people working in Louisville (currently 1.45% for city services, 0.75% for county services = 2.2% total). If you work in Louisville, this comes out of every paycheck whether you live here or not. It's one of the largest revenue sources.",
+    "category": "Budget & Finance",
+    "section": "REVENUE TERMS"
+  },
+  {
+    "name": "Operating Budget",
+    "definition": "Money spent on day-to-day operations like salaries, supplies, and services. As opposed to capital spending, these are ongoing costs that recur every year.",
+    "full_text": "Money spent on day-to-day operations like salaries, supplies, and services. As opposed to capital spending, these are ongoing costs that recur every year.",
+    "category": "Budget & Finance",
+    "section": "BUDGET BASICS"
+  },
+  {
+    "name": "Operating Expenses",
+    "definition": "Day-to-day costs like supplies, utilities, vehicle fuel, and equipment maintenance. Everything that isn't salary or capital. Electricity bills, office supplies, gasoline for patrol cars.",
+    "full_text": "Day-to-day costs like supplies, utilities, vehicle fuel, and equipment maintenance. Everything that isn't salary or capital. Electricity bills, office supplies, gasoline for patrol cars.",
+    "category": "Budget & Finance",
+    "section": "SPENDING CATEGORIES"
+  },
+  {
+    "name": "Ordinance",
+    "definition": "A law passed by Metro Council. The budget is passed as an ordinance each year. If Metro Council passes an ordinance, it becomes law (unless the mayor vetoes it).",
+    "full_text": "A law passed by Metro Council. The budget is passed as an ordinance each year. If Metro Council passes an ordinance, it becomes law (unless the mayor vetoes it).",
+    "category": "Government Structure",
+    "section": "GOVERNANCE TERMS"
+  },
+  {
+    "name": "Override",
+    "definition": "When Metro Council votes to pass a law despite the mayor's veto. Requires more votes than the original passage (usually 2/3 or 3/4 of council members).",
+    "full_text": "When Metro Council votes to pass a law despite the mayor's veto. Requires more votes than the original passage (usually 2/3 or 3/4 of council members).",
+    "category": "Government Structure",
+    "section": "GOVERNANCE TERMS"
+  },
+  {
+    "name": "Participatory Budgeting",
+    "definition": "Democratic process where residents directly vote on how to spend a portion of the public budget. YOU attend community meetings, propose projects, and vote on which ones get funded. Real democracy with real money.",
+    "full_text": "Democratic process where residents directly vote on how to spend a portion of the public budget. YOU attend community meetings, propose projects, and vote on which ones get funded. Real democracy with real money.",
+    "category": "Budget & Finance",
+    "section": "PROGRAMS IN DAVE'S BUDGET"
+  },
+  {
+    "name": "Pension Contributions",
+    "definition": "Money the city pays into retirement funds for employees. Required by law and contract. Like matching your 401(k), but for public employees. Louisville has significant pension obligations that are fully funded in Dave's budget.",
+    "full_text": "Money the city pays into retirement funds for employees. Required by law and contract. Like matching your 401(k), but for public employees. Louisville has significant pension obligations that are fully funded in Dave's budget.",
+    "category": "Budget & Finance",
+    "section": "SPENDING CATEGORIES"
+  },
+  {
+    "name": "Performance-Based Compensation",
+    "definition": "Additional pay or bonuses based on meeting specific goals or demonstrating excellence. Part of comprehensive employee compensation beyond base salary increases. Rewards quality work and incentivizes high performance.",
+    "full_text": "Additional pay or bonuses based on meeting specific goals or demonstrating excellence. Part of comprehensive employee compensation beyond base salary increases. Rewards quality work and incentivizes high performance.",
+    "category": "Health & Social Services",
+    "section": "EMPLOYEE COMPENSATION TERMS"
+  },
+  {
+    "name": "Personnel Costs",
+    "definition": "Salaries, benefits, and payroll taxes for city employees. Usually 60-70% of most department budgets. This includes health insurance, retirement contributions, and payroll taxes. All city employees keep their jobs in Dave's budget.",
+    "full_text": "Salaries, benefits, and payroll taxes for city employees. Usually 60-70% of most department budgets. This includes health insurance, retirement contributions, and payroll taxes. All city employees keep their jobs in Dave's budget.",
+    "category": "Budget & Finance",
+    "section": "SPENDING CATEGORIES"
+  },
+  {
+    "name": "Phased Implementation",
+    "definition": "Rolling out programs gradually over multiple years rather than all at once. Example: Building 12 mini substations in Year 1, then 12 more in Year 2, etc. This ensures quality and sustainability.\n\n---",
+    "full_text": "Rolling out programs gradually over multiple years rather than all at once. Example: Building 12 mini substations in Year 1, then 12 more in Year 2, etc. This ensures quality and sustainability.\n\n---",
+    "category": "Budget & Finance",
+    "section": "KEY BUDGET CONCEPTS"
+  },
+  {
+    "name": "Pilot Program",
+    "definition": "Small-scale test of a program before full implementation. Some programs may pilot in one district before expanding citywide.",
+    "full_text": "Small-scale test of a program before full implementation. Some programs may pilot in one district before expanding citywide.",
+    "category": "Health & Social Services",
+    "section": "IMPLEMENTATION TERMS"
+  },
+  {
+    "name": "Position Reassignment",
+    "definition": "Moving employees to different jobs within government without layoffs. Example: Some administrative staff reassigned to wellness centers or community programs. All employees keep their jobs, just in different roles. Often includes training for new position.\n\n---",
+    "full_text": "Moving employees to different jobs within government without layoffs. Example: Some administrative staff reassigned to wellness centers or community programs. All employees keep their jobs, just in different roles. Often includes training for new position.\n\n---",
+    "category": "Health & Social Services",
+    "section": "EMPLOYEE COMPENSATION TERMS"
+  },
+  {
+    "name": "Pre-Trial Detention",
+    "definition": "Holding someone in jail before their trial. Most people in Louisville Metro Corrections are pre-trial, not convicted criminals.",
+    "full_text": "Holding someone in jail before their trial. Most people in Louisville Metro Corrections are pre-trial, not convicted criminals.",
+    "category": "Criminal Justice",
+    "section": "CRIMINAL JUSTICE TERMS"
+  },
+  {
+    "name": "Prevention-First Approach",
+    "definition": "Investing in programs that prevent problems (crime, health crises, fires) before they happen, rather than only responding after problems occur. Cheaper and more effective than crisis response.",
+    "full_text": "Investing in programs that prevent problems (crime, health crises, fires) before they happen, rather than only responding after problems occur. Cheaper and more effective than crisis response.",
+    "category": "Budget & Finance",
+    "section": "KEY BUDGET CONCEPTS"
+  },
+  {
+    "name": "Preventive Care",
+    "definition": "Healthcare that prevents disease and identifies problems early (screenings, vaccinations, health education). Saves money long-term.",
+    "full_text": "Healthcare that prevents disease and identifies problems early (screenings, vaccinations, health education). Saves money long-term.",
+    "category": "Health & Social Services",
+    "section": "HEALTH & SOCIAL SERVICES TERMS"
+  },
+  {
+    "name": "Primary Care",
+    "definition": "Basic healthcare (checkups, common illnesses, chronic disease management). Wellness centers provide this through nurse practitioners.",
+    "full_text": "Basic healthcare (checkups, common illnesses, chronic disease management). Wellness centers provide this through nurse practitioners.",
+    "category": "Health & Social Services",
+    "section": "HEALTH & SOCIAL SERVICES TERMS"
+  },
+  {
+    "name": "Property Tax",
+    "definition": "Annual tax on real estate based on assessed property value. Major source of city revenue. If you own property in Louisville, you pay this. The rate is set by Metro Council and hasn't increased in Dave's budget.",
+    "full_text": "Annual tax on real estate based on assessed property value. Major source of city revenue. If you own property in Louisville, you pay this. The rate is set by Metro Council and hasn't increased in Dave's budget.",
+    "category": "Budget & Finance",
+    "section": "REVENUE TERMS"
+  },
+  {
+    "name": "Public Hearing",
+    "definition": "Official meeting where citizens can comment on proposed policies or budgets before Metro Council votes. Required by law for budgets and major decisions. This is where YOU get to speak up.",
+    "full_text": "Official meeting where citizens can comment on proposed policies or budgets before Metro Council votes. Required by law for budgets and major decisions. This is where YOU get to speak up.",
+    "category": "Government Structure",
+    "section": "GOVERNANCE TERMS"
+  },
+  {
+    "name": "Public Reporting",
+    "definition": "Regular reports to citizens on program progress and budget status. Quarterly reports proposed.",
+    "full_text": "Regular reports to citizens on program progress and budget status. Quarterly reports proposed.",
+    "category": "Health & Social Services",
+    "section": "ACCOUNTABILITY TERMS"
+  },
+  {
+    "name": "Questions?",
+    "definition": "If you don't understand something in the budget, that's OUR failure, not yours. Email info@rundaverun.org with questions and we'll update this glossary.",
+    "full_text": "If you don't understand something in the budget, that's OUR failure, not yours. Email info@rundaverun.org with questions and we'll update this glossary.",
+    "category": "Health & Social Services",
+    "section": "FINAL NOTES"
+  },
+  {
+    "name": "Rainy Day Fund (Reserve Fund)",
+    "definition": "Money set aside for emergencies, unexpected expenses, or economic downturns. Like your emergency savings account. Financially responsible cities have 10-15% of their budget in reserves. Dave's budget maintains strong reserves while investing in prevention.\n\n---",
+    "full_text": "Money set aside for emergencies, unexpected expenses, or economic downturns. Like your emergency savings account. Financially responsible cities have 10-15% of their budget in reserves. Dave's budget maintains strong reserves while investing in prevention.\n\n---",
+    "category": "Budget & Finance",
+    "section": "BUDGET BASICS"
+  },
+  {
+    "name": "Recidivism",
+    "definition": "When someone commits another crime after being released. Prevention programs reduce recidivism rates by addressing root causes.",
+    "full_text": "When someone commits another crime after being released. Prevention programs reduce recidivism rates by addressing root causes.",
+    "category": "Criminal Justice",
+    "section": "CRIMINAL JUSTICE TERMS"
+  },
+  {
+    "name": "Resolution",
+    "definition": "A formal statement or decision by Metro Council that doesn't have the force of law. Like a statement of support or a ceremonial recognition.",
+    "full_text": "A formal statement or decision by Metro Council that doesn't have the force of law. Like a statement of support or a ceremonial recognition.",
+    "category": "Government Structure",
+    "section": "GOVERNANCE TERMS"
+  },
+  {
+    "name": "Return on Investment (ROI)",
+    "definition": "How much value you get back for money spent. Example: Wellness centers have an ROI of $1.80 saved for every $1 spent.",
+    "full_text": "How much value you get back for money spent. Example: Wellness centers have an ROI of $1.80 saved for every $1 spent.",
+    "category": "Budget & Finance",
+    "section": "FINANCIAL TERMS"
+  },
+  {
+    "name": "Rollout Strategy",
+    "definition": "Plan for gradually implementing new programs. Starts with highest-need areas, expands systematically.",
+    "full_text": "Plan for gradually implementing new programs. Starts with highest-need areas, expands systematically.",
+    "category": "Health & Social Services",
+    "section": "IMPLEMENTATION TERMS"
+  },
+  {
+    "name": "Scaling Up",
+    "definition": "Expanding a successful program from small to large. Example: Starting with 12 substations in Year 1, scaling to 46 by Year 4.\n\n---",
+    "full_text": "Expanding a successful program from small to large. Example: Starting with 12 substations in Year 1, scaling to 46 by Year 4.\n\n---",
+    "category": "Health & Social Services",
+    "section": "IMPLEMENTATION TERMS"
+  },
+  {
+    "name": "Service Quality Metrics",
+    "definition": "Measurable standards for how well government services are delivered. Examples: Average response times, customer satisfaction ratings, facility cleanliness scores, program completion rates. Dave's budget includes tracking service quality across all departments and publishing results on public dashboard.\n\n---",
+    "full_text": "Measurable standards for how well government services are delivered. Examples: Average response times, customer satisfaction ratings, facility cleanliness scores, program completion rates. Dave's budget includes tracking service quality across all departments and publishing results on public dashboard.\n\n---",
+    "category": "Health & Social Services",
+    "section": "PROGRAM OUTCOMES"
+  },
+  {
+    "name": "Social Services Navigation",
+    "definition": "Helping people access programs they qualify for (food stamps, Medicaid, housing assistance, job training). Wellness centers help residents navigate the system.",
+    "full_text": "Helping people access programs they qualify for (food stamps, Medicaid, housing assistance, job training). Wellness centers help residents navigate the system.",
+    "category": "Health & Social Services",
+    "section": "HEALTH & SOCIAL SERVICES TERMS"
+  },
+  {
+    "name": "Street Outreach",
+    "definition": "Violence interruption teams that work directly with high-risk individuals in communities to prevent conflicts and reduce violence. Trained community members who know the neighborhood and can intervene before situations escalate.",
+    "full_text": "Violence interruption teams that work directly with high-risk individuals in communities to prevent conflicts and reduce violence. Trained community members who know the neighborhood and can intervene before situations escalate.",
+    "category": "Criminal Justice",
+    "section": "CRIMINAL JUSTICE TERMS"
+  },
+  {
+    "name": "Substance Abuse Treatment",
+    "definition": "Medical and counseling services for addiction. Much more effective and cheaper than jail for non-violent drug offenses.",
+    "full_text": "Medical and counseling services for addiction. Much more effective and cheaper than jail for non-violent drug offenses.",
+    "category": "Health & Social Services",
+    "section": "HEALTH & SOCIAL SERVICES TERMS"
+  },
+  {
+    "name": "Surplus",
+    "definition": "When revenue exceeds spending. Extra money can go to reserves or one-time projects. Dave's budget maintains healthy reserves.",
+    "full_text": "When revenue exceeds spending. Extra money can go to reserves or one-time projects. Dave's budget maintains healthy reserves.",
+    "category": "Budget & Finance",
+    "section": "FINANCIAL TERMS"
+  },
+  {
+    "name": "Tax Base",
+    "definition": "The total value of everything that can be taxed (property, income, sales, etc.). A growing tax base means the city can maintain services with the same tax rate. A shrinking tax base means taxes go up or services get cut.",
+    "full_text": "The total value of everything that can be taxed (property, income, sales, etc.). A growing tax base means the city can maintain services with the same tax rate. A shrinking tax base means taxes go up or services get cut.",
+    "category": "Budget & Finance",
+    "section": "REVENUE TERMS"
+  },
+  {
+    "name": "The Difference",
+    "definition": "Not the amount (both $1.2B), but HOW it's spent:\n- Greenberg: Centralized police precincts \u2192 Biggers: 46 neighborhood substations\n- Greenberg: Scattered programs \u2192 Biggers: 18 consolidated wellness centers\n- Greenberg: $63.5M on jails \u2192 Biggers: $27M on jails, $36.5M on prevention\n- Greenberg: Minimal citizen input \u2192 Biggers: $15M participatory budgeting\n\n---",
+    "full_text": "Not the amount (both $1.2B), but HOW it's spent:\n- Greenberg: Centralized police precincts \u2192 Biggers: 46 neighborhood substations\n- Greenberg: Scattered programs \u2192 Biggers: 18 consolidated wellness centers\n- Greenberg: $63.5M on jails \u2192 Biggers: $27M on jails, $36.5M on prevention\n- Greenberg: Minimal citizen input \u2192 Biggers: $15M participatory budgeting\n\n---",
+    "category": "Budget & Finance",
+    "section": "BUDGET COMPARISON TERMS"
+  },
+  {
+    "name": "Transfer",
+    "definition": "Moving money from one fund to another. Sometimes confusing, but it's just internal accounting to get money where it needs to go legally.\n\n---",
+    "full_text": "Moving money from one fund to another. Sometimes confusing, but it's just internal accounting to get money where it needs to go legally.\n\n---",
+    "category": "Budget & Finance",
+    "section": "SPENDING CATEGORIES"
+  },
+  {
+    "name": "Transparency",
+    "definition": "Making government operations, decisions, and budgets open and accessible to the public. Dave's budget is the most transparent in Louisville history - all 831 line items public at rundaverun.org.\n\n---",
+    "full_text": "Making government operations, decisions, and budgets open and accessible to the public. Dave's budget is the most transparent in Louisville history - all 831 line items public at rundaverun.org.\n\n---",
+    "category": "Government Structure",
+    "section": "GOVERNANCE TERMS"
+  },
+  {
+    "name": "Transparency Dashboard",
+    "definition": "Public website showing real-time budget data, program outcomes, and spending. Dave commits to creating this.",
+    "full_text": "Public website showing real-time budget data, program outcomes, and spending. Dave commits to creating this.",
+    "category": "Health & Social Services",
+    "section": "ACCOUNTABILITY TERMS"
+  },
+  {
+    "name": "Trauma Support",
+    "definition": "Counseling and services for individuals who have experienced violence, abuse, or other traumatic events. Part of violence prevention programs - addressing trauma prevents cycle of violence.\n\n---",
+    "full_text": "Counseling and services for individuals who have experienced violence, abuse, or other traumatic events. Part of violence prevention programs - addressing trauma prevents cycle of violence.\n\n---",
+    "category": "Health & Social Services",
+    "section": "HEALTH & SOCIAL SERVICES TERMS"
+  },
+  {
+    "name": "Trauma-Informed Care",
+    "definition": "Approach that recognizes how trauma affects people and provides appropriate support. Especially important for youth programs and violence intervention.",
+    "full_text": "Approach that recognizes how trauma affects people and provides appropriate support. Especially important for youth programs and violence intervention.",
+    "category": "Health & Social Services",
+    "section": "HEALTH & SOCIAL SERVICES TERMS"
+  },
+  {
+    "name": "Turnover Rate",
+    "definition": "Percentage of employees who leave their jobs each year. High turnover costs money in recruitment and training. Louisville currently loses experienced employees to better-paying jobs in surrounding areas. Competitive pay reduces turnover by 35-50%.",
+    "full_text": "Percentage of employees who leave their jobs each year. High turnover costs money in recruitment and training. Louisville currently loses experienced employees to better-paying jobs in surrounding areas. Competitive pay reduces turnover by 35-50%.",
+    "category": "Health & Social Services",
+    "section": "EMPLOYEE COMPENSATION TERMS"
+  },
+  {
+    "name": "Veto",
+    "definition": "The mayor's power to reject an ordinance passed by Metro Council. Council can override a veto with a supermajority vote.",
+    "full_text": "The mayor's power to reject an ordinance passed by Metro Council. Council can override a veto with a supermajority vote.",
+    "category": "Government Structure",
+    "section": "GOVERNANCE TERMS"
+  },
+  {
+    "name": "Violence Prevention Programs",
+    "definition": "Comprehensive approach including street outreach, conflict mediation, trauma support, and community engagement. Addresses root causes of violence through trusted community relationships. Dave's budget allocates $15M for violence prevention citywide.\n\n---",
+    "full_text": "Comprehensive approach including street outreach, conflict mediation, trauma support, and community engagement. Addresses root causes of violence through trusted community relationships. Dave's budget allocates $15M for violence prevention citywide.\n\n---",
+    "category": "Criminal Justice",
+    "section": "CRIMINAL JUSTICE TERMS"
+  },
+  {
+    "name": "WFPL (NPR)",
+    "definition": "- Local public radio  \n- Website: wfpl.org\n- Phone: (502) 814-6500",
+    "full_text": "- Local public radio  \n- Website: wfpl.org\n- Phone: (502) 814-6500",
+    "category": "Louisville-Specific",
+    "section": "IMPORTANT CONTACTS & RESOURCES"
+  },
+  {
+    "name": "Workplace Protections",
+    "definition": "Employee rights including fair treatment, due process, protection from discrimination, safe working conditions, and clear grievance procedures. Dave's Employee Bill of Rights guarantees comprehensive workplace protections for all Metro employees.",
+    "full_text": "Employee rights including fair treatment, due process, protection from discrimination, safe working conditions, and clear grievance procedures. Dave's Employee Bill of Rights guarantees comprehensive workplace protections for all Metro employees.",
+    "category": "Health & Social Services",
+    "section": "EMPLOYEE COMPENSATION TERMS"
+  },
+  {
+    "name": "Youth Development Programs",
+    "definition": "Consolidated programs including after-school activities (3-7pm - peak crime hours), summer jobs (3,000 positions), mentoring, life skills training, gang intervention, and athletics.",
+    "full_text": "Consolidated programs including after-school activities (3-7pm - peak crime hours), summer jobs (3,000 positions), mentoring, life skills training, gang intervention, and athletics.",
+    "category": "Budget & Finance",
+    "section": "PROGRAMS IN DAVE'S BUDGET"
+  }
+]

@@ -1,0 +1,164 @@
+[
+  {
+    "term": "Mini Police Substation",
+    "definition": "A small, neighborhood-based police facility staffed with 6 officers working rotating shifts to provide 24/7 local presence. Unlike traditional precincts that cover huge areas, mini substations embed officers directly in the communities they serve, typically covering 1-2 square miles or 10,000-15,000 residents.",
+    "category": "Public Safety",
+    "louisville_context": "Dave's plan calls for mini substations (at least one in every ZIP code) across Louisville Metro, one for each ZIP code area, at a total cost of $47.5 million over 4 years (budgeted for up to 73 substations to cover all Louisville ZIP codes). Each substation costs approximately $650,000 annually to operate (officer salaries, facility lease, equipment). Evidence from Chicago shows mini substations reduce crime by 35% in served areas and improve police-community relations by 40%.",
+    "why_it_matters": "Traditional policing spreads officers too thin—one officer might cover 15 square miles. Mini substations mean you know your neighborhood officers by name, they know local issues, and response times drop from 20-30 minutes to 2-3 minutes. This is community policing that actually works.",
+    "related_terms": "Community Policing, Response Time, Beat Cop, Neighborhood Policing, Crime Prevention",
+    "dave_proposal": "Deploy mini substations (at least one in every ZIP code) over 4 years: Year 1 (12 substations in highest-crime areas), Year 2 (12 more), Year 3 (12 more), Year 4 (10 final substations). Each staffed with 6 officers providing 24/7 coverage. Total annual operating cost: $29.9M from reallocated public safety budget."
+  },
+  {
+    "term": "Response Time",
+    "definition": "The time between when a 911 call is placed and when police/fire/EMS arrive on scene. Measured separately for Priority 1 (life-threatening emergencies), Priority 2 (serious but not life-threatening), and Priority 3 (non-emergency) calls.",
+    "category": "Public Safety",
+    "louisville_context": "Current Louisville Metro response times average 12-15 minutes for Priority 1 calls in high-crime areas, with some neighborhoods waiting 20-30 minutes. In Chicago neighborhoods with mini substations, response times dropped to an average of 2-3 minutes. Fast response times are critical for violent crimes, medical emergencies, and hot pursuit situations.",
+    "why_it_matters": "Every minute matters in emergencies. The difference between a 2-minute and 20-minute response can be life or death in a shooting, heart attack, or home invasion. Slow response times also signal to criminals that they have time to escape, increasing crime rates.",
+    "related_terms": "Mini Police Substation, 911 System, Emergency Services, Priority Dispatch, Community Policing",
+    "dave_proposal": "Mini substations will reduce average response times from 12-15 minutes to 2-3 minutes in served neighborhoods. Officers will already be in the community, not driving from distant precincts."
+  },
+  {
+    "term": "Community Wellness Center",
+    "definition": "An integrated health facility providing mental health services, addiction treatment, primary care, and social services in one accessible location. Designed to serve low-income neighborhoods with limited healthcare access.",
+    "category": "Health & Social Services",
+    "louisville_context": "Dave's plan creates 18 wellness centers across Louisville Metro, strategically located in underserved neighborhoods. Each center provides: mental health counseling, addiction treatment, primary care, dental services, prescription assistance, job training referrals, and social work support. Modeled on successful programs in San Antonio and Denver that reduced emergency room visits by 30% and homelessness by 25%.",
+    "why_it_matters": "Right now, people in crisis have nowhere to go except the emergency room or jail. A single ER visit for a mental health crisis costs $2,000-5,000. Treating that same person at a wellness center costs $200-500 and actually addresses root causes. This is both compassionate and cost-effective.",
+    "related_terms": "Mental Health, Addiction Treatment, Primary Care, Social Services, Healthcare Access, Preventive Care",
+    "dave_proposal": "Build 18 wellness centers over 4 years at total cost of $45 million. Centers will serve 50,000+ Louisville residents annually, reducing ER visits, jail bookings, and long-term healthcare costs. Funded through reallocated health department budget and federal mental health grants."
+  },
+  {
+    "term": "Participatory Budgeting",
+    "definition": "A democratic process where community residents directly decide how to spend a portion of the public budget. Citizens propose projects, discuss priorities, and vote on final allocations—giving them real power over government spending.",
+    "category": "Government Accountability",
+    "louisville_context": "Dave's plan dedicates $15 million annually to participatory budgeting, divided among Louisville's districts. Residents can propose and vote on projects like playground improvements, street lighting, community gardens, sidewalk repairs, and neighborhood beautification. Process includes: proposal phase (residents submit ideas), review phase (staff evaluate feasibility and cost), vote phase (residents vote on final projects).",
+    "why_it_matters": "Most people feel like government doesn't listen. Participatory budgeting gives you actual control over how tax dollars are spent in your neighborhood. Cities using this approach see civic engagement increase by 50% and resident satisfaction with government double.",
+    "related_terms": "Civic Engagement, Direct Democracy, Budget Transparency, Community Input, Accountability",
+    "dave_proposal": "$15 million annual participatory budget divided by Metro Council district. Each district gets approximately $580,000 for resident-led projects. Online and in-person voting to maximize participation."
+  },
+  {
+    "term": "Budget-Neutral",
+    "definition": "A policy or program that doesn't increase the total budget—it's funded by reallocating existing spending, eliminating waste, or finding new efficiencies. No tax increases required.",
+    "category": "Budget & Finance",
+    "louisville_context": "Dave's entire $1.025 billion Louisville plan is budget-neutral. It uses the exact same total budget as current administration ($1.025B) but reallocates spending to proven priorities: mini substations, wellness centers, fire prevention, participatory budgeting. Funded through: eliminating duplicative programs, reducing administrative overhead, competitive bidding on contracts, and federal grant matches.",
+    "why_it_matters": "Politicians often say 'we can't afford that.' Dave proves you can fund transformative change without raising taxes—it's about priorities, not just money. Budget-neutral means fiscally responsible while still delivering results.",
+    "related_terms": "Fiscal Responsibility, Tax Rate, Reallocation, Efficiency, Zero Tax Increase",
+    "dave_proposal": "Total budget: $1.025 billion (same as current). Zero tax increase. Fund new priorities through reallocation and efficiency gains."
+  },
+  {
+    "term": "Fire Prevention Center",
+    "definition": "A community-based facility focused on fire safety education, smoke detector installation, home safety inspections, and fire prevention outreach—especially for seniors and low-income families. Prevention-focused rather than response-focused.",
+    "category": "Public Safety",
+    "louisville_context": "Louisville has tragically high fire death rates, especially among seniors living alone. Dave's plan creates dedicated fire prevention centers that provide: free smoke detector installation, home safety inspections, escape plan creation, fire safety education for schools, and proactive outreach to vulnerable residents. Evidence from cities with prevention programs shows 40-60% reduction in fire deaths.",
+    "why_it_matters": "Most fire deaths are preventable. Working smoke detectors reduce death risk by 50%. But low-income and senior residents often can't afford detectors or installation. Prevention centers save lives through proactive outreach before fires happen.",
+    "related_terms": "Fire Safety, Smoke Detector, Home Safety, Senior Safety, Prevention Programs",
+    "dave_proposal": "Create fire prevention centers that proactively visit 5,000+ high-risk homes annually, install free smoke detectors, create escape plans, and educate families. Target seniors, low-income families, and neighborhoods with highest fire death rates."
+  },
+  {
+    "term": "Economic Development Incentive",
+    "definition": "Tax breaks, grants, or other financial benefits offered by government to attract businesses or development. Common types include: tax abatements, TIF districts, PILOT programs, and direct grants.",
+    "category": "Economic Development",
+    "louisville_context": "Louisville offers hundreds of millions in development incentives annually, but often lacks accountability. Companies receive tax breaks but don't always deliver promised jobs or wages. Dave's plan requires: job creation minimums, wage requirements ($15/hr+), clawback provisions if promises aren't met, and public reporting on outcomes.",
+    "why_it_matters": "Incentives can create jobs and growth—or they can be corporate welfare with no public benefit. The difference is accountability. Taxpayers deserve to know: Did companies deliver what they promised? Are jobs good-quality? Is the public getting value for tax dollars given away?",
+    "related_terms": "TIF District, Tax Abatement, PILOT Program, Job Creation, Wage Requirements, Clawback Provisions",
+    "dave_proposal": "All economic development incentives require: (1) wage floor of $15/hour minimum, (2) job creation targets with penalties for missing goals, (3) clawback provisions allowing Louisville to recover incentives if companies don't deliver, (4) annual public reporting on outcomes."
+  },
+  {
+    "term": "Clawback Provision",
+    "definition": "A contract clause that allows government to recover tax incentives or grants if a company fails to meet promised job creation, wage levels, or other commitments. Protects taxpayers from corporate promises that aren't kept.",
+    "category": "Government Accountability",
+    "louisville_context": "Louisville has given away millions in tax breaks to companies that later failed to deliver promised jobs or closed facilities entirely—with no way to recover the incentives. Dave's plan makes clawbacks standard in all economic development deals: miss job targets by more than 10%? Repay proportional incentives. Close facility within 5 years? Repay all incentives. Pay below promised wages? Forfeit future tax breaks.",
+    "why_it_matters": "Without clawbacks, companies have zero accountability after getting tax breaks. They can promise 500 jobs, deliver 100, and keep all the incentives. Clawbacks ensure companies keep their promises or pay back taxpayers.",
+    "related_terms": "Economic Development Incentive, Accountability, Tax Abatement, Job Creation, Performance Standards",
+    "dave_proposal": "Require clawback provisions in all economic development agreements over $100,000. Companies that fail to meet commitments must repay incentives proportional to shortfall."
+  },
+  {
+    "term": "Living Wage",
+    "definition": "The hourly wage needed for a full-time worker to afford basic necessities (housing, food, healthcare, transportation) in a specific area. Higher than minimum wage. Calculated based on local cost of living.",
+    "category": "Economic Development",
+    "louisville_context": "Louisville's living wage is estimated at $16-18/hour for single adults, $30-35/hour for single parents with two children. Kentucky minimum wage is just $7.25/hour—less than half what's needed. An estimated 40-50% of Louisville workers earn below living wage, forcing reliance on public assistance even while working full-time.",
+    "why_it_matters": "When companies pay below living wage, taxpayers subsidize them through food stamps, Medicaid, and housing assistance for workers. Living wage requirements mean companies—not taxpayers—cover the full cost of employment.",
+    "related_terms": "Minimum Wage, Wage Requirements, Economic Justice, Job Quality, Working Poor",
+    "dave_proposal": "All city contracts and economic development incentives require minimum $15/hour wage floor, with preference for higher wages. Gradually increase floor to track living wage calculations."
+  },
+  {
+    "term": "Tax Increment Financing (TIF)",
+    "definition": "A development tool where future property tax increases from a project are used to finance current improvements. The area is designated a TIF district, and the 'increment' (tax increase from new development) goes back into the district rather than the general fund for a set period (usually 20-30 years).",
+    "category": "Budget & Finance",
+    "louisville_context": "Louisville has dozens of TIF districts, diverting millions in property tax growth away from schools, police, and other services. While TIFs can spur development, they're often approved for areas that would develop anyway—essentially giving away future tax revenue. Dave's plan requires: (1) TIFs only for truly blighted areas, (2) sunset provisions (TIFs expire after 20 years), (3) public benefit requirements (affordable housing, living wages), (4) annual reporting on tax revenue diverted.",
+    "why_it_matters": "TIFs sound technical but they're huge: they can divert $50-100 million over 20 years away from schools and services. Developers love TIFs because they shift costs to taxpayers. Without accountability, TIFs become corporate welfare disguised as development tools.",
+    "related_terms": "Tax Abatement, Economic Development Incentive, Property Tax, Blight, Development Finance",
+    "dave_proposal": "Strict TIF approval criteria: (1) must demonstrate actual blight, (2) required living wage and affordable housing components, (3) 20-year maximum term, (4) annual public reporting on diverted revenue."
+  },
+  {
+    "term": "Pre-K Expansion",
+    "definition": "Increasing access to quality preschool programs for 3- and 4-year-old children, particularly in low-income neighborhoods. Research shows pre-K yields $7 return for every $1 invested through improved lifetime outcomes.",
+    "category": "Education",
+    "louisville_context": "Only 40% of Louisville 4-year-olds attend quality pre-K programs, and availability is much lower in West Louisville and South End. Children who attend pre-K are 30% more likely to graduate high school, 40% more likely to attend college, and earn $50,000 more over their lifetimes on average.",
+    "why_it_matters": "Early childhood education is the highest-return public investment possible. Yet we leave 60% of Louisville kids without access. Expanding pre-K reduces achievement gaps, improves lifetime outcomes, and pays for itself many times over.",
+    "related_terms": "Early Childhood Education, Achievement Gap, Educational Equity, Kindergarten Readiness",
+    "dave_proposal": "Partner with JCPS to expand universal pre-K access, prioritizing underserved neighborhoods. Metro government provides facilities and wrap-around services (nutrition, transportation) while JCPS handles instruction."
+  },
+  {
+    "term": "Workforce Development",
+    "definition": "Programs that train workers for in-demand jobs through apprenticeships, vocational training, job placement services, and skills certification. Connects unemployed or underemployed residents with career pathways.",
+    "category": "Workforce & Labor",
+    "louisville_context": "Louisville has a skills gap: companies struggle to find qualified workers while thousands of residents can't find good jobs. Dave's plan expands workforce development through: (1) paid apprenticeships in construction, healthcare, IT, and advanced manufacturing, (2) partnerships with local employers to guarantee job placement, (3) wrap-around services (childcare, transportation, tools/uniforms), (4) focus on residents with criminal records or barriers to employment.",
+    "why_it_matters": "Workforce development transforms lives: unemployed residents gain skills and good-paying careers, employers fill critical positions, and Louisville's economy grows. This is how you reduce poverty while strengthening business.",
+    "related_terms": "Apprenticeship, Job Training, Skills Gap, Career Pathways, Economic Mobility",
+    "dave_proposal": "Invest $10 million annually in workforce development programs with guaranteed job placement. Partner with employers to create 1,000+ paid apprenticeships in high-demand fields."
+  },
+  {
+    "term": "Second Chance Employment",
+    "definition": "Programs and policies that help people with criminal records find employment by removing barriers, providing training, and partnering with fair-chance employers. Critical for reducing recidivism.",
+    "category": "Criminal Justice",
+    "louisville_context": "Louisville has 150,000+ adults with criminal records limiting their employment. Without jobs, formerly incarcerated people are 70% likely to be re-arrested within 3 years. But those who find stable employment within 6 months of release have recidivism rates under 15%. Dave's plan removes barriers: ban-the-box policies for city jobs, expungement clinics, employer tax credits for fair-chance hiring, and direct job placement services.",
+    "why_it_matters": "People leaving prison need jobs to rebuild their lives and support families. Without employment, they often return to crime. Second chance employment breaks that cycle, improving public safety while offering redemption and opportunity.",
+    "related_terms": "Criminal Record, Recidivism, Ban the Box, Expungement, Fair Chance Hiring, Reentry",
+    "dave_proposal": "City becomes model fair-chance employer: ban-the-box application process, employment preference for qualified candidates with records. Partner with employers to create 500+ second-chance jobs annually."
+  },
+  {
+    "term": "Affordable Housing Crisis",
+    "definition": "The shortage of housing that low- and moderate-income families can afford, typically defined as spending no more than 30% of income on housing. In Louisville, 40%+ of renters are 'cost burdened' (paying more than 30% for housing).",
+    "category": "Housing & Development",
+    "louisville_context": "Louisville faces a shortage of 30,000 affordable housing units. Median rent for a 2-bedroom apartment is $900-1,100/month, requiring income of $36,000-44,000 annually (3x rent rule). Yet median renter income is just $31,000. Result: families forced to choose between rent and food/medicine, overcrowding, homelessness risk.",
+    "why_it_matters": "Housing instability destroys lives: kids change schools constantly, families face eviction, health deteriorates, employment becomes impossible. Solving the affordable housing crisis improves education, health, economic mobility, and community stability.",
+    "related_terms": "Cost Burden, Eviction, Homelessness, Housing First, Inclusionary Zoning, Housing Trust Fund",
+    "dave_proposal": "Attack housing crisis from multiple angles: (1) require affordable units in new developments (inclusionary zoning), (2) create housing trust fund, (3) streamline permits for affordable housing, (4) protect tenants from unfair evictions, (5) preserve existing affordable housing stock."
+  },
+  {
+    "term": "Inclusionary Zoning",
+    "definition": "A policy requiring developers to include affordable housing units in new residential projects, or pay into an affordable housing fund. Typically 10-20% of units must be affordable to low- and moderate-income families.",
+    "category": "Housing & Development",
+    "louisville_context": "Louisville currently has no inclusionary zoning—developers can build luxury apartments while affordable housing disappears. Inclusionary zoning would require developers receiving city incentives or zoning variances to make 15% of units affordable. For a 100-unit development, that's 15 affordable apartments. Cities with inclusionary zoning have created thousands of affordable units.",
+    "why_it_matters": "Market-rate development alone won't solve the affordable housing crisis—it makes it worse by bidding up land prices. Inclusionary zoning ensures new development includes housing for all income levels, not just the wealthy.",
+    "related_terms": "Affordable Housing, Zoning, Mixed-Income Housing, Development Incentives, Housing Policy",
+    "dave_proposal": "Require 15% affordable units in all developments over 20 units that receive city incentives, zoning changes, or TIF financing. Affordability lasts 30 years minimum."
+  },
+  {
+    "term": "Eviction Prevention",
+    "definition": "Programs and policies that help tenants avoid eviction through emergency rental assistance, legal aid, mediation, and tenant protections. Much cheaper than dealing with homelessness after eviction.",
+    "category": "Housing & Development",
+    "louisville_context": "Louisville sees 10,000-12,000 eviction filings annually, with 75% resulting in forced moves. Most evictions result from temporary financial crisis (job loss, medical bill, car repair). Emergency rental assistance of $500-1,500 can prevent eviction that leads to $5,000-10,000 in homelessness costs. Dave's plan provides emergency rental assistance fund, free legal aid for tenants, pre-eviction mediation, and stronger tenant protections.",
+    "why_it_matters": "Eviction destroys families: kids change schools, parents lose jobs, credit is ruined, homelessness often follows. But most evictions are preventable with modest assistance. Helping families stay housed is both compassionate and cost-effective.",
+    "related_terms": "Affordable Housing Crisis, Homelessness, Rental Assistance, Tenant Rights, Housing Stability",
+    "dave_proposal": "Create $2 million emergency rental assistance fund providing 1-time assistance to prevent evictions. Expand legal aid for tenants facing unjust evictions. Require mediation before eviction filings."
+  },
+  {
+    "term": "Transit-Oriented Development",
+    "definition": "Compact, mixed-use development near public transit stations designed to increase ridership and reduce car dependence. Includes housing, retail, offices within walkable distance of bus or rail.",
+    "category": "Transportation & Infrastructure",
+    "louisville_context": "Louisville is heavily car-dependent with sprawling development far from TARC routes. Transit-oriented development would concentrate new apartments, shops, and offices near high-frequency bus lines, making car-free living possible. Benefits include: reduced traffic, lower household transportation costs (currently $10,000+/year for car ownership), increased TARC ridership, walkable neighborhoods, and environmental benefits.",
+    "why_it_matters": "Car ownership is the second-largest household expense after housing. Low-income families spend 20-30% of income on car payments, insurance, and gas. Transit-oriented development makes car-free living viable, saving families thousands annually while reducing traffic and emissions.",
+    "related_terms": "TARC, Public Transit, Walkability, Mixed-Use Development, Zoning, Smart Growth",
+    "dave_proposal": "Incentivize transit-oriented development by fast-tracking permits and offering density bonuses for projects within 1/4 mile of frequent TARC routes. Require affordable housing component."
+  },
+  {
+    "term": "Complete Streets",
+    "definition": "Streets designed for all users—pedestrians, cyclists, transit riders, and drivers—not just cars. Includes sidewalks, bike lanes, bus stops, crosswalks, and accessibility features.",
+    "category": "Transportation & Infrastructure",
+    "louisville_context": "Many Louisville streets lack basic sidewalks, forcing pedestrians to walk in traffic. Others have no bike infrastructure, making cycling dangerous. Dave's complete streets policy means all new road projects include: continuous sidewalks on both sides, protected bike lanes where feasible, ADA-compliant crosswalks, bus shelters at stops, and safe speeds through design (narrower lanes, bulb-outs, trees). Focus on connecting low-income neighborhoods to jobs, schools, and services.",
+    "why_it_matters": "Car-centric streets are dangerous and exclusionary: pedestrians get hit, cyclists avoid riding, transit users stand in rain at barren stops. Complete streets are safer, more equitable, and support multiple modes of transportation.",
+    "related_terms": "Pedestrian Safety, Bike Infrastructure, TARC, Walkability, Transportation Equity, Vision Zero",
+    "dave_proposal": "Adopt complete streets policy requiring all street projects to accommodate all users. Prioritize improvements in neighborhoods with high pedestrian crashes and low car ownership."
+  }
+]

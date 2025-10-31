@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 700">
+  <!-- Background -->
+  <rect width="800" height="700" fill="#f8f9fa" />
+  
+  <!-- Internet Cloud -->
+  <ellipse cx="400" cy="60" rx="150" ry="40" fill="#e6f2ff" stroke="#0066cc" stroke-width="2" />
+  <text x="400" y="65" font-family="Arial" font-size="18" text-anchor="middle" fill="#0066cc">Internet</text>
+  
+  <!-- ISP Connection -->
+  <line x1="400" y1="100" x2="400" y2="140" stroke="#0066cc" stroke-width="3" />
+  <polygon points="395,130 405,130 400,140" fill="#0066cc" />
+  
+  <!-- AT&T Gateway -->
+  <rect x="340" y="140" width="120" height="60" rx="5" ry="5" fill="#0099ff" stroke="#0066cc" stroke-width="2" />
+  <text x="400" y="165" font-family="Arial" font-size="14" text-anchor="middle" fill="white">AT&T BGW320-505</text>
+  <text x="400" y="185" font-family="Arial" font-size="12" text-anchor="middle" fill="white">Fiber Gateway</text>
+  
+  <!-- Firewall Indicator for AT&T -->
+  <rect x="340" y="205" width="120" height="15" rx="2" ry="2" fill="#ff6666" stroke="#cc0000" stroke-width="1" />
+  <text x="400" y="216" font-family="Arial" font-size="10" text-anchor="middle" fill="white">FIREWALL (IP Passthrough)</text>
+  
+  <!-- Connection to Orbi Router -->
+  <line x1="400" y1="220" x2="400" y2="260" stroke="#333" stroke-width="2" stroke-dasharray="5,5" />
+  <polygon points="395,250 405,250 400,260" fill="#333" />
+  
+  <!-- Orbi Router -->
+  <rect x="340" y="260" width="120" height="60" rx="5" ry="5" fill="#6600cc" stroke="#330066" stroke-width="2" />
+  <text x="400" y="285" font-family="Arial" font-size="14" text-anchor="middle" fill="white">NETGEAR</text>
+  <text x="400" y="305" font-family="Arial" font-size="14" text-anchor="middle" fill="white">Orbi Router</text>
+  
+  <!-- Firewall Indicator for Orbi -->
+  <rect x="340" y="325" width="120" height="15" rx="2" ry="2" fill="#ff6666" stroke="#cc0000" stroke-width="1" />
+  <text x="400" y="336" font-family="Arial" font-size="10" text-anchor="middle" fill="white">FIREWALL + VPN Server</text>
+
+  <!-- VPN Cloud -->
+  <ellipse cx="600" cy="300" rx="70" ry="30" fill="#e6ffe6" stroke="#009900" stroke-width="2" opacity="0.7" />
+  <text x="600" y="305" font-family="Arial" font-size="14" text-anchor="middle" fill="#006600">VPN</text>
+  <path d="M460 290 C520 290, 530 300, 530 300" stroke="#009900" stroke-width="2" stroke-dasharray="5,3" />
+  <text x="530" y="285" font-family="Arial" font-size="12" text-anchor="middle" fill="#006600">Secure Remote</text>
+  <text x="530" y="300" font-family="Arial" font-size="12" text-anchor="middle" fill="#006600">Access</text>
+
+  <!-- Connection to Primary Switch -->
+  <line x1="400" y1="340" x2="400" y2="380" stroke="#333" stroke-width="2" />
+  <polygon points="395,370 405,370 400,380" fill="#333" />
+  
+  <!-- Primary NETGEAR Switch -->
+  <rect x="300" y="380" width="200" height="60" rx="5" ry="5" fill="#333333" stroke="#000000" stroke-width="2" />
+  <text x="400" y="405" font-family="Arial" font-size="14" text-anchor="middle" fill="white">Primary ProSafe Plus</text>
+  <text x="400" y="425" font-family="Arial" font-size="14" text-anchor="middle" fill="white">24-Port Switch #1</text>
+  
+  <!-- VLANs Indicator -->
+  <rect x="300" y="445" width="200" height="15" rx="2" ry="2" fill="#ffcc00" stroke="#cc9900" stroke-width="1" />
+  <text x="400" y="456" font-family="Arial" font-size="10" text-anchor="middle" fill="#333">VLAN SEGMENTATION</text>
+  
+  <!-- Connection to Secondary Switch -->
+  <line x1="400" y1="460" x2="400" y2="500" stroke="#333" stroke-width="2" />
+  <polygon points="395,490 405,490 400,500" fill="#333" />
+  
+  <!-- Secondary NETGEAR Switch -->
+  <rect x="300" y="500" width="200" height="60" rx="5" ry="5" fill="#333333" stroke="#000000" stroke-width="2" />
+  <text x="400" y="525" font-family="Arial" font-size="14" text-anchor="middle" fill="white">Secondary ProSafe Plus</text>
+  <text x="400" y="545" font-family="Arial" font-size="14" text-anchor="middle" fill="white">24-Port Switch #2</text>
+  
+  <!-- VLANs Indicator for Secondary Switch -->
+  <rect x="300" y="565" width="200" height="15" rx="2" ry="2" fill="#ffcc00" stroke="#cc9900" stroke-width="1" />
+  <text x="400" y="576" font-family="Arial" font-size="10" text-anchor="middle" fill="#333">VLAN SEGMENTATION</text>
+  
+  <!-- Connections to different network segments -->
+  <line x1="320" y1="580" x2="200" y2="630" stroke="#333" stroke-width="2" />
+  <polygon points="205,625 195,635 200,630" fill="#333" />
+  
+  <line x1="380" y1="580" x2="380" y2="630" stroke="#333" stroke-width="2" />
+  <polygon points="375,625 385,625 380,630" fill="#333" />
+  
+  <line x1="420" y1="580" x2="420" y2="630" stroke="#333" stroke-width="2" />
+  <polygon points="415,625 425,625 420,630" fill="#333" />
+  
+  <line x1="480" y1="580" x2="600" y2="630" stroke="#333" stroke-width="2" />
+  <polygon points="595,625 605,635 600,630" fill="#333" />
+  
+  <!-- General Devices VLAN -->
+  <rect x="130" y="630" width="140" height="60" rx="5" ry="5" fill="#99ccff" stroke="#3399ff" stroke-width="2" />
+  <text x="200" y="655" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">General Devices</text>
+  <text x="200" y="675" font-family="Arial" font-size="12" text-anchor="middle" fill="#333">VLAN 10</text>
+  
+  <!-- IoT Devices VLAN -->
+  <rect x="310" y="630" width="140" height="60" rx="5" ry="5" fill="#ffcc99" stroke="#ff9933" stroke-width="2" />
+  <text x="380" y="655" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">IoT Devices</text>
+  <text x="380" y="675" font-family="Arial" font-size="12" text-anchor="middle" fill="#333">VLAN 20</text>
+  
+  <!-- Ethereum Server VLAN with Extra Security -->
+  <rect x="490" y="630" width="180" height="60" rx="5" ry="5" fill="#ccffcc" stroke="#66cc66" stroke-width="3" />
+  <text x="580" y="655" font-family="Arial" font-size="14" text-anchor="middle" font-weight="bold" fill="#333">Ethereum Server</text>
+  <text x="580" y="675" font-family="Arial" font-size="12" text-anchor="middle" fill="#333">VLAN 30 (Isolated)</text>
+  
+  <!-- Legend -->
+  <rect x="650" y="100" width="140" height="150" rx="5" ry="5" fill="white" stroke="#ccc" stroke-width="1" />
+  <text x="720" y="120" font-family="Arial" font-size="12" text-anchor="middle" font-weight="bold">Legend</text>
+  
+  <line x1="660" y1="140" x2="680" y2="140" stroke="#0066cc" stroke-width="3" />
+  <text x="720" y="143" font-family="Arial" font-size="10" text-anchor="middle">Primary Connection</text>
+  
+  <line x1="660" y1="160" x2="680" y2="160" stroke="#333" stroke-width="2" stroke-dasharray="5,5" />
+  <text x="720" y="163" font-family="Arial" font-size="10" text-anchor="middle">DMZ/Passthrough</text>
+  
+  <rect x="660" y="175" width="20" height="10" rx="2" ry="2" fill="#ff6666" />
+  <text x="720" y="183" font-family="Arial" font-size="10" text-anchor="middle">Firewall</text>
+  
+  <rect x="660" y="195" width="20" height="10" rx="2" ry="2" fill="#ffcc00" />
+  <text x="720" y="203" font-family="Arial" font-size="10" text-anchor="middle">VLAN Segmentation</text>
+  
+  <rect x="660" y="215" width="20" height="10" rx="2" ry="2" fill="#ccffcc" />
+  <text x="720" y="223" font-family="Arial" font-size="10" text-anchor="middle">Secure Ethereum Zone</text>
+  
+  <!-- Switch Interconnection Note -->
+  <text x="400" y="480" font-family="Arial" font-size="10" text-anchor="middle" fill="#333">Trunk Connection (Tagged VLANs)</text>
+</svg>

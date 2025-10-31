@@ -1,0 +1,67 @@
+[
+  {
+    "term": "Living Wage",
+    "definition": "A wage sufficient to provide the necessities and comforts essential to an acceptable standard of living, based on local cost of living calculations. Unlike minimum wage, which is set by law, living wage is calculated based on what it actually costs to live with dignity in a specific area.",
+    "category": "Workforce Development",
+    "tags": ["employment", "equity", "economy", "compensation"],
+    "why_matters": "Understanding living wage helps voters evaluate whether proposed policies will genuinely improve working families' lives or just sound good. It's the difference between a job that keeps you afloat and one that keeps you struggling. When we talk about 'good jobs,' this is what we mean.",
+    "louisville_context": "In Louisville Metro, the MIT Living Wage Calculator estimates a living wage of $17.85/hour for a single adult, while a family with two working adults and two children needs each adult to earn $23.43/hour. This contrasts sharply with Kentucky's minimum wage of $7.25/hour - less than half of what's needed.",
+    "data_stats": "According to MIT Living Wage Calculator (2024), 43% of Louisville Metro workers earn less than a living wage. Median household income is $60,444, but this varies dramatically by ZIP code - from $27,000 in West Louisville to over $100,000 in Eastern suburbs.",
+    "campaign_alignment": "Dave's Employee Compensation Plan includes competitive wages as part of the $25M investment to ensure Metro employees earn living wages, recognizing that government should model fair employment practices. When Metro leads on wages, other employers follow.",
+    "related_terms": ["Minimum Wage", "Income Inequality", "Poverty Line", "Employee Compensation"],
+    "priority": "campaign",
+    "featured": true
+  },
+  {
+    "term": "Participatory Budgeting",
+    "definition": "A democratic process where community members directly decide how to spend part of a public budget. Residents propose projects, discuss options, and vote on where money should go. It gives everyday people real power over public spending, not just elected officials.",
+    "category": "Government Accountability & Transparency",
+    "tags": ["democracy", "community", "budget", "transparency"],
+    "why_matters": "Most people feel like government happens TO them, not WITH them. Participatory budgeting changes that. It's not just about the money - it's about trust, engagement, and showing residents they matter. When people have real input, they're more likely to trust and support government.",
+    "louisville_context": "Louisville Metro has never implemented participatory budgeting, despite successful models in dozens of U.S. cities. Our current budget process involves public hearings, but actual decision-making power rests entirely with the Mayor and Metro Council. Most residents have never even seen the full budget.",
+    "data_stats": "Over 7,000 cities worldwide use participatory budgeting, including 50+ in the U.S. Cities report 30-50% increases in resident engagement and satisfaction. New York City's participatory budgeting program has funded 1,400+ projects chosen by 300,000+ residents since 2011.",
+    "campaign_alignment": "Dave proposes a $25M participatory budgeting pilot starting in Year 1, allowing Louisville residents to directly allocate 2% of discretionary spending. This embodies 'A Mayor That Listens, A Government That Responds' by giving real power to the people.",
+    "related_terms": ["Budget Process", "Community Engagement", "Transparency", "Democratic Participation"],
+    "priority": "campaign",
+    "featured": true
+  },
+  {
+    "term": "Community Policing",
+    "definition": "A philosophy and organizational strategy where police and community members work as partners to identify and solve problems. Officers become familiar faces in neighborhoods, building relationships and trust rather than just responding to emergencies. It's proactive, not just reactive.",
+    "category": "Public Safety & Policing",
+    "tags": ["police", "safety", "community", "reform"],
+    "why_matters": "Trust between police and community is broken in many Louisville neighborhoods. Community policing can rebuild that trust by making officers part of the neighborhood fabric. When people know and trust their local officers, they're more likely to report crimes and work together on solutions.",
+    "louisville_context": "LMPD is under a DOJ consent decree partially due to lack of community trust and engagement. Current policing is heavily reactive - officers respond to calls but rarely have time to build community relationships. Many neighborhoods, especially in West Louisville, have deep distrust of police.",
+    "data_stats": "LMPD has approximately 1,200 sworn officers for 630,000 residents - about 1.9 officers per 1,000 residents, below the national average of 2.4. Department of Justice found 'insufficient community engagement' as a key problem in Louisville policing.",
+    "campaign_alignment": "Dave's plan for 46 mini substations (one per neighborhood) enables true community policing by giving officers a permanent presence in communities. Stationed officers will know residents by name, attend community meetings, and focus on prevention not just arrests.",
+    "related_terms": ["Mini Substations", "DOJ Consent Decree", "Public Safety", "Police Reform"],
+    "priority": "campaign",
+    "featured": true
+  },
+  {
+    "term": "Inspector General",
+    "definition": "An independent watchdog office that investigates waste, fraud, abuse, and misconduct in government. The Inspector General has subpoena power and reports directly to the public, not the Mayor. It's an accountability cop for government itself.",
+    "category": "Government Accountability & Transparency",
+    "tags": ["accountability", "oversight", "transparency", "reform"],
+    "why_matters": "Without independent oversight, government can investigate itself - which rarely works. An Inspector General gives residents confidence that someone with real power is watching for corruption and waste. It's about restoring trust through real accountability.",
+    "louisville_context": "Louisville Metro does not have an Inspector General, despite recurring scandals involving waste and misconduct. Internal audits exist but lack independence and subpoena power. When problems arise, they're investigated by the same administration responsible for them.",
+    "data_stats": "Most major U.S. cities have Inspector General offices. Chicago's IG has recovered over $150M in waste since 2015. Philadelphia's IG audits save the city $3-5 for every $1 spent on the office. Louisville Metro's $1.2B budget has no independent oversight.",
+    "campaign_alignment": "Dave proposes a $3.5M Inspector General office with full independence, subpoena power, and a mandate to investigate waste, fraud, and abuse across all Metro departments. This is central to the 'Government That Responds' promise - accountability must be real.",
+    "related_terms": ["Accountability", "Transparency", "Government Oversight", "Waste Prevention"],
+    "priority": "campaign",
+    "featured": true
+  },
+  {
+    "term": "Mini Substations",
+    "definition": "Small, neighborhood-based police facilities that give officers a permanent presence in communities. Unlike traditional police stations that serve large geographic areas, mini substations put 3-5 officers directly in neighborhoods where they live and work, building relationships with residents.",
+    "category": "Public Safety & Policing",
+    "tags": ["police", "community", "safety", "infrastructure"],
+    "why_matters": "When police are stationed IN your neighborhood rather than driving through, they become part of the community. Residents know officers by name. Officers understand local issues. Problems get solved before they become crimes. It transforms policing from reactive to proactive.",
+    "louisville_context": "LMPD currently operates from 8 large divisions covering all of Louisville Metro's 400+ square miles. Officers spend most of their time driving between calls, with little time for community engagement. Many neighborhoods go weeks without seeing the same officer twice.",
+    "data_stats": "Louisville Metro has 46 recognized neighborhoods. Current 8-division model means each division covers 50-80 square miles and 75,000-85,000 residents. Residents report feeling police are 'invisible until there's trouble.'",
+    "campaign_alignment": "Dave proposes 46 mini substations - one per neighborhood - as the cornerstone of community policing reform. Total cost: $9.2M annually for facilities and staffing, funded within the existing $1.2B budget by reallocating resources from reactive policing to prevention.",
+    "related_terms": ["Community Policing", "Public Safety", "Neighborhood", "Police Reform"],
+    "priority": "campaign",
+    "featured": false
+  }
+]

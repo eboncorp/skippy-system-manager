@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
+  <!-- Background -->
+  <rect width="800" height="600" fill="#f8f9fa" />
+  
+  <!-- Title -->
+  <text x="400" y="30" font-family="Arial" font-size="24" text-anchor="middle" font-weight="bold">Ethereum Backup and Recovery Architecture</text>
+  
+  <!-- Ethereum Node -->
+  <rect x="50" y="70" width="200" height="380" rx="5" ry="5" fill="#f0d5f7" stroke="#9966aa" stroke-width="2" />
+  <text x="150" y="90" font-family="Arial" font-size="16" text-anchor="middle" font-weight="bold" fill="#333">Ethereum Node</text>
+  
+  <!-- Blockchain Data -->
+  <rect x="70" y="110" width="160" height="80" rx="5" ry="5" fill="#f9eafb" stroke="#af7ac5" stroke-width="1" />
+  <text x="150" y="135" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Blockchain Data</text>
+  <text x="150" y="155" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">/data/ethereum/geth/chaindata</text>
+  <text x="150" y="175" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">~1TB+ and growing</text>
+  
+  <!-- Keystore -->
+  <rect x="70" y="200" width="160" height="60" rx="5" ry="5" fill="#f9eafb" stroke="#af7ac5" stroke-width="1" />
+  <text x="150" y="225" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Keystore</text>
+  <text x="150" y="245" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">/data/ethereum/keystore</text>
+  
+  <!-- Node Configuration -->
+  <rect x="70" y="270" width="160" height="60" rx="5" ry="5" fill="#f9eafb" stroke="#af7ac5" stroke-width="1" />
+  <text x="150" y="295" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Node Configuration</text>
+  <text x="150" y="315" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">geth.service, config files</text>
+  
+  <!-- Backup Scripts -->
+  <rect x="70" y="340" width="160" height="60" rx="5" ry="5" fill="#f9eafb" stroke="#af7ac5" stroke-width="1" />
+  <text x="150" y="365" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Backup Scripts</text>
+  <text x="150" y="385" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">backup-eth.sh</text>
+  
+  <!-- Backup Job -->
+  <rect x="70" y="410" width="160" height="30" rx="5" ry="5" fill="#f2c9f8" stroke="#be6fd8" stroke-width="1" />
+  <text x="150" y="430" font-family="Arial" font-size="12" text-anchor="middle" fill="#333">Weekly Cron Job</text>
+  
+  <!-- Primary Backup Server -->
+  <rect x="300" y="70" width="200" height="270" rx="5" ry="5" fill="#d5f5e3" stroke="#2ecc71" stroke-width="2" />
+  <text x="400" y="90" font-family="Arial" font-size="16" text-anchor="middle" font-weight="bold" fill="#333">Primary Backup (Home Server)</text>
+  
+  <!-- Backup Storage -->
+  <rect x="320" y="110" width="160" height="60" rx="5" ry="5" fill="#e9f7ef" stroke="#58d68d" stroke-width="1" />
+  <text x="400" y="135" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Blockchain Backups</text>
+  <text x="400" y="155" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">/data/backups/ethereum-*.tar.gz</text>
+  
+  <!-- Keystore Backup -->
+  <rect x="320" y="180" width="160" height="60" rx="5" ry="5" fill="#e9f7ef" stroke="#58d68d" stroke-width="1" />
+  <text x="400" y="205" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Keystore Backups</text>
+  <text x="400" y="225" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">Encrypted Storage</text>
+  
+  <!-- ZFS Snapshots -->
+  <rect x="320" y="250" width="160" height="60" rx="5" ry="5" fill="#e9f7ef" stroke="#58d68d" stroke-width="1" />
+  <text x="400" y="275" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">ZFS Snapshots</text>
+  <text x="400" y="295" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">Daily, Weekly, Monthly</text>
+  
+  <!-- Offsite Backup -->
+  <rect x="550" y="70" width="200" height="200" rx="5" ry="5" fill="#d6eaf8" stroke="#3498db" stroke-width="2" />
+  <text x="650" y="90" font-family="Arial" font-size="16" text-anchor="middle" font-weight="bold" fill="#333">Offsite Backup</text>
+  
+  <!-- Encrypted Archive -->
+  <rect x="570" y="110" width="160" height="60" rx="5" ry="5" fill="#ebf5fb" stroke="#5dade2" stroke-width="1" />
+  <text x="650" y="135" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Encrypted Archives</text>
+  <text x="650" y="155" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">AES-256 Encryption</text>
+  
+  <!-- Remote Storage -->
+  <rect x="570" y="180" width="160" height="60" rx="5" ry="5" fill="#ebf5fb" stroke="#5dade2" stroke-width="1" />
+  <text x="650" y="205" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Remote Storage</text>
+  <text x="650" y="225" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">Monthly Transfer</text>
+  
+  <!-- Cold Storage -->
+  <rect x="550" y="300" width="200" height="150" rx="5" ry="5" fill="#fadbd8" stroke="#e74c3c" stroke-width="2" />
+  <text x="650" y="320" font-family="Arial" font-size="16" text-anchor="middle" font-weight="bold" fill="#333">Cold Storage</text>
+  
+  <!-- Cold Wallet -->
+  <rect x="570" y="340" width="160" height="60" rx="5" ry="5" fill="#f9e6e6" stroke="#ec7063" stroke-width="1" />
+  <text x="650" y="365" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Hardware Wallet</text>
+  <text x="650" y="385" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">For Significant Holdings</text>
+  
+  <!-- Disaster Recovery -->
+  <rect x="300" y="380" width="200" height="150" rx="5" ry="5" fill="#ffeecc" stroke="#ffa500" stroke-width="2" />
+  <text x="400" y="400" font-family="Arial" font-size="16" text-anchor="middle" font-weight="bold" fill="#333">Recovery Procedures</text>
+  
+  <!-- Data Restore -->
+  <rect x="320" y="420" width="160" height="50" rx="5" ry="5" fill="#fff6e6" stroke="#f0ad4e" stroke-width="1" />
+  <text x="400" y="445" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Data Restoration</text>
+  <text x="400" y="465" font-family="Arial" font-size="10" text-anchor="middle" fill="#666">Node Rebuild Procedure</text>
+  
+  <!-- Documentation -->
+  <rect x="320" y="480" width="160" height="40" rx="5" ry="5" fill="#fff6e6" stroke="#f0ad4e" stroke-width="1" />
+  <text x="400" y="505" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Recovery Documentation</text>
+  
+  <!-- Backup Flow Arrows -->
+  <!-- Node to Primary Backup -->
+  <line x1="230" y1="150" x2="320" y2="150" stroke="#2ecc71" stroke-width="2" />
+  <polygon points="310,145 320,150 310,155" fill="#2ecc71" />
+  <text x="275" y="140" font-family="Arial" font-size="10" text-anchor="middle" fill="#2ecc71">Blockchain Backup</text>
+  
+  <line x1="230" y1="220" x2="320" y2="200" stroke="#2ecc71" stroke-width="2" />
+  <polygon points="310,195 320,200 315,205" fill="#2ecc71" />
+  <text x="275" y="190" font-family="Arial" font-size="10" text-anchor="middle" fill="#2ecc71">Keystore Backup</text>
+  
+  <line x1="230" y1="300" x2="320" y2="280" stroke="#2ecc71" stroke-width="2" />
+  <polygon points="310,275 320,280 315,285" fill="#2ecc71" />
+  <text x="275" y="270" font-family="Arial" font-size="10" text-anchor="middle" fill="#2ecc71">Config Backup</text>
+  
+  <!-- Primary to Offsite -->
+  <line x1="480" y1="140" x2="570" y2="140" stroke="#3498db" stroke-width="2" />
+  <polygon points="560,135 570,140 560,145" fill="#3498db" />
+  <text x="525" y="130" font-family="Arial" font-size="10" text-anchor="middle" fill="#3498db">Encrypted Transfer</text>
+  
+  <line x1="480" y1="210" x2="570" y2="210" stroke="#3498db" stroke-width="2" />
+  <polygon points="560,205 570,210 560,215" fill="#3498db" />
+  
+  <!-- Primary to Cold Storage -->
+  <line x1="400" y1="240" x2="400" y2="340" stroke="#e74c3c" stroke-width="2" stroke-dasharray="5,3" />
+  <line x1="400" y1="340" x2="570" y2="370" stroke="#e74c3c" stroke-width="2" stroke-dasharray="5,3" />
+  <polygon points="560,365 570,370 565,375" fill="#e74c3c" />
+  <text x="450" y="335" font-family="Arial" font-size="10" text-anchor="middle" fill="#e74c3c">Manual Process</text>
+  
+  <!-- Recovery Flow -->
+  <line x1="480" y1="445" x2="650" y2="445" stroke="#ffa500" stroke-width="2" stroke-dasharray="5,3" />
+  <line x1="650" y1="445" x2="650" y2="245" stroke="#ffa500" stroke-width="2" stroke-dasharray="5,3" />
+  <line x1="650" y1="445" x2="650" y2="385" stroke="#ffa500" stroke-width="2" stroke-dasharray="5,3" />
+  <polygon points="645,255 650,245 655,255" fill="#ffa500" />
+  <text x="700" y="445" font-family="Arial" font-size="10" text-anchor="start" fill="#ffa500">Offsite Recovery</text>
+  
+  <line x1="320" y1="445" x2="150" y2="445" stroke="#ffa500" stroke-width="2" stroke-dasharray="5,3" />
+  <line x1="150" y1="445" x2="150" y2="370" stroke="#ffa500" stroke-width="2" stroke-dasharray="5,3" />
+  <polygon points="145,380 150,370 155,380" fill="#ffa500" />
+  <text x="235" y="435" font-family="Arial" font-size="10" text-anchor="middle" fill="#ffa500">Node Restoration</text>
+  
+  <!-- Verification Flow -->
+  <line x1="400" y1="330" x2="400" y2="420" stroke="#333" stroke-width="1" stroke-dasharray="2,2" />
+  <polygon points="395,410 400,420 405,410" fill="#333" />
+  <text x="430" y="375" font-family="Arial" font-size="10" text-anchor="start" fill="#333">Periodic Testing</text>
+  
+  <!-- Legend -->
+  <rect x="50" y="550" width="700" height="40" rx="5" ry="5" fill="white" stroke="#ccc" stroke-width="1" />
+  <line x1="80" y1="570" x2="110" y2="570" stroke="#2ecc71" stroke-width="2" />
+  <text x="140" y="573" font-family="Arial" font-size="10" fill="#333">Primary Backup</text>
+  
+  <line x1="200" y1="570" x2="230" y2="570" stroke="#3498db" stroke-width="2" />
+  <text x="260" y="573" font-family="Arial" font-size="10" fill="#333">Offsite Backup</text>
+  
+  <line x1="320" y1="570" x2="350" y2="570" stroke="#e74c3c" stroke-width="2" stroke-dasharray="5,3" />
+  <text x="380" y="573" font-family="Arial" font-size="10" fill="#333">Cold Storage</text>
+  
+  <line x1="440" y1="570" x2="470" y2="570" stroke="#ffa500" stroke-width="2" stroke-dasharray="5,3" />
+  <text x="500" y="573" font-family="Arial" font-size="10" fill="#333">Recovery Path</text>
+  
+  <line x1="560" y1="570" x2="590" y2="570" stroke="#333" stroke-width="1" stroke-dasharray="2,2" />
+  <text x="620" y="573" font-family="Arial" font-size="10" fill="#333">Verification Process</text>
+</svg>
