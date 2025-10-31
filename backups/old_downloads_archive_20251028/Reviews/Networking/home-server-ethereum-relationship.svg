@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
+  <!-- Background -->
+  <rect width="800" height="600" fill="#f8f9fa" />
+  
+  <!-- Title -->
+  <text x="400" y="30" font-family="Arial" font-size="24" text-anchor="middle" font-weight="bold">Home Server and Ethereum Node Relationship</text>
+  
+  <!-- Network Infrastructure Box -->
+  <rect x="50" y="60" width="700" height="100" rx="5" ry="5" fill="#eee" stroke="#ccc" stroke-width="1" fill-opacity="0.5" />
+  <text x="400" y="80" font-family="Arial" font-size="16" text-anchor="middle" font-weight="bold" fill="#555">Network Infrastructure</text>
+  
+  <!-- AT&T Gateway -->
+  <rect x="100" y="100" width="120" height="40" rx="5" ry="5" fill="#0099ff" stroke="#0066cc" stroke-width="2" />
+  <text x="160" y="125" font-family="Arial" font-size="12" text-anchor="middle" fill="white">AT&T Gateway</text>
+  
+  <!-- Orbi Router -->
+  <rect x="340" y="100" width="120" height="40" rx="5" ry="5" fill="#6600cc" stroke="#330066" stroke-width="2" />
+  <text x="400" y="125" font-family="Arial" font-size="12" text-anchor="middle" fill="white">Orbi Router</text>
+  
+  <!-- ProSafe Switches -->
+  <rect x="580" y="100" width="120" height="40" rx="5" ry="5" fill="#333333" stroke="#000000" stroke-width="2" />
+  <text x="640" y="125" font-family="Arial" font-size="12" text-anchor="middle" fill="white">ProSafe Switches</text>
+  
+  <!-- Connections -->
+  <line x1="220" y1="120" x2="340" y2="120" stroke="#333" stroke-width="2" />
+  <polygon points="330,115 340,120 330,125" fill="#333" />
+  
+  <line x1="460" y1="120" x2="580" y2="120" stroke="#333" stroke-width="2" />
+  <polygon points="570,115 580,120 570,125" fill="#333" />
+  
+  <!-- Home Server Box -->
+  <rect x="75" y="180" width="300" height="380" rx="10" ry="10" fill="#d5f5e3" stroke="#2ecc71" stroke-width="3" />
+  <text x="225" y="200" font-family="Arial" font-size="18" text-anchor="middle" font-weight="bold" fill="#196f3d">Home Server (VLAN 30)</text>
+  <text x="225" y="220" font-family="Arial" font-size="14" text-anchor="middle" fill="#196f3d">192.168.30.10</text>
+  
+  <!-- Server Components -->
+  <rect x="100" y="240" width="250" height="60" rx="5" ry="5" fill="#e9f7ef" stroke="#58d68d" stroke-width="1" />
+  <text x="225" y="270" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Prometheus</text>
+  <text x="225" y="290" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">Time Series Database</text>
+  
+  <rect x="100" y="310" width="250" height="60" rx="5" ry="5" fill="#e9f7ef" stroke="#58d68d" stroke-width="1" />
+  <text x="225" y="340" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Grafana</text>
+  <text x="225" y="360" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">Visualization Dashboard</text>
+  
+  <rect x="100" y="380" width="120" height="60" rx="5" ry="5" fill="#e9f7ef" stroke="#58d68d" stroke-width="1" />
+  <text x="160" y="410" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Alert Manager</text>
+  <text x="160" y="430" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">Notifications</text>
+  
+  <rect x="230" y="380" width="120" height="60" rx="5" ry="5" fill="#e9f7ef" stroke="#58d68d" stroke-width="1" />
+  <text x="290" y="410" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">VPN Server</text>
+  <text x="290" y="430" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">Remote Access</text>
+  
+  <rect x="100" y="450" width="120" height="60" rx="5" ry="5" fill="#e9f7ef" stroke="#58d68d" stroke-width="1" />
+  <text x="160" y="480" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Primary Backup</text>
+  <text x="160" y="500" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">Storage</text>
+  
+  <rect x="230" y="450" width="120" height="60" rx="5" ry="5" fill="#e9f7ef" stroke="#58d68d" stroke-width="1" />
+  <text x="290" y="480" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Log Aggregation</text>
+  <text x="290" y="500" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">Centralized Logs</text>
+  
+  <!-- Ethereum Node Box -->
+  <rect x="425" y="180" width="300" height="380" rx="10" ry="10" fill="#e8daef" stroke="#9966aa" stroke-width="3" />
+  <text x="575" y="200" font-family="Arial" font-size="18" text-anchor="middle" font-weight="bold" fill="#5b2c6f">Ethereum Node (VLAN 50)</text>
+  <text x="575" y="220" font-family="Arial" font-size="14" text-anchor="middle" fill="#5b2c6f">192.168.50.10</text>
+  
+  <!-- Ethereum Components -->
+  <rect x="450" y="240" width="250" height="60" rx="5" ry="5" fill="#f5eef8" stroke="#af7ac5" stroke-width="1" />
+  <text x="575" y="270" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Geth</text>
+  <text x="575" y="290" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">Ethereum Client</text>
+  
+  <rect x="450" y="310" width="120" height="60" rx="5" ry="5" fill="#f5eef8" stroke="#af7ac5" stroke-width="1" />
+  <text x="510" y="340" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Node Exporter</text>
+  <text x="510" y="360" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">System Metrics</text>
+  
+  <rect x="580" y="310" width="120" height="60" rx="5" ry="5" fill="#f5eef8" stroke="#af7ac5" stroke-width="1" />
+  <text x="640" y="340" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Geth Metrics</text>
+  <text x="640" y="360" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">Port 6060</text>
+  
+  <rect x="450" y="380" width="120" height="60" rx="5" ry="5" fill="#f5eef8" stroke="#af7ac5" stroke-width="1" />
+  <text x="510" y="410" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">JSON-RPC API</text>
+  <text x="510" y="430" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">Port 8545</text>
+  
+  <rect x="580" y="380" width="120" height="60" rx="5" ry="5" fill="#f5eef8" stroke="#af7ac5" stroke-width="1" />
+  <text x="640" y="410" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">WebSocket API</text>
+  <text x="640" y="430" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">Port 8546</text>
+  
+  <rect x="450" y="450" width="120" height="60" rx="5" ry="5" fill="#f5eef8" stroke="#af7ac5" stroke-width="1" />
+  <text x="510" y="480" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Blockchain Data</text>
+  <text x="510" y="500" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">/data/ethereum</text>
+  
+  <rect x="580" y="450" width="120" height="60" rx="5" ry="5" fill="#f5eef8" stroke="#af7ac5" stroke-width="1" />
+  <text x="640" y="480" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Backup Scripts</text>
+  <text x="640" y="500" font-family="Arial" font-size="12" text-anchor="middle" fill="#666">Scheduled Tasks</text>
+  
+  <!-- Data Flow Connections -->
+  <!-- Monitoring Data -->
+  <path d="M510 310 C450 290, 390 290, 350 240" stroke="#2ecc71" stroke-width="2" fill="none" />
+  <polygon points="345,248 350,240 355,248" fill="#2ecc71" />
+  <text x="420" y="270" font-family="Arial" font-size="10" text-anchor="middle" fill="#2ecc71">System Metrics</text>
+  
+  <path d="M580 310 C520 280, 370 280, 350 240" stroke="#2ecc71" stroke-width="2" fill="none" />
+  <polygon points="345,248 350,240 355,248" fill="#2ecc71" />
+  <text x="450" y="255" font-family="Arial" font-size="10" text-anchor="middle" fill="#2ecc71">Ethereum Metrics</text>
+  
+  <!-- Visualization Data -->
+  <path d="M225 300 C225 320, 390 320, 450 320" stroke="#58d68d" stroke-width="2" fill="none" stroke-dasharray="5,3" />
+  <polygon points="440,315 450,320 440,325" fill="#58d68d" />
+  <text x="350" y="315" font-family="Arial" font-size="10" text-anchor="middle" fill="#58d68d">Dashboard Access</text>
+  
+  <!-- Alert Flow -->
+  <path d="M160 380 C160 360, 300 330, 510 370" stroke="#e74c3c" stroke-width="2" fill="none" stroke-dasharray="5,3" />
+  <polygon points="500,365 510,370 500,375" fill="#e74c3c" />
+  <text x="320" y="350" font-family="Arial" font-size="10" text-anchor="middle" fill="#e74c3c">Alert Triggers</text>
+  
+  <!-- VPN Access -->
+  <path d="M290 380 C290 350, 400 320, 510 380" stroke="#3498db" stroke-width="2" fill="none" />
+  <polygon points="500,375 510,380 500,385" fill="#3498db" />
+  <text x="400" y="350" font-family="Arial" font-size="10" text-anchor="middle" fill="#3498db">Secure Remote Access</text>
+  
+  <!-- Backup Data -->
+  <path d="M580 450 C500 430, 400 420, 220 450" stroke="#f39c12" stroke-width="2" fill="none" />
+  <polygon points="230,455 220,450 230,445" fill="#f39c12" />
+  <text x="400" y="430" font-family="Arial" font-size="10" text-anchor="middle" fill="#f39c12">Scheduled Backups</text>
+  
+  <!-- Log Transfer -->
+  <path d="M455 495 C400 495, 370 480, 350 480" stroke="#7f8c8d" stroke-width="2" fill="none" />
+  <polygon points="360,485 350,480 360,475" fill="#7f8c8d" />
+  <text x="400" y="475" font-family="Arial" font-size="10" text-anchor="middle" fill="#7f8c8d">System Logs</text>
+  
+  <!-- External User Access -->
+  <ellipse cx="400" cy="570" rx="80" ry="20" fill="#f9e79f" stroke="#f1c40f" stroke-width="2" />
+  <text x="400" y="575" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">External User</text>
+  
+  <path d="M340 440 C360 490, 380 520, 400 550" stroke="#3498db" stroke-width="2" fill="none" stroke-dasharray="5,3" />
+  <polygon points="395,542 400,550 390,548" fill="#3498db" />
+  <text x="320" y="520" font-family="Arial" font-size="10" fill="#3498db">VPN Connection</text>
+  
+  <path d="M225 370 C310 450, 350 520, 400 550" stroke="#58d68d" stroke-width="2" fill="none" stroke-dasharray="5,3" />
+  <polygon points="390,542 400,550 390,548" fill="#58d68d" />
+  <text x="250" y="450" font-family="Arial" font-size="10" fill="#58d68d">Grafana Dashboard</text>
+  
+  <!-- Legend -->
+  <rect x="600" y="530" width="150" height="60" rx="5" ry="5" fill="white" stroke="#ccc" stroke-width="1" />
+  <text x="675" y="545" font-family="Arial" font-size="12" text-anchor="middle" font-weight="bold" fill="#333">Legend</text>
+  
+  <line x1="610" y1="560" x2="630" y2="560" stroke="#2ecc71" stroke-width="2" />
+  <text x="690" y="563" font-family="Arial" font-size="10" text-anchor="middle" fill="#333">Monitoring Data</text>
+  
+  <line x1="610" y1="575" x2="630" y2="575" stroke="#f39c12" stroke-width="2" />
+  <text x="690" y="578" font-family="Arial" font-size="10" text-anchor="middle" fill="#333">Backup Flow</text>
+  
+  <line x1="610" y1="590" x2="630" y2="590" stroke="#3498db" stroke-width="2" />
+  <text x="690" y="593" font-family="Arial" font-size="10" text-anchor="middle" fill="#333">Access Path</text>
+</svg>

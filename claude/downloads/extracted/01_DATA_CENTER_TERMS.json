@@ -1,0 +1,107 @@
+[
+  {
+    "term": "Data Center",
+    "definition": "A large facility that houses computer servers and networking equipment used to store, process, and distribute digital information for businesses and organizations. Companies like Amazon, Google, and Meta operate massive data centers that power cloud services, websites, and apps. Louisville is being considered for data center development due to our central location, low natural disaster risk, and competitive utility rates.",
+    "category": "Economic Development",
+    "relatedTerms": ["cloud-computing", "server-farm", "hyperscale-data-center", "economic-development-incentives", "tax-abatement"],
+    "aliases": ["Server Farm", "Data Facility", "Internet Data Center"]
+  },
+  {
+    "term": "Hyperscale Data Center",
+    "definition": "An extremely large data center (typically 500,000+ square feet) operated by major tech companies like Amazon Web Services, Microsoft Azure, or Google Cloud. These facilities can cost over $1 billion to build and consume as much electricity as a small city. Hyperscale centers seek locations with cheap electricity, reliable power grids, and fiber optic connectivity—which makes Louisville attractive.",
+    "category": "Economic Development",
+    "relatedTerms": ["data-center", "cloud-computing", "power-consumption", "fiber-optic-network"],
+    "aliases": ["Hyperscaler", "Mega Data Center", "Cloud Data Center"]
+  },
+  {
+    "term": "Power Usage Effectiveness (PUE)",
+    "definition": "A metric measuring how efficiently a data center uses electricity, calculated by dividing total facility energy use by energy used for computing equipment. A PUE of 2.0 means half the power goes to computing and half to cooling. Modern efficient data centers achieve PUE around 1.2-1.5. Louisville's moderate climate makes efficient cooling easier compared to Southern states.",
+    "category": "Infrastructure",
+    "relatedTerms": ["data-center", "energy-efficiency", "cooling-infrastructure", "utility-rates"],
+    "aliases": ["PUE Rating", "Energy Efficiency Ratio"]
+  },
+  {
+    "term": "Data Center Tax Abatement",
+    "definition": "Property tax reductions or exemptions offered by local governments to attract data center development, typically lasting 10-15 years. These incentives are controversial—supporters argue data centers create jobs and eventual tax revenue, while critics note the facilities use enormous public resources (electricity, water, infrastructure) while often employing fewer workers than traditional manufacturers. Louisville Metro Council must approve any abatement.",
+    "category": "Budget & Finance",
+    "relatedTerms": ["tax-abatement", "economic-development-incentives", "property-tax", "metro-council"],
+    "aliases": ["Data Center Incentive", "Tech Facility Tax Break"]
+  },
+  {
+    "term": "Cooling Infrastructure",
+    "definition": "The systems data centers use to prevent servers from overheating, including chillers, cooling towers, and air conditioning that can use millions of gallons of water daily. Cooling typically accounts for 30-50% of a data center's total energy consumption. Some newer facilities use 'free cooling' with outside air when temperatures permit, making Louisville's climate advantageous 4-5 months per year.",
+    "category": "Infrastructure",
+    "relatedTerms": ["data-center", "water-consumption", "power-usage-effectiveness", "environmental-impact"],
+    "aliases": ["Data Center Cooling", "HVAC Systems", "Thermal Management"]
+  },
+  {
+    "term": "Water Consumption (Data Centers)",
+    "definition": "The amount of water data centers use for cooling systems, typically 3-5 million gallons per day for a large facility—equivalent to 30,000-50,000 people's daily water use. This becomes a critical issue during droughts or in water-stressed regions. Louisville's location on the Ohio River provides abundant water, but treatment capacity and wastewater processing remain considerations.",
+    "category": "Infrastructure",
+    "relatedTerms": ["data-center", "cooling-infrastructure", "louisville-water-company", "environmental-impact"],
+    "aliases": ["Water Use", "Cooling Water Demand"]
+  },
+  {
+    "term": "Electrical Substation",
+    "definition": "A facility where voltage is transformed from high to low or vice versa, and where electrical connections are made. Large data centers require dedicated substations to handle 30-100 megawatts of continuous power demand. Building a new substation costs $5-15 million and typically requires Louisville Gas & Electric (LG&E) partnership, with costs often shared between the utility and data center operator.",
+    "category": "Infrastructure",
+    "relatedTerms": ["data-center", "power-grid", "utility-infrastructure", "lge", "capital-improvement"],
+    "aliases": ["Power Substation", "Transmission Substation", "Electrical Distribution Station"]
+  },
+  {
+    "term": "Fiber Optic Network",
+    "definition": "High-speed internet infrastructure using light pulses through glass cables to transmit data at speeds up to 100 times faster than traditional copper cables. Data centers require multiple redundant fiber connections for reliability. Louisville benefits from being a fiber hub with multiple competing providers, reducing internet transit costs for data center operators.",
+    "category": "Infrastructure",
+    "relatedTerms": ["data-center", "broadband", "internet-infrastructure", "telecommunications"],
+    "aliases": ["Fiber Network", "Fiber Backbone", "Dark Fiber"]
+  },
+  {
+    "term": "Cloud Computing",
+    "definition": "The delivery of computing services (servers, storage, databases, software) over the internet rather than from local devices. When you use Gmail, stream Netflix, or store photos in iCloud, you're using cloud computing powered by data centers. Amazon Web Services, Microsoft Azure, and Google Cloud Platform are the three largest providers, collectively operating hundreds of data centers worldwide.",
+    "category": "Technology",
+    "relatedTerms": ["data-center", "hyperscale-data-center", "internet-infrastructure"],
+    "aliases": ["Cloud Services", "Cloud Infrastructure", "The Cloud"]
+  },
+  {
+    "term": "Colocation Facility",
+    "definition": "A data center where multiple companies rent space to house their own servers and equipment, sharing the building's power, cooling, and security infrastructure. Unlike hyperscale centers owned by single tech giants, colocation facilities serve dozens or hundreds of smaller businesses. These facilities typically employ more local workers per square foot than hyperscale centers.",
+    "category": "Economic Development",
+    "relatedTerms": ["data-center", "server-hosting", "managed-services"],
+    "aliases": ["Colo", "Carrier Hotel", "Server Colocation"]
+  },
+  {
+    "term": "Megawatt (MW)",
+    "definition": "A unit of electrical power equal to one million watts, used to measure data center electricity consumption. One megawatt can power approximately 750-1,000 average American homes. A typical hyperscale data center uses 30-50 MW continuously—equivalent to 30,000-50,000 homes. For context, all of Louisville Metro uses about 1,500-2,000 MW at peak demand.",
+    "category": "Infrastructure",
+    "relatedTerms": ["data-center", "power-consumption", "utility-rates", "electrical-grid"],
+    "aliases": ["MW", "Power Capacity", "Electrical Load"]
+  },
+  {
+    "term": "Uptime",
+    "definition": "The percentage of time a data center's systems remain operational without interruption. Enterprise data centers target 99.99% uptime ('four nines'), meaning less than 53 minutes of downtime per year. Achieving high uptime requires redundant power systems, backup generators, multiple internet connections, and 24/7 staffing—all factors that affect employment and infrastructure requirements.",
+    "category": "Technology",
+    "relatedTerms": ["data-center", "reliability", "redundancy", "backup-power"],
+    "aliases": ["Availability", "Reliability", "Service Level"]
+  },
+  {
+    "term": "Backup Power Generation",
+    "definition": "Diesel or natural gas generators that provide electricity to data centers during utility power outages, ensuring continuous operation. A large data center may have 20-40 massive generators capable of running for 48-72 hours on stored fuel. These generators raise air quality concerns and require periodic testing (creating noise and exhaust), which neighbors of proposed data centers often oppose.",
+    "category": "Infrastructure",
+    "relatedTerms": ["data-center", "uptime", "environmental-impact", "emergency-power"],
+    "aliases": ["Emergency Generators", "Standby Power", "Diesel Generators"]
+  },
+  {
+    "term": "Economic Impact Study",
+    "definition": "An analysis estimating how a proposed development (like a data center) will affect the local economy through job creation, tax revenue, and economic multiplier effects. These studies are often funded by developers and criticized for overly optimistic projections. When Louisville evaluates data center proposals, independent economic analysis helps Metro Council assess true benefits versus costs like utility infrastructure upgrades and tax abatements.",
+    "category": "Economic Development",
+    "relatedTerms": ["data-center-tax-abatement", "cost-benefit-analysis", "fiscal-impact", "metro-council"],
+    "aliases": ["Economic Impact Analysis", "Fiscal Impact Study", "Economic Benefits Study"]
+  },
+  {
+    "term": "Digital Infrastructure",
+    "definition": "The physical systems that enable internet and digital services, including data centers, fiber optic cables, cell towers, and power grids. Louisville's digital infrastructure includes multiple fiber routes, competitive telecommunications providers, and reliable electricity—key factors tech companies consider when choosing data center locations. Investing in digital infrastructure helps attract both data centers and other technology employers.",
+    "category": "Infrastructure",
+    "relatedTerms": ["data-center", "fiber-optic-network", "broadband", "telecommunications", "economic-development"],
+    "aliases": ["Technology Infrastructure", "Internet Infrastructure", "Connectivity Infrastructure"]
+  }
+]

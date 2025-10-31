@@ -1,37 +1,41 @@
-# Sensitive files to exclude from Git
-# Sensitive files and directories
-.ssh/
-*.odt
-*token*
-*key*
-*.pem
-*.p12
-*.pfx
-config.yaml
-secrets/
-.env
-.env.*
-personal/
-private/
-*.log
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+
+# OS files
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Large downloads and archives
-Downloads/
-archives/
-*.zip
-*.tar.gz
-*.pdf
-*.exe
-*.dmg
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Temp files
+*.tmp
+.~*
+
+# Large binary files
 *.AppImage
+*.dmg
 *.deb
+*.rpm
+*.exe
+*.msi
+*.iso
+*.tar.gz
+*.zip
+*.qbo
+*.odt
 
-# Personal documents
-GoogleDrive/
-OneDrive/
-Dropbox/
-Personal/
+# Application downloads
+claude/downloads/apps/
+claude/downloads/software/
+claude/downloads/archives/

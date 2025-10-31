@@ -1,0 +1,212 @@
+[
+  {
+    "term": "Police Accountability Board",
+    "definition": "A civilian oversight body with authority to review police misconduct complaints, investigate officers, and recommend discipline. Louisville currently lacks a board with real power—the Police Merit Board handles appeals but isn't a true accountability mechanism. Creating an independent accountability board with subpoena power and investigative authority is a major police reform goal.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["civilian-oversight", "police-misconduct", "lmpd", "police-reform"],
+    "aliases": ["Civilian Review Board", "Police Oversight Board", "Accountability Commission"]
+  },
+  {
+    "term": "Body-Worn Cameras",
+    "definition": "Small video cameras attached to police uniforms that record officer interactions with the public. LMPD officers are required to wear body cameras and activate them during all enforcement encounters. Camera footage provides evidence in complaints and helps hold both officers and citizens accountable. However, policies about when cameras must be on and when footage is released remain contentious.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["police-accountability", "evidence", "lmpd", "transparency"],
+    "aliases": ["Body Cameras", "Body Cams", "BWC", "Police Cameras"]
+  },
+  {
+    "term": "Use of Force Policy",
+    "definition": "Written rules governing when and how police can use physical force, weapons, or restraints against people. LMPD's use of force policy defines authorized techniques, requires de-escalation when safe, and mandates reporting all force. Strong policies emphasize force as a last resort and ban techniques like chokeholds. Policy details matter—they determine whether officers face discipline for excessive force.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["use-of-force-continuum", "de-escalation", "police-policy", "excessive-force"],
+    "aliases": ["Force Policy", "Use of Force Guidelines"]
+  },
+  {
+    "term": "Use of Force Continuum",
+    "definition": "A framework showing escalating levels of force officers can use in response to resistance, from verbal commands to deadly force. Modern policing has moved away from rigid continuums toward 'reasonableness' standards that emphasize de-escalation. Officers should use the minimum force necessary and continually reassess as situations change. The continuum should guide training and discipline.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["use-of-force-policy", "de-escalation", "police-training", "reasonable-force"],
+    "aliases": ["Force Continuum", "Levels of Force", "Force Escalation Model"]
+  },
+  {
+    "term": "De-escalation Training",
+    "definition": "Teaching police officers techniques to reduce tension and resolve situations without force—using time, distance, communication, and tactical repositioning. De-escalation training emphasizes slowing situations down, calling for backup, and using verbal skills. Research shows departments prioritizing de-escalation see 20-30% fewer use-of-force incidents. Training must be ongoing, not just a one-time class.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["use-of-force-policy", "crisis-intervention-training", "police-training", "officer-safety"],
+    "aliases": ["De-escalation Tactics", "Conflict De-escalation", "Verbal Judo"]
+  },
+  {
+    "term": "Implicit Bias Training",
+    "definition": "Training designed to help officers recognize and reduce unconscious stereotypes and prejudices that affect decision-making. Studies show everyone has implicit biases based on race, gender, age, etc. Training alone doesn't eliminate bias, but when combined with accountability systems and policy changes, it can reduce disparate outcomes. LMPD officers receive implicit bias training, though its effectiveness depends on leadership commitment.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["police-training", "racial-profiling", "bias-awareness", "fair-policing"],
+    "aliases": ["Bias Training", "Unconscious Bias Training", "Fair Policing Training"]
+  },
+  {
+    "term": "Consent Decree",
+    "definition": "A court-enforceable agreement between a police department and the U.S. Department of Justice requiring specific reforms after a federal investigation finds unconstitutional policing patterns. Louisville is currently under a partial consent decree following DOJ's investigation after Breonna Taylor's killing. The decree requires reforms to search warrant practices, accountability systems, and supervision. An independent monitor tracks compliance.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["pattern-or-practice-investigation", "police-reform", "doj-oversight", "court-monitoring"],
+    "aliases": ["DOJ Consent Decree", "Court Agreement", "Reform Agreement"]
+  },
+  {
+    "term": "Pattern or Practice Investigation",
+    "definition": "A federal civil rights investigation by the U.S. Department of Justice examining whether a police department engages in systemic unconstitutional practices like excessive force, discriminatory policing, or unlawful searches. These investigations review policies, training, incident data, and officer interviews. Findings can lead to consent decrees requiring reforms. Louisville underwent a pattern-or-practice investigation after Breonna Taylor's death.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["consent-decree", "doj-investigation", "civil-rights", "police-accountability"],
+    "aliases": ["DOJ Investigation", "Federal Investigation", "Civil Rights Investigation"]
+  },
+  {
+    "term": "Early Intervention System",
+    "definition": "A database tracking officer behavior—complaints, use of force, vehicle pursuits, etc.—to identify officers showing warning signs of problems before serious misconduct occurs. When officers exceed thresholds (e.g., three force incidents in six months), supervisors intervene with coaching, retraining, or reassignment. Effective early intervention systems can reduce misconduct by 20-40% and prevent officers from becoming 'bad apples.'",
+    "category": "Criminal Justice",
+    "relatedTerms": ["police-accountability", "officer-discipline", "data-tracking", "proactive-supervision"],
+    "aliases": ["EIS", "Early Warning System", "Officer Monitoring System"]
+  },
+  {
+    "term": "Disciplinary Matrix",
+    "definition": "A written schedule showing the range of discipline (counseling, suspension, termination) for various policy violations, ensuring consistency and transparency. A strong matrix specifies that serious violations like excessive force or dishonesty result in termination, while minor infractions bring lesser penalties. Matrices prevent arbitrary discipline and build community trust. Louisville needs a clear, publicly available disciplinary matrix.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["police-accountability", "officer-discipline", "progressive-discipline", "misconduct-penalties"],
+    "aliases": ["Discipline Guidelines", "Penalty Matrix", "Disciplinary Schedule"]
+  },
+  {
+    "term": "Brady List",
+    "definition": "A confidential list of police officers who have credibility problems (lying, evidence tampering) that prosecutors must disclose to defense attorneys because it affects their reliability as witnesses. Being on the Brady List can end an officer's career since their testimony is impeached in every case. Louisville's County Attorney and Commonwealth's Attorney maintain Brady Lists, though they're not public, raising transparency concerns.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["officer-credibility", "police-misconduct", "prosecutorial-disclosure", "witness-integrity"],
+    "aliases": ["Giglio List", "Credibility List", "Dishonesty List"]
+  },
+  {
+    "term": "Civilian Oversight",
+    "definition": "Giving non-police citizens authority to review police policies, investigate complaints, and recommend reforms—providing an independent check on police power. Civilian oversight ranges from purely advisory boards to agencies with subpoena power and independent investigation. Louisville's current oversight is weak; meaningful reform requires an empowered civilian board with investigative resources, not just the power to recommend.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["police-accountability-board", "citizen-review", "police-reform", "independent-investigation"],
+    "aliases": ["Citizen Oversight", "Civilian Review", "Independent Oversight"]
+  },
+  {
+    "term": "Police Union",
+    "definition": "The labor organization representing police officers in contract negotiations, grievances, and disciplinary appeals. Louisville's Fraternal Order of Police (FOP) is a powerful union that negotiates officer pay, benefits, and working conditions. Police unions play legitimate roles protecting officer rights, but can also shield bad officers through contract provisions that limit accountability. Balancing fair labor practices with accountability is essential.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["collective-bargaining-agreement", "fraternal-order-of-police", "police-contract", "labor-relations"],
+    "aliases": ["FOP", "Fraternal Order of Police", "Police Guild"]
+  },
+  {
+    "term": "Collective Bargaining Agreement",
+    "definition": "The contract between Louisville Metro Government and the police union (FOP) governing officer pay, benefits, disciplinary procedures, and working conditions. This contract is negotiated every few years and shapes police accountability—provisions can limit discipline timeliness, restrict civilian oversight, or require destruction of misconduct records. The mayor negotiates the contract subject to Metro Council approval, making mayoral elections critical for police reform.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["police-union", "police-contract", "labor-agreement", "accountability-barriers"],
+    "aliases": ["CBA", "Union Contract", "Police Contract"]
+  },
+  {
+    "term": "Restorative Justice",
+    "definition": "An approach to crime that focuses on repairing harm and rehabilitating offenders through dialogue between victims, offenders, and community, rather than purely punitive punishment. Restorative justice programs in Louisville include victim-offender mediation, community conferencing, and accountability circles. Research shows restorative approaches reduce recidivism 20-30% compared to traditional prosecution, especially for juveniles and first-time offenders.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["alternative-sentencing", "victim-offender-mediation", "community-justice", "rehabilitation"],
+    "aliases": ["Restorative Practices", "Healing Justice", "Reparative Justice"]
+  },
+  {
+    "term": "Diversion Program",
+    "definition": "An alternative to traditional prosecution that redirects low-level offenders (especially first-timers and juveniles) into treatment, counseling, or community service instead of jail. Successful completion results in charges being dismissed or reduced. Louisville offers diversion for drug possession, theft, and some other offenses. Diversion saves jail costs, reduces recidivism, and gives people second chances without permanent criminal records.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["pretrial-diversion", "alternative-sentencing", "treatment-programs", "recidivism-reduction"],
+    "aliases": ["Pretrial Diversion", "Alternative Prosecution", "Diversionary Program"]
+  },
+  {
+    "term": "Pretrial Services",
+    "definition": "An agency that evaluates arrested people for release before trial, monitors compliance with release conditions, and connects defendants to services (mental health, housing, employment). Good pretrial services reduce unnecessary jail detention of people presumed innocent who aren't flight risks or dangers. Louisville's pretrial system affects whether low-income defendants sit in jail for months awaiting trial simply because they can't afford bail.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["cash-bail-reform", "pretrial-detention", "jail-population", "release-conditions"],
+    "aliases": ["Pretrial Supervision", "Pretrial Release Program"]
+  },
+  {
+    "term": "Cash Bail Reform",
+    "definition": "Changes to the bail system to reduce jailing people simply because they're poor. Traditional cash bail requires defendants to pay money (often $500-$10,000) to get released before trial, creating a two-tier system where wealthy defendants go home while poor defendants sit in jail for the same charges. Reforms include risk-based release decisions, lower bail amounts, and eliminating bail for low-level offenses. Kentucky passed limited bail reform in 2011.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["pretrial-services", "pretrial-detention", "jail-reform", "wealth-based-detention"],
+    "aliases": ["Bail Reform", "Pretrial Reform", "Detention Reform"]
+  },
+  {
+    "term": "Public Defender",
+    "definition": "A government-employed lawyer who represents people charged with crimes who cannot afford private attorneys. The Constitution guarantees everyone the right to an attorney, so public defenders serve indigent defendants. Louisville's public defenders are overworked with caseloads 2-3 times national standards, affecting quality of representation. Adequately funding public defense is essential for fair justice, but it's chronically underfunded statewide.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["right-to-counsel", "indigent-defense", "legal-representation", "criminal-defense"],
+    "aliases": ["PD", "Defense Attorney", "Court-Appointed Attorney"]
+  },
+  {
+    "term": "Expungement",
+    "definition": "The legal process of sealing or destroying criminal records so they don't appear in background checks, helping people move on after completing sentences. Kentucky allows expungement of certain misdemeanors after 5 years and some felonies after 5-10 years (depending on severity), if you haven't committed additional crimes. Expungement removes employment, housing, and education barriers but requires court filings and often attorney fees, creating access issues.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["criminal-record-sealing", "second-chance", "reentry", "background-checks"],
+    "aliases": ["Record Sealing", "Record Expungement", "Criminal Record Clearing"]
+  },
+  {
+    "term": "Recidivism",
+    "definition": "The rate at which released inmates return to jail or prison, measuring whether criminal justice programs successfully rehabilitate or merely warehouse people. Kentucky's recidivism rate is about 40% within three years—meaning 2 in 5 released inmates get rearrested. High recidivism indicates inadequate reentry programs, education, employment support, and treatment. Reducing recidivism requires investments in second chances, not just punishment.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["reentry-programs", "rehabilitation", "criminal-justice-reform", "recidivism-reduction"],
+    "aliases": ["Re-offense Rate", "Return to Prison Rate"]
+  },
+  {
+    "term": "Reentry Programs",
+    "definition": "Services helping released inmates successfully transition back to the community—housing assistance, job training, education, mental health treatment, substance abuse counseling. People leaving incarceration face massive obstacles: employer discrimination, housing barriers, lost family connections, lack of work history. Without support, recidivism is almost inevitable. Louisville needs robust reentry programs funded through criminal justice budgets, not just non-profit charity.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["recidivism", "second-chance-programs", "rehabilitation", "prisoner-reintegration"],
+    "aliases": ["Reentry Services", "Reintegration Programs", "Post-Incarceration Support"]
+  },
+  {
+    "term": "Qualified Immunity",
+    "definition": "A legal doctrine that protects police officers from civil lawsuits unless they violated 'clearly established' constitutional rights. Qualified immunity makes it extremely difficult to sue officers for misconduct, even in egregious cases, because courts require nearly identical prior cases establishing the specific conduct was unconstitutional. Critics argue this shields bad officers from accountability; defenders say it protects officers making split-second decisions. Reform efforts seek to limit or eliminate qualified immunity.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["police-accountability", "civil-rights", "police-misconduct", "legal-immunity"],
+    "aliases": ["QI", "Officer Immunity", "Police Protection Doctrine"]
+  },
+  {
+    "term": "Racial Profiling",
+    "definition": "Law enforcement targeting individuals for stops, searches, or arrests based on race, ethnicity, or national origin rather than evidence of wrongdoing. Racial profiling is unconstitutional but remains common—Black drivers in Louisville are stopped and searched at higher rates than White drivers even though search hit rates (finding contraband) are similar. Addressing profiling requires collecting and analyzing stop data, training reforms, and accountability for discriminatory patterns.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["traffic-stops", "stop-and-frisk", "implicit-bias", "disparate-impact"],
+    "aliases": ["Discriminatory Policing", "Biased Enforcement", "Racial Targeting"]
+  },
+  {
+    "term": "Crisis Intervention Team (CIT)",
+    "definition": "Specially-trained police officers who respond to mental health crises using de-escalation, communication, and connection to services rather than force or arrest. CIT officers receive 40 hours of mental health training and partner with mobile crisis clinicians. CIT programs reduce injuries to officers and subjects, decrease arrests, and connect people to treatment. Louisville has CIT officers, but the program needs expansion so mental health calls get appropriate specialized response.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["mental-health-crisis", "de-escalation", "co-responder-programs", "police-social-work"],
+    "aliases": ["CIT", "Mental Health Response Team"]
+  },
+  {
+    "term": "Co-Responder Program",
+    "definition": "A model pairing police officers with mental health clinicians or social workers to respond together to mental health, substance abuse, and homelessness calls. The clinician provides assessment and service connection while the officer ensures safety. Co-responder programs reduce arrests, hospitalization, and use of force on vulnerable populations while connecting people to long-term help. This is more effective than police-only or clinician-only responses.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["crisis-intervention-team", "mental-health-crisis", "social-services", "alternative-response"],
+    "aliases": ["Police-Clinician Team", "Mobile Crisis Team", "Integrated Response"]
+  },
+  {
+    "term": "No-Knock Warrant",
+    "definition": "A search warrant allowing police to enter a home without knocking or announcing themselves first. Courts grant no-knock warrants when evidence might be destroyed or officer safety threatened. Breonna Taylor was killed during a no-knock raid in Louisville, sparking national outrage. Kentucky and Louisville subsequently banned most no-knock warrants, but enforcement depends on judicial scrutiny and police compliance. The safety justification rarely outweighs the danger no-knock raids create.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["search-warrant", "police-raid", "breonna-taylor", "warrant-reform"],
+    "aliases": ["No-Knock Raid", "Unannounced Entry", "No-Knock Search"]
+  },
+  {
+    "term": "Community Policing",
+    "definition": "A philosophy where police and residents work together as partners to solve problems and prevent crime, not just respond to 911 calls. Community policing emphasizes officers building relationships through foot patrols, attending community meetings, and addressing quality-of-life issues before they escalate. Research shows community policing improves police-community trust, reduces fear of crime, and can decrease crime rates 10-20%. Implementation requires dedicated staffing and neighborhood engagement.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["neighborhood-policing", "police-community-relations", "problem-oriented-policing", "foot-patrols"],
+    "aliases": ["Community-Oriented Policing", "Neighborhood Policing"]
+  },
+  {
+    "term": "Procedural Justice",
+    "definition": "The principle that people evaluate police legitimacy based on how they're treated (fairness, respect, voice, neutrality) not just outcomes. When people feel treated fairly—even if arrested—they're more likely to cooperate and view police as legitimate. Procedural justice training teaches officers to explain decisions, listen to people, and treat everyone with dignity. Departments emphasizing procedural justice see improved community relations and officer safety.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["police-legitimacy", "fair-treatment", "police-training", "community-trust"],
+    "aliases": ["Fair Process", "Police Legitimacy", "Fairness in Policing"]
+  },
+  {
+    "term": "Traffic Stop Data Collection",
+    "definition": "Systematically recording demographics, reason for stop, search occurrence, and outcomes of all police traffic stops to identify patterns of racial disparities. Data analysis can reveal if certain officers or districts disproportionately stop minority drivers or conduct searches that don't yield contraband. Louisville collects some traffic stop data, but comprehensive analysis and public reporting remain limited. Transparency is essential for addressing discriminatory policing.",
+    "category": "Criminal Justice",
+    "relatedTerms": ["racial-profiling", "stop-data", "police-accountability", "disparate-impact"],
+    "aliases": ["Stop Data", "Traffic Stop Analysis", "Racial Profiling Data"]
+  }
+]
