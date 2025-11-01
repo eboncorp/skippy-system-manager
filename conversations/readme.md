@@ -2,8 +2,8 @@
 
 **Location**: `/home/dave/skippy/conversations/`
 **Purpose**: Persistent memory system for Claude Code
-**Last Updated**: 2025-10-28
-**Status**: ✅ Complete - 15 protocols + 4 quick references
+**Last Updated**: 2025-10-31
+**Status**: ✅ Complete - 18 protocols + 4 quick references
 
 ## Overview
 
@@ -13,7 +13,25 @@ This directory contains the complete protocol system for Claude Code - a compreh
 
 ## Core Protocols (Foundational)
 
-### 1. Script Creation Protocol ✨ NEW
+### 0. Pre-Commit Sanitization Protocol ✨ NEW - CRITICAL SECURITY
+**File**: `pre_commit_sanitization_protocol.md` | **Size**: ~800 lines | **Priority**: CRITICAL
+
+**Purpose**: Prevent credentials and sensitive data from being committed to Git
+
+**Key Rules**:
+- ✅ Automated pre-commit hook scans for credentials BEFORE every commit
+- ✅ Comprehensive .gitignore patterns for API keys, tokens, passwords
+- ✅ Content scanning for Anthropic, GitHub, AWS, and other API key patterns
+- ✅ BLOCKS commit if credentials detected
+- ✅ Emergency response procedures if credentials are pushed
+
+**When to Reference**: AUTOMATIC - Pre-commit hook runs before every commit
+
+**Created:** Oct 31, 2025 (Triggered by Anthropic API key exposure incident)
+
+---
+
+### 1. Script Creation Protocol ✨
 **File**: `script_creation_protocol.md` | **Size**: ~600 lines | **Priority**: CRITICAL
 
 **Purpose**: ALWAYS check existing scripts before creating new ones
