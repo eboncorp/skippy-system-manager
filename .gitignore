@@ -39,3 +39,75 @@ desktop.ini
 claude/downloads/apps/
 claude/downloads/software/
 claude/downloads/archives/
+
+# ============================================
+# SECURITY: Credentials & Sensitive Data
+# ============================================
+# API Keys and Tokens
+*api*key*
+*apikey*
+*.key
+*.pem
+*.p12
+*.pfx
+*token*
+*secret*
+*credential*
+*password*
+*.env
+.env.*
+
+# Specific credential directories
+google_drive/Claude/
+github/*.odt
+credentials/
+secrets/
+.secrets/
+
+# SSH keys
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*.ppk
+
+# Cloud provider credentials
+.aws/
+.azure/
+.gcp/
+gcloud/
+
+# Database credentials
+*.sql
+database.yml
+database.ini
+
+# Configuration files with potential secrets
+config.local.*
+*.local.conf
+*-local.json
+
+# Backup files that might contain credentials
+*.bak
+*.backup
+*.old
+*~
+
+# Certificate files
+*.crt
+*.cer
+*.der
+
+# Anthropic specific
+.anthropic/
+anthropic_api_key*
+claude_key*
+
+# GitHub tokens
+github_token*
+gh_token*
+.github_token
+
+# OAuth tokens
+oauth*
+.oauth*
