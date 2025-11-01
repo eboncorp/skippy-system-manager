@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "general-server": {
+      "command": "/home/dave/skippy/mcp-servers/general-server/.venv/bin/python3",
+      "args": [
+        "/home/dave/skippy/mcp-servers/general-server/server.py"
+      ]
+    }
+  }
+}

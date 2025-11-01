@@ -111,3 +111,4 @@ gh_token*
 # OAuth tokens
 oauth*
 .oauth*
+mcp-servers/general-server/.env
