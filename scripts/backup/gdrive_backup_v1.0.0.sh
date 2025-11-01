@@ -1,44 +1,32 @@
-#!/bin/bash
-# Google Drive Backup Script for Ebonhawk
-# Backs up important directories to Google Drive
+#\!/bin/bash
+# Google Drive Backup Script for Ebon Server
+# Backs up Nexus components and configurations
 
 BACKUP_DATE=$(date +%Y%m%d_%H%M%S)
-GDRIVE_BACKUP_DIR="googledrive:Backups/ebonhawk"
-LOG_FILE="/home/dave/.backup_log"
+GDRIVE_BACKUP_DIR="Backups/ebon"
+LOG_FILE="/home/ebon/backup.log"
 
-echo "Starting backup to Google Drive - $BACKUP_DATE" | tee -a $LOG_FILE
+echo "Starting Ebon server backup - $BACKUP_DATE" | tee -a $LOG_FILE
 
-# Create backup directory structure
-rclone mkdir "$GDRIVE_BACKUP_DIR/$BACKUP_DATE" 2>&1 | tee -a $LOG_FILE
+# Install rclone if not present
+if \! command -v rclone &> /dev/null; then
+    echo "Installing rclone..." | tee -a $LOG_FILE
+    curl https://rclone.org/install.sh | sudo bash
+fi
 
-# Backup important directories
-echo "Backing up Documents..." | tee -a $LOG_FILE
-rclone sync /home/dave/Documents "$GDRIVE_BACKUP_DIR/$BACKUP_DATE/Documents" \
-    --exclude "*.tmp" --exclude ".~*" --progress 2>&1 | tee -a $LOG_FILE
+# Backup Nexus components
+echo "Creating backup archive..." | tee -a $LOG_FILE
+tar -czf /tmp/nexus_backup_$BACKUP_DATE.tar.gz \
+    /home/ebon/nexus*.py \
+    /home/ebon/nexus*.log \
+    /home/ebon/*.service \
+    /home/ebon/docker-compose*.yml 2>/dev/null
 
-echo "Backing up Scans..." | tee -a $LOG_FILE
-rclone sync /home/dave/Scans "$GDRIVE_BACKUP_DIR/$BACKUP_DATE/Scans" \
-    --progress 2>&1 | tee -a $LOG_FILE
+# Upload to Google Drive using rclone
+echo "Uploading to Google Drive..." | tee -a $LOG_FILE
+rclone copy /tmp/nexus_backup_$BACKUP_DATE.tar.gz googledrive:$GDRIVE_BACKUP_DIR/ --progress
 
-echo "Backing up Scripts..." | tee -a $LOG_FILE
-rclone sync /home/dave/Scripts "$GDRIVE_BACKUP_DIR/$BACKUP_DATE/Scripts" \
-    --progress 2>&1 | tee -a $LOG_FILE
-
-echo "Backing up Utilities..." | tee -a $LOG_FILE
-rclone sync /home/dave/Utilities "$GDRIVE_BACKUP_DIR/$BACKUP_DATE/Utilities" \
-    --progress 2>&1 | tee -a $LOG_FILE
-
-echo "Backing up Config..." | tee -a $LOG_FILE
-rclone sync /home/dave/Config "$GDRIVE_BACKUP_DIR/$BACKUP_DATE/Config" \
-    --progress 2>&1 | tee -a $LOG_FILE
-
-# Keep only last 7 backups to save space
-echo "Cleaning old backups..." | tee -a $LOG_FILE
-rclone lsf "$GDRIVE_BACKUP_DIR" --dirs-only | sort | head -n -7 | while read old_backup; do
-    if [ ! -z "$old_backup" ]; then
-        echo "Removing old backup: $old_backup" | tee -a $LOG_FILE
-        rclone purge "$GDRIVE_BACKUP_DIR/$old_backup" 2>&1 | tee -a $LOG_FILE
-    fi
-done
+# Clean up temp file
+rm /tmp/nexus_backup_$BACKUP_DATE.tar.gz
 
 echo "Backup completed at $(date)" | tee -a $LOG_FILE
