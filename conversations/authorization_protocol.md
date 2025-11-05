@@ -1,14 +1,21 @@
 # Authorization Protocol
 
+**Version:** 1.1.0
 **Date Created**: 2025-10-28
+**Last Updated**: 2025-11-05
 **Purpose**: When and how to use Claude authorization for sensitive operations
 **Script Location**: `/home/dave/scripts/system/authorize_claude`
 **Grant Window**: 4 hours
 **Priority**: CRITICAL (security-sensitive)
 
+---
+
 ## Overview
 
 The authorization system grants Claude temporary permission to perform sensitive operations that could affect system stability or data integrity. This protocol defines when authorization is required and how to properly use it.
+
+**Focus:** Action-level authorization (destructive operations, mass changes, production deployments)
+**Complement:** See access_control_protocol for system access management (accounts, credentials)
 
 ## When Authorization is Required
 

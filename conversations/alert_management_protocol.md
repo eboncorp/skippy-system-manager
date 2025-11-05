@@ -1,7 +1,7 @@
 # Alert Management Protocol
 
-**Version:** 1.0.0
-**Last Updated:** 2025-11-04
+**Version:** 2.0.0
+**Last Updated:** 2025-11-05
 **Owner:** Infrastructure Team
 **Status:** Active
 
@@ -9,7 +9,10 @@
 
 ## Purpose
 
-This protocol standardizes how alerts from monitoring tools are handled, prioritized, and resolved to ensure timely response while preventing alert fatigue.
+This protocol standardizes how **automated alerts** from monitoring tools are detected, routed, prioritized, and tuned to ensure timely response while preventing alert fatigue.
+
+**Focus:** Alert configuration, routing logic, thresholds, and tuning
+**Complement:** Works with incident_response_protocol for actual incident handling
 
 ## Scope
 
@@ -26,76 +29,17 @@ This protocol applies to all automated alerts from:
 
 ## Alert Severity Levels
 
-### P0 - Critical (Immediate Action Required)
-**Response Time:** 15 minutes
-**Examples:**
-- Site completely down (HTTP 500/503)
-- Database unavailable
-- Security breach detected
-- Data loss occurring
-- Critical service failure
+**For complete severity definitions, escalation paths, and examples, see:**
+`/home/dave/skippy/conversations/_shared_severity_definitions.md`
 
-**Actions:**
-- Immediately notify on-call person
-- Create incident ticket
-- Begin incident response protocol
-- Update status page
+**Quick Reference:**
+- **P0 - Critical:** 15 min response, complete failure/security breach
+- **P1 - High:** 1 hour response, major functionality unavailable
+- **P2 - Medium:** 4 hours response, degraded experience
+- **P3 - Low:** 24 hours response, minor issues
+- **P4 - Info:** No response needed, informational only
 
-### P1 - High (Urgent Action Required)
-**Response Time:** 1 hour
-**Examples:**
-- Site performance severely degraded (>5s load time)
-- Disk space >90% full
-- Backup failures
-- Security vulnerability detected
-- Core functionality broken
-
-**Actions:**
-- Notify on-call person
-- Create high-priority ticket
-- Begin investigation
-- Communicate to team
-
-### P2 - Medium (Action Required Soon)
-**Response Time:** 4 hours
-**Examples:**
-- Site performance degraded (3-5s load time)
-- Disk space >80% full
-- Warning-level errors in logs
-- Plugin/theme updates available
-- Non-critical service degradation
-
-**Actions:**
-- Create ticket
-- Schedule investigation
-- Monitor for escalation
-
-### P3 - Low (Action Required This Week)
-**Response Time:** 24 hours
-**Examples:**
-- Minor performance issues (2-3s load time)
-- Disk space >70% full
-- Info-level log entries
-- Optimization opportunities
-- Routine maintenance needed
-
-**Actions:**
-- Create ticket for backlog
-- Address during normal work hours
-- Include in weekly review
-
-### P4 - Info (No Action Required)
-**Response Time:** N/A
-**Examples:**
-- Successful operations
-- System status updates
-- Metric reports
-- Scheduled task completions
-
-**Actions:**
-- Log for reference
-- No ticket needed
-- Review in weekly reports
+**Note:** When an alert triggers, it becomes an incident. See `incident_response_protocol.md` for incident handling procedures.
 
 ---
 
