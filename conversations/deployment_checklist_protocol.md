@@ -486,5 +486,67 @@ Reference: `/home/dave/skippy/conversations/error_logging_protocol.md`
 
 ---
 
+## Quick Reference Card
+
+### Pre-Flight Checklist (5 minutes)
+```
+☐ Backup created and verified
+☐ Maintenance mode ON
+☐ Changes tested locally
+☐ No debug code present
+☐ Rollback plan ready
+```
+
+### Deployment Commands (WordPress)
+```bash
+# 1. Backup
+wp db export backup_$(date +%Y%m%d_%H%M%S).sql
+tar -czf files_backup_$(date +%Y%m%d_%H%M%S).tar.gz wp-content/
+
+# 2. Maintenance mode
+wp maintenance-mode activate
+
+# 3. Deploy changes
+# (upload files via FTP/SFTP or use deployment script)
+
+# 4. Clear caches
+wp cache flush
+wp rewrite flush
+
+# 5. Verify
+wp post list --post_type=page --fields=post_title,post_status
+wp plugin list --status=active
+
+# 6. Disable maintenance
+wp maintenance-mode deactivate
+```
+
+### Critical Paths to Test
+1. Homepage - `https://yourdomain.com/`
+2. Forms - Test all submission forms
+3. Key landing pages - Policy pages, volunteer registration
+4. Admin - Can login and access admin panel
+5. Mobile - Responsive layout works
+
+### Emergency Rollback (2 minutes)
+```bash
+# If deployment fails:
+wp maintenance-mode activate
+wp db import backup_[timestamp].sql
+# Restore files from backup
+tar -xzf files_backup_[timestamp].tar.gz
+wp cache flush
+wp maintenance-mode deactivate
+```
+
+### Support Contacts
+- **Hosting:** GoDaddy Support
+- **DNS:** Domain registrar
+- **Backup:** Check `/home/dave/skippy/backups/`
+- **Logs:** `/home/dave/skippy/logs/`
+
+---
+
 **This protocol is part of the persistent memory system.**
 **Reference before any deployment operation.**
+**Version:** 1.1.0 (Added quick reference 2025-11-05)
