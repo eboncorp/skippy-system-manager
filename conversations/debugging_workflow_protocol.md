@@ -989,5 +989,117 @@ ping [domain]
 
 ---
 
+## Quick Reference Card
+
+### 5-Step Debugging Process
+```
+1. IDENTIFY → What's broken? When? What changed?
+2. ISOLATE → Which component? Reproduce consistently
+3. DIAGNOSE → Root cause? Logs? Tests?
+4. FIX → Minimal change, test thoroughly
+5. VERIFY → Works? Document? Prevent?
+```
+
+### First 3 Questions to Ask
+1. **What changed recently?** (deployments, updates, config)
+2. **Can I reproduce it?** (consistently, specific conditions)
+3. **What do the logs say?** (error messages, stack traces)
+
+### Essential Debug Commands
+
+**WordPress Issues:**
+```bash
+# Enable debug mode
+wp config set WP_DEBUG true --type=constant
+wp config set WP_DEBUG_LOG true --type=constant
+
+# Check database
+wp db check
+
+# Check plugins
+wp plugin list --status=active
+
+# Check logs
+tail -50 wp-content/debug.log
+
+# Clear cache
+wp cache flush
+```
+
+**System Issues:**
+```bash
+# Check processes
+ps aux | grep php
+systemctl status apache2  # or nginx
+
+# Check disk space
+df -h
+
+# Check permissions
+ls -la /path/to/problem
+
+# Check logs
+tail -50 /var/log/apache2/error.log
+journalctl -xe --since "10 minutes ago"
+```
+
+**Network Issues:**
+```bash
+# Test HTTP
+curl -I https://yourdomain.com
+
+# Check DNS
+nslookup yourdomain.com
+
+# Check connectivity
+ping yourdomain.com
+
+# Check SSL
+openssl s_client -connect yourdomain.com:443
+```
+
+### Common Fixes Checklist
+- [ ] Clear all caches (browser, server, CDN)
+- [ ] Check recent changes (rollback if needed)
+- [ ] Verify file permissions (644 files, 755 directories)
+- [ ] Check disk space (df -h)
+- [ ] Restart services if needed
+- [ ] Check error logs
+- [ ] Test in different browser/incognito
+- [ ] Disable plugins one by one
+
+### When to Escalate
+- Issue persists >2 hours without progress
+- Data loss risk identified
+- Security implications discovered
+- Beyond current skill level
+- Requires vendor support
+
+### Debug Documentation Template
+```markdown
+## Issue: [Brief description]
+**Date:** YYYY-MM-DD
+**Status:** Investigating / Resolved
+
+**Symptoms:**
+- What's broken
+
+**What I Tried:**
+1. Tried X → Result: Failed because Y
+2. Tried Z → Result: Worked!
+
+**Root Cause:**
+[Why it happened]
+
+**Solution:**
+[What fixed it]
+
+**Prevention:**
+[How to avoid in future]
+```
+
+---
+
 **This protocol is part of the persistent memory system.**
 **Reference when debugging any issue to work systematically.**
+**Version:** 1.1.0 (Added quick reference 2025-11-05)
