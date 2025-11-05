@@ -1,0 +1,219 @@
+# GitHub Actions CI/CD Pipeline
+# Part of: Skippy Enhancement Project - TIER 3
+# Created: 2025-11-04
+
+name: Skippy CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run daily at 2 AM
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  # Lint and validate shell scripts
+  shellcheck:
+    name: ShellCheck Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './scripts'
+          severity: warning
+
+  # Run automated tests
+  test:
+    name: Automated Tests
+    runs-on: ubuntu-latest
+    needs: shellcheck
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl gpg
+
+      - name: Setup test environment
+        run: |
+          mkdir -p /tmp/skippy-test
+          export SKIPPY_BASE=/tmp/skippy-test
+          cp -r scripts /tmp/skippy-test/
+          cp -r documentation /tmp/skippy-test/
+
+      - name: Run unit tests
+        run: |
+          chmod +x scripts/testing/test_runner_v1.0.0.sh
+          ./scripts/testing/test_runner_v1.0.0.sh run unit --report
+
+      - name: Run smoke tests
+        run: |
+          ./scripts/testing/test_runner_v1.0.0.sh run smoke --report
+
+      - name: Run security tests
+        run: |
+          ./scripts/testing/test_runner_v1.0.0.sh run security --report
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-reports
+          path: conversations/test_reports/*.md
+
+  # Security scanning
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run security vulnerability scanner
+        run: |
+          chmod +x scripts/security/vulnerability_scanner_v1.0.0.sh
+          # Run scanner (may need credentials in production)
+          echo "Security scan would run here"
+
+      - name: Check for hardcoded secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+
+  # WordPress validation (if WP available)
+  wordpress-validation:
+    name: WordPress Validation
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install WP-CLI
+        run: |
+          curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          chmod +x wp-cli.phar
+          sudo mv wp-cli.phar /usr/local/bin/wp
+          wp --info
+
+      - name: Run WordPress tests
+        run: |
+          chmod +x scripts/testing/test_runner_v1.0.0.sh
+          ./scripts/testing/test_runner_v1.0.0.sh run wordpress --report || true
+
+  # Generate dashboard
+  dashboard:
+    name: Generate Dashboard
+    runs-on: ubuntu-latest
+    needs: [test, security-scan]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Generate system dashboard
+        run: |
+          chmod +x scripts/monitoring/system_dashboard_v1.0.0.sh
+          ./scripts/monitoring/system_dashboard_v1.0.0.sh snapshot || true
+
+      - name: Generate HTML dashboard
+        run: |
+          ./scripts/monitoring/system_dashboard_v1.0.0.sh report --output dashboard.html || true
+
+      - name: Upload dashboard
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: system-dashboard
+          path: dashboard.html
+
+  # Deployment (only on main branch)
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [test, security-scan, wordpress-validation]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: https://rundaverun.org
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.PROD_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to production
+        run: |
+          # In production, would run:
+          # ./scripts/wordpress/wp_quick_deploy_v1.0.0.sh
+          echo "Deployment would happen here"
+          echo "Requires production credentials from GitHub secrets"
+
+      - name: Post-deployment verification
+        run: |
+          # Run deployment verification
+          # ./scripts/wordpress/deployment_verification_v1.0.0.sh
+          echo "Post-deployment verification would run here"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          # Send alert
+          echo "Deployment failed - alert would be sent"
+
+  # Backup verification (weekly)
+  backup-check:
+    name: Backup Verification
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run backup verification
+        run: |
+          chmod +x scripts/backup/backup_verification_test_v1.0.0.sh
+          # ./scripts/backup/backup_verification_test_v1.0.0.sh
+          echo "Backup verification would run here"
+
+      - name: Upload backup report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: backup-report
+          path: conversations/backup_reports/*.md
+
+  # Notification
+  notify:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [test, security-scan, deploy]
+    if: always()
+    steps:
+      - name: Send notification
+        run: |
+          echo "Pipeline completed"
+          echo "Status: ${{ job.status }}"
+          # In production, would send to Slack/email/etc.

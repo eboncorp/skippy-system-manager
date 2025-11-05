@@ -1,0 +1,928 @@
+{"generated": "2025-11-04", "total_scripts": 0, "scripts": [
+{
+  "name": "ebonhawk_agent_updater.py",
+  "path": "/home/dave/skippy/scripts/archive/ebonhawk_scripts/ebonhawk_agent_updater.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "12K",
+  "modified": "2025-08-24",
+  "description": "No description"
+},
+{
+  "name": "ebonhawk_dashboard.py",
+  "path": "/home/dave/skippy/scripts/archive/ebonhawk_scripts/ebonhawk_dashboard.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "12K",
+  "modified": "2025-08-24",
+  "description": "No description"
+},
+{
+  "name": "ebonhawk_maintenance_agent.py",
+  "path": "/home/dave/skippy/scripts/archive/ebonhawk_scripts/ebonhawk_maintenance_agent.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "28K",
+  "modified": "2025-08-24",
+  "description": "No description"
+},
+{
+  "name": "ebonhawk_update_now.sh",
+  "path": "/home/dave/skippy/scripts/archive/ebonhawk_scripts/ebonhawk_update_now.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "8.0K",
+  "modified": "2025-08-24",
+  "description": "No description"
+},
+{
+  "name": "album_first_organizer.py",
+  "path": "/home/dave/skippy/scripts/archive/music_organization/album_first_organizer.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "16K",
+  "modified": "2025-08-18",
+  "description": "No description"
+},
+{
+  "name": "album_only_organizer.py",
+  "path": "/home/dave/skippy/scripts/archive/music_organization/album_only_organizer.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "16K",
+  "modified": "2025-08-18",
+  "description": "No description"
+},
+{
+  "name": "album_organizer.py",
+  "path": "/home/dave/skippy/scripts/archive/music_organization/album_organizer.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "8.0K",
+  "modified": "2025-08-18",
+  "description": "No description"
+},
+{
+  "name": "final_music_fix.py",
+  "path": "/home/dave/skippy/scripts/archive/music_organization/final_music_fix.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "12K",
+  "modified": "2025-08-18",
+  "description": "No description"
+},
+{
+  "name": "fix_music_organization.py",
+  "path": "/home/dave/skippy/scripts/archive/music_organization/fix_music_organization.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "12K",
+  "modified": "2025-08-18",
+  "description": "No description"
+},
+{
+  "name": "music_deduplicator.py",
+  "path": "/home/dave/skippy/scripts/archive/music_organization/music_deduplicator.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "12K",
+  "modified": "2025-08-18",
+  "description": "No description"
+},
+{
+  "name": "music_org_supervisor.sh",
+  "path": "/home/dave/skippy/scripts/archive/music_organization/music_org_supervisor.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-08-17",
+  "description": "No description"
+},
+{
+  "name": "organize_remaining_music.sh",
+  "path": "/home/dave/skippy/scripts/archive/music_organization/organize_remaining_music.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-08-18",
+  "description": "No description"
+},
+{
+  "name": "robust_music_organizer.py",
+  "path": "/home/dave/skippy/scripts/archive/music_organization/robust_music_organizer.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "12K",
+  "modified": "2025-08-17",
+  "description": "No description"
+},
+{
+  "name": "simple_music_organizer.py",
+  "path": "/home/dave/skippy/scripts/archive/music_organization/simple_music_organizer.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "8.0K",
+  "modified": "2025-08-18",
+  "description": "No description"
+},
+{
+  "name": "smart_music_organizer.py",
+  "path": "/home/dave/skippy/scripts/archive/music_organization/smart_music_organizer.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "16K",
+  "modified": "2025-08-18",
+  "description": "No description"
+},
+{
+  "name": "enhanced_nexus_server.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/enhanced_nexus_server.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "12K",
+  "modified": "2025-08-05",
+  "description": "No description"
+},
+{
+  "name": "enhanced_simple_server.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/enhanced_simple_server.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "8.0K",
+  "modified": "2025-08-05",
+  "description": "No description"
+},
+{
+  "name": "home_server_master.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/home_server_master.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "12K",
+  "modified": "2025-07-27",
+  "description": "No description"
+},
+{
+  "name": "nexus_api_server_enhanced.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_api_server_enhanced.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "32K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_api_server.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_api_server.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "28K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_auth_security.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_auth_security.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "20K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_backup_system_fixed.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_backup_system_fixed.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "12K",
+  "modified": "2025-08-05",
+  "description": "No description"
+},
+{
+  "name": "nexus_backup_system.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_backup_system.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "12K",
+  "modified": "2025-08-05",
+  "description": "No description"
+},
+{
+  "name": "nexus_cicd_gitops.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_cicd_gitops.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "48K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_circuit_breaker.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_circuit_breaker.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "28K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_controller_v2.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_controller_v2.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "16K",
+  "modified": "2025-08-03",
+  "description": "No description"
+},
+{
+  "name": "nexus_database_manager.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_database_manager.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "28K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_disaster_recovery.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_disaster_recovery.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "60K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_event_system_enhanced.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_event_system_enhanced.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "32K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_event_system.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_event_system.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "12K",
+  "modified": "2025-08-03",
+  "description": "No description"
+},
+{
+  "name": "nexus_federation.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_federation.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-08-03",
+  "description": "No description"
+},
+{
+  "name": "nexus_media_server.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_media_server.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-08-05",
+  "description": "No description"
+},
+{
+  "name": "nexus_monitoring_system.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_monitoring_system.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "48K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_observability.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_observability.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "32K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_plugin_system_enhanced.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_plugin_system_enhanced.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "32K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_plugin_system.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_plugin_system.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-08-03",
+  "description": "No description"
+},
+{
+  "name": "nexus_provider_abstraction_enhanced.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_provider_abstraction_enhanced.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "40K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_provider_abstraction.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_provider_abstraction.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "56K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_remediation_system.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_remediation_system.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-08-03",
+  "description": "No description"
+},
+{
+  "name": "nexus_scalability_design.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_scalability_design.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "48K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_security.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_security.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "48K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_state_manager.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_state_manager.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "108K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "nexus_websocket_server.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/nexus_websocket_server.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-08-03",
+  "description": "No description"
+},
+{
+  "name": "simple_nexus_server.py",
+  "path": "/home/dave/skippy/scripts/archive/nexus_development/simple_nexus_server.py",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-08-04",
+  "description": "No description"
+},
+{
+  "name": "configure_google_drive.sh",
+  "path": "/home/dave/skippy/scripts/archive/setup/configure_google_drive.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-09-28",
+  "description": "No description"
+},
+{
+  "name": "fix_email.sh",
+  "path": "/home/dave/skippy/scripts/archive/setup/fix_email.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-09-28",
+  "description": "No description"
+},
+{
+  "name": "home_automation_setup.sh",
+  "path": "/home/dave/skippy/scripts/archive/setup/home_automation_setup.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-07-28",
+  "description": "No description"
+},
+{
+  "name": "install_ebonhawk_agent.sh",
+  "path": "/home/dave/skippy/scripts/archive/setup/install_ebonhawk_agent.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-08-24",
+  "description": "No description"
+},
+{
+  "name": "media_server_setup.sh",
+  "path": "/home/dave/skippy/scripts/archive/setup/media_server_setup.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-07-28",
+  "description": "No description"
+},
+{
+  "name": "server_wireguard_setup.sh",
+  "path": "/home/dave/skippy/scripts/archive/setup/server_wireguard_setup.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "8.0K",
+  "modified": "2025-07-29",
+  "description": "No description"
+},
+{
+  "name": "setup_automation.sh",
+  "path": "/home/dave/skippy/scripts/archive/setup/setup_automation.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "12K",
+  "modified": "2025-09-28",
+  "description": "No description"
+},
+{
+  "name": "setup_email.sh",
+  "path": "/home/dave/skippy/scripts/archive/setup/setup_email.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-09-28",
+  "description": "No description"
+},
+{
+  "name": "setup_gdrive_auth.sh",
+  "path": "/home/dave/skippy/scripts/archive/setup/setup_gdrive_auth.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-09-28",
+  "description": "No description"
+},
+{
+  "name": "setup_gdrive_sync.sh",
+  "path": "/home/dave/skippy/scripts/archive/setup/setup_gdrive_sync.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "8.0K",
+  "modified": "2025-09-28",
+  "description": "No description"
+},
+{
+  "name": "setup_media_ssd.sh",
+  "path": "/home/dave/skippy/scripts/archive/setup/setup_media_ssd.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-07-29",
+  "description": "No description"
+},
+{
+  "name": "setup_noip.sh",
+  "path": "/home/dave/skippy/scripts/archive/setup/setup_noip.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-08-11",
+  "description": "No description"
+},
+{
+  "name": "setup_postfix_gmail.sh",
+  "path": "/home/dave/skippy/scripts/archive/setup/setup_postfix_gmail.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-09-28",
+  "description": "No description"
+},
+{
+  "name": "setup_skippy.sh",
+  "path": "/home/dave/skippy/scripts/archive/setup/setup_skippy.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "12K",
+  "modified": "2025-09-28",
+  "description": "No description"
+},
+{
+  "name": "setup_webhook_alerts.sh",
+  "path": "/home/dave/skippy/scripts/archive/setup/setup_webhook_alerts.sh",
+  "category": "archive",
+  "version": "unknown",
+  "size": "4.0K",
+  "modified": "2025-09-28",
+  "description": "No description"
+},
+{
+  "name": "add_album_art_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/add_album_art_v1.0.0.sh",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "4.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "automated_document_scanner_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/automated_document_scanner_v1.0.0.sh",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "8.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "auto_recovery_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/auto_recovery_v1.0.0.sh",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "4.0K",
+  "modified": "2025-09-28",
+  "description": "No description"
+},
+{
+  "name": "batch_document_scanner_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/batch_document_scanner_v1.0.0.sh",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "16K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "business_document_organizer_v1.0.0.py",
+  "path": "/home/dave/skippy/scripts/automation/business_document_organizer_v1.0.0.py",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "12K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "comprehensive_drive_scanner_v1.0.0.py",
+  "path": "/home/dave/skippy/scripts/automation/comprehensive_drive_scanner_v1.0.0.py",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "12K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "duplicate_cleaner_v1.0.0.py",
+  "path": "/home/dave/skippy/scripts/automation/duplicate_cleaner_v1.0.0.py",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "24K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "ein_document_finder_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/ein_document_finder_v1.0.0.sh",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "8.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "emergency_recovery_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/emergency_recovery_v1.0.0.sh",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "4.0K",
+  "modified": "2025-09-28",
+  "description": "No description"
+},
+{
+  "name": "epson_scan_gui_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/epson_scan_gui_v1.0.0.sh",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "12K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "epson_scan_process_gui_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/epson_scan_process_gui_v1.0.0.sh",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "12K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "epson_v39_smart_scanner_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/epson_v39_smart_scanner_v1.0.0.sh",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "24K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "epson_v39_smart_scanner_v2.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/epson_v39_smart_scanner_v2.0.0.sh",
+  "category": "automation",
+  "version": "v2.0.0",
+  "size": "16K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "fast_drive_scanner_v1.0.0.py",
+  "path": "/home/dave/skippy/scripts/automation/fast_drive_scanner_v1.0.0.py",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "8.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "find_document_screenshots_v1.0.0.py",
+  "path": "/home/dave/skippy/scripts/automation/find_document_screenshots_v1.0.0.py",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "16K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "finish_music_cleanup_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/finish_music_cleanup_v1.0.0.sh",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "4.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "music_optimizer_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/music_optimizer_v1.0.0.sh",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "8.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "music_optimizer_v2.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/music_optimizer_v2.0.0.sh",
+  "category": "automation",
+  "version": "v2.0.0",
+  "size": "8.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "nexus_intelligent_agent_v1.0.0.py",
+  "path": "/home/dave/skippy/scripts/automation/nexus_intelligent_agent_v1.0.0.py",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "28K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "nexus_intelligent_agent_v2.0.0.py",
+  "path": "/home/dave/skippy/scripts/automation/nexus_intelligent_agent_v2.0.0.py",
+  "category": "automation",
+  "version": "v2.0.0",
+  "size": "28K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "organize_music_library_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/organize_music_library_v1.0.0.sh",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "8.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "quick_duplicate_finder_v1.0.0.py",
+  "path": "/home/dave/skippy/scripts/automation/quick_duplicate_finder_v1.0.0.py",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "12K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "scan_and_process_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/scan_and_process_v1.0.0.sh",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "8.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "scan_organizer_v1.0.0.py",
+  "path": "/home/dave/skippy/scripts/automation/scan_organizer_v1.0.0.py",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "12K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "scan_watcher_v1.0.0.py",
+  "path": "/home/dave/skippy/scripts/automation/scan_watcher_v1.0.0.py",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "4.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "simple_scan_organizer_v1.0.0.py",
+  "path": "/home/dave/skippy/scripts/automation/simple_scan_organizer_v1.0.0.py",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "8.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "smart_document_organizer_v1.0.0.py",
+  "path": "/home/dave/skippy/scripts/automation/smart_document_organizer_v1.0.0.py",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "16K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "smart_document_scanner_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/smart_document_scanner_v1.0.0.sh",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "20K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "system_wide_organizer_v1.0.0.py",
+  "path": "/home/dave/skippy/scripts/automation/system_wide_organizer_v1.0.0.py",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "8.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "targeted_document_scanner_v1.0.0.py",
+  "path": "/home/dave/skippy/scripts/automation/targeted_document_scanner_v1.0.0.py",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "20K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "timestamp_scanner_v1.0.0.py",
+  "path": "/home/dave/skippy/scripts/automation/timestamp_scanner_v1.0.0.py",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "8.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "watchdog_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/automation/watchdog_v1.0.0.sh",
+  "category": "automation",
+  "version": "v1.0.0",
+  "size": "4.0K",
+  "modified": "2025-09-28",
+  "description": "No description"
+},
+{
+  "name": "backup_google_photos_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/backup/backup_google_photos_v1.0.0.sh",
+  "category": "backup",
+  "version": "v1.0.0",
+  "size": "8.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "backup_verification_test_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/backup/backup_verification_test_v1.0.0.sh",
+  "category": "backup",
+  "version": "v1.0.0",
+  "size": "20K",
+  "modified": "2025-11-04",
+  "description": "Backup Verification Test v1.0.0"
+},
+{
+  "name": "check_backup_status_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/backup/check_backup_status_v1.0.0.sh",
+  "category": "backup",
+  "version": "v1.0.0",
+  "size": "4.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "full_home_backup_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/backup/full_home_backup_v1.0.0.sh",
+  "category": "backup",
+  "version": "v1.0.0",
+  "size": "8.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "gdrive_backup_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/backup/gdrive_backup_v1.0.0.sh",
+  "category": "backup",
+  "version": "v1.0.0",
+  "size": "4.0K",
+  "modified": "2025-09-28",
+  "description": "No description"
+},
+{
+  "name": "simple_backup_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/backup/simple_backup_v1.0.0.sh",
+  "category": "backup",
+  "version": "v1.0.0",
+  "size": "4.0K",
+  "modified": "2025-09-28",
+  "description": "No description"
+},
+{
+  "name": "sync_clouds_to_gdrive_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/backup/sync_clouds_to_gdrive_v1.0.0.sh",
+  "category": "backup",
+  "version": "v1.0.0",
+  "size": "4.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "test_backup_restore_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/backup/test_backup_restore_v1.0.0.sh",
+  "category": "backup",
+  "version": "v1.0.0",
+  "size": "8.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "update_gdrive_token_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/backup/update_gdrive_token_v1.0.0.sh",
+  "category": "backup",
+  "version": "v1.0.0",
+  "size": "4.0K",
+  "modified": "2025-09-28",
+  "description": "No description"
+},
+{
+  "name": "chainlink_setup_creator_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/Blockchain/chainlink_setup_creator_v1.0.0.sh",
+  "category": "Blockchain",
+  "version": "v1.0.0",
+  "size": "8.0K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "ethereum_node_setup_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/Blockchain/ethereum_node_setup_v1.0.0.sh",
+  "category": "Blockchain",
+  "version": "v1.0.0",
+  "size": "20K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},
+{
+  "name": "final_ethereum_node_setup_v1.0.0.sh",
+  "path": "/home/dave/skippy/scripts/Blockchain/final_ethereum_node_setup_v1.0.0.sh",
+  "category": "Blockchain",
+  "version": "v1.0.0",
+  "size": "12K",
+  "modified": "2025-10-31",
+  "description": "No description"
+},

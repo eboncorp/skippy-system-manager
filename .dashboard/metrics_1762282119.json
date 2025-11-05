@@ -1,0 +1,38 @@
+{
+  "timestamp": "2025-11-04T13:48:39-05:00",
+  "system": {
+  "uptime_days": 0,
+  "load_average": 0.74,
+  "cpu_count": 2,
+  "memory_total_mb": 15739,
+  "memory_used_mb": 2820,
+  "memory_percent": 17,
+  "disk_usage_percent": 35,
+  "status": "healthy"
+},
+  "wordpress": {
+  "posts": 0,
+  "pages": 24,
+  "drafts": 0,
+  "plugin_updates_available": 1,
+  "last_post_date": "",
+  "status": "updates_needed"
+},
+  "security": {
+  "audit_entries": 0,
+  "recent_alerts": 0,
+  "critical_alerts": 0,
+  "secrets_accesses": 0,
+  "recent_security_scans": 1,
+  "status": "healthy"
+},
+  "backups": {"status": "no_backups"},
+  "deployments": {"status": "no_deployments"},
+  "alerts": {"alerts_last_24h": 0, "alerts_last_7d": 0, "active_alerts": 0, "status": "healthy"},
+  "performance": {
+  "avg_validation_time_seconds": 0,
+  "avg_deployment_time_seconds": 0,
+  "tools_available": 158,
+  "status": "operational"
+}
+}
