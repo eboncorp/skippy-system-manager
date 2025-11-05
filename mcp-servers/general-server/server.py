@@ -53,12 +53,14 @@ mcp = FastMCP("general-server")
 # Constants - Load from environment or use defaults
 EBON_HOST = os.getenv("EBON_HOST", "ebon@10.0.0.29")
 EBON_PASSWORD = os.getenv("EBON_PASSWORD", "")
-SSH_OPTS = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-SKIPPY_PATH = "/home/dave/skippy"
-WORDPRESS_PATH = "/home/dave/RunDaveRun"
-CONVERSATIONS_PATH = f"{SKIPPY_PATH}/conversations"
-SCRIPTS_PATH = f"{SKIPPY_PATH}/scripts"
-BACKUP_PATH = f"{WORDPRESS_PATH}/backups"
+SSH_OPTS = os.getenv("SSH_OPTS", "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null")
+
+# Path configuration - now uses environment variables with fallback defaults
+SKIPPY_PATH = os.getenv("SKIPPY_BASE_PATH", "/home/dave/skippy")
+WORDPRESS_PATH = os.getenv("WORDPRESS_BASE_PATH", "/home/dave/RunDaveRun")
+CONVERSATIONS_PATH = os.getenv("SKIPPY_CONVERSATIONS_PATH", f"{SKIPPY_PATH}/conversations")
+SCRIPTS_PATH = os.getenv("SKIPPY_SCRIPTS_PATH", f"{SKIPPY_PATH}/scripts")
+BACKUP_PATH = os.getenv("WORDPRESS_BACKUP_PATH", f"{WORDPRESS_PATH}/backups")
 
 # Configure logging to stderr (NEVER stdout for STDIO servers)
 logging.basicConfig(
