@@ -1,0 +1,128 @@
+WORDPRESS SHELL COMMAND EXPOSURE SCAN - SUMMARY
+Date: November 4, 2025
+Site: rundaverun-local.local
+================================================
+
+CRITICAL ISSUE FOUND
+====================
+14 published posts are displaying shell command syntax instead of HTML content.
+
+Visitors see literal text like:
+  $(cat /tmp/post106_policy_count_fixed.html)
+
+Instead of the actual page content.
+
+AFFECTED PAGES
+==============
+CRITICAL (Key Campaign Pages):
+  - Post 106: About Dave
+  - Post 107: Our Plan
+  - Post 109: Contact
+  - Post 328: Complete Voter Education Glossary
+  - Post 934: Volunteer Dashboard
+
+POLICY DOCUMENTS:
+  - Post 151: Research Bibliography & Citations
+  - Post 245: ABOUT DAVE BIGGERS
+  - Post 249: OUR PLAN FOR LOUISVILLE
+  - Post 699: Public Safety & Community Policing
+  - Post 700: Criminal Justice Reform
+  - Post 716: Health & Human Services
+  - Post 717: Economic Development & Jobs
+  - Post 941: Phone Banking Script
+  - Post 942: Canvassing Talking Points
+
+TOTAL: 14 posts affected (out of 443 published)
+
+ROOT CAUSE
+==========
+Shell command syntax was inserted into post_content instead of the actual HTML.
+Commands were never executed, so they display as literal text.
+
+Some posts have nested commands (2-3 levels deep):
+  - Post 716 is worst: 3 levels of nested $(cat) commands
+
+GOOD NEWS
+=========
+✓ All correct HTML content exists in /tmp/ backup files
+✓ No data loss occurred
+✓ Fix is straightforward (10 minutes)
+✓ Homepage (Post 105) was already fixed
+
+FIX PROCEDURE
+=============
+Option 1 - Run the automated script:
+  cd /home/dave/skippy/conversations
+  ./wordpress_shell_scan_QUICK_FIX.sh
+
+Option 2 - Manual WP-CLI commands:
+  cd "/home/dave/Local Sites/rundaverun-local/app/public"
+  wp post update 106 --post_content="$(cat /tmp/post106_styles_fixed.html)" --allow-root
+  wp post update 107 --post_content="$(cat /tmp/post107_fixed.html)" --allow-root
+  [... repeat for all 14 posts ...]
+
+VERIFICATION
+============
+After fixing, verify:
+  1. Check database for remaining issues:
+     wp db query "SELECT COUNT(*) FROM wp_7e1ce15f22_posts
+                  WHERE post_status='publish' AND post_content LIKE '%\$(cat%'" --allow-root
+
+     Should return: 0
+
+  2. Check websites:
+     - http://rundaverun-local.local/about-dave
+     - http://rundaverun-local.local/our-plan
+     - http://rundaverun-local.local/contact
+
+  3. Search for $(cat in page source:
+     curl -s http://rundaverun-local.local/about-dave | grep -c "\$(cat"
+
+     Should return: 0
+
+FILES CREATED
+=============
+/home/dave/skippy/conversations/wordpress_shell_command_scan_2025-11-04.md
+  - Complete detailed report with all findings
+
+/home/dave/skippy/conversations/wordpress_shell_scan_QUICK_FIX.sh
+  - Automated fix script (executable)
+
+/home/dave/skippy/conversations/wordpress_shell_scan_SUMMARY.txt
+  - This summary file
+
+BACKUP FILES TO PRESERVE
+=========================
+DO NOT DELETE until restoration is verified:
+
+Critical backup files with actual content:
+  /tmp/post106_styles_fixed.html       7,958 bytes
+  /tmp/post107_fixed.html              5,659 bytes
+  /tmp/post109_fixed.html              4,410 bytes
+  /tmp/post151_fixed.html             30,905 bytes
+  /tmp/post245_fixed.html              9,799 bytes
+  /tmp/post249_fixed.html             16,613 bytes
+  /tmp/post328_fixed.html              2,112 bytes
+  /tmp/post699_fixed.html             45,928 bytes
+  /tmp/post700_fixed.html             23,239 bytes
+  /tmp/post716_fixed.html             29,744 bytes
+  /tmp/post717_fixed.html            117,513 bytes
+  /tmp/post934_fixed.html              3,346 bytes
+  /tmp/post941_fixed.html              3,038 bytes
+  /tmp/post942_fixed.html              5,104 bytes
+
+After successful restoration, archive them:
+  tar -czf /home/dave/skippy/conversations/wordpress_post_backups_2025-11-04.tar.gz \
+    /tmp/post*_fixed.html /tmp/post_*.html
+
+IMPACT
+======
+SEVERITY: HIGH - Critical campaign pages are broken
+VISIBILITY: Public-facing issue (all site visitors affected)
+PROFESSIONAL: Makes campaign appear unprofessional
+SECURITY: Exposes internal file paths (/tmp/)
+
+PRIORITY: IMMEDIATE FIX REQUIRED
+
+For detailed information, see:
+  /home/dave/skippy/conversations/wordpress_shell_command_scan_2025-11-04.md
