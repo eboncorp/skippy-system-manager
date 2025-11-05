@@ -1,7 +1,7 @@
 # Incident Response Protocol
 
-**Version:** 1.0.0
-**Last Updated:** 2025-11-04
+**Version:** 2.0.0
+**Last Updated:** 2025-11-05
 **Owner:** Infrastructure Team
 **Status:** Active
 
@@ -9,80 +9,43 @@
 
 ## Purpose
 
-This protocol defines how to respond to incidents affecting the campaign infrastructure, ensuring rapid resolution, clear communication, and continuous improvement.
+This protocol defines how to **respond to and resolve incidents** affecting the campaign infrastructure, ensuring rapid resolution, clear communication, post-mortems, and continuous improvement.
+
+**Focus:** Incident workflow, investigation, resolution, and post-mortem process
+**Complement:** Works with alert_management_protocol for alert routing and tuning
 
 ## Scope
 
-This protocol applies to:
+This protocol applies to all incidents including:
 - Site outages or degradation
 - Security incidents
 - Data loss or corruption
 - Service disruptions
 - Performance issues
 - Failed deployments
+- User-reported issues
+- Detected anomalies
+
+**Note:** Incidents can originate from automated alerts (see alert_management_protocol) or manual detection.
 
 ---
 
 ## Incident Severity Levels
 
-### P0 - Critical
-**Impact:** Campaign unable to function, complete site down, or active security breach
-**Response Time:** Immediate (15 minutes)
-**Examples:**
-- Website completely down (HTTP 500/503)
-- Database unavailable or corrupted
-- Active security breach in progress
-- Data loss occurring
-- Payment system down during critical fundraising
+**For complete severity definitions, escalation paths, and examples, see:**
+`/home/dave/skippy/conversations/_shared_severity_definitions.md`
 
-**Actions:**
-- Immediate notification to all stakeholders
-- All hands on deck
-- Hourly status updates
-- Post-incident review required
+**Quick Reference:**
+- **P0 - Critical:** 15 min response, complete failure/active breach
+- **P1 - High:** 1 hour response, major functionality broken
+- **P2 - Medium:** 4 hours response, degraded experience
+- **P3 - Low:** 24 hours response, minor issues
 
-### P1 - High
-**Impact:** Major functionality unavailable, significant user impact
-**Response Time:** 1 hour
-**Examples:**
-- Major features broken (volunteer registration, donation forms)
-- Severe performance degradation (>10s load times)
-- Failed backup detected
-- Security vulnerability actively exploited
-- Email system down
-
-**Actions:**
-- Notify key stakeholders
-- Begin immediate investigation
-- Hourly status updates until resolved
-- Post-incident review required
-
-### P2 - Medium
-**Impact:** Minor functionality unavailable, degraded experience
-**Response Time:** 4 hours during business hours
-**Examples:**
-- Single feature not working
-- Performance degraded (5-10s load times)
-- Non-critical service disruption
-- Failed deployment (with rollback successful)
-
-**Actions:**
-- Create ticket
-- Regular updates during investigation
-- Post-incident summary
-
-### P3 - Low
-**Impact:** Minimal user impact, minor issue
-**Response Time:** Next business day
-**Examples:**
-- Cosmetic issues
-- Minor performance degradation
-- Warning-level errors
-- Non-urgent bugs
-
-**Actions:**
-- Create ticket for backlog
-- Fix during normal workflow
+**Severity determines:**
+- Response time requirements
+- Communication frequency
+- Escalation paths
+- Post-incident review requirements (P0/P1 require full post-mortem)
 
 ---
 

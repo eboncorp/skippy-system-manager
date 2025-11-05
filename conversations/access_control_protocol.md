@@ -1,7 +1,7 @@
 # Access Control Protocol
 
-**Version:** 1.0.0
-**Last Updated:** 2025-11-04
+**Version:** 1.1.0
+**Last Updated:** 2025-11-05
 **Owner:** Security Team
 **Status:** Active
 
@@ -10,6 +10,9 @@
 ## Purpose
 
 Define who can access what systems, how access is granted/revoked, and how access is monitored to maintain security while enabling team productivity.
+
+**Focus:** System access (accounts, passwords, SSH keys, database credentials)
+**Complement:** See authorization_protocol for action-level permissions (destructive operations)
 
 ## Scope
 
