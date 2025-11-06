@@ -1,0 +1,424 @@
+#!/usr/bin/env python3
+"""
+Skippy System Manager - Command Line Interface
+Version: 2.0.0
+Purpose: Unified CLI for Skippy operations
+"""
+
+import sys
+import os
+import argparse
+from pathlib import Path
+from typing import Optional
+
+# Add lib to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "lib" / "python"))
+
+try:
+    from skippy_logger import get_logger
+    from skippy_performance import SystemMonitor, get_performance_summary
+    from skippy_errors import handle_error, ConfigurationError
+except ImportError as e:
+    print(f"Error importing Skippy libraries: {e}", file=sys.stderr)
+    print("Please ensure lib/python is in PYTHONPATH", file=sys.stderr)
+    sys.exit(1)
+
+logger = get_logger(__name__)
+
+
+class SkippyCLI:
+    """Main CLI application"""
+
+    def __init__(self):
+        self.parser = self._create_parser()
+
+    def _create_parser(self) -> argparse.ArgumentParser:
+        """Create argument parser with subcommands"""
+        parser = argparse.ArgumentParser(
+            prog='skippy',
+            description='Skippy System Manager - Unified CLI',
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog="""
+Examples:
+  skippy status              Show system status
+  skippy health              Check system health
+  skippy config validate     Validate configuration
+  skippy backup create       Create WordPress backup
+  skippy wordpress deploy    Deploy WordPress site
+  skippy metrics show        Show performance metrics
+  skippy logs tail           Tail Skippy logs
+
+For more information, see: https://github.com/eboncorp/skippy-system-manager
+"""
+        )
+
+        parser.add_argument(
+            '-v', '--verbose',
+            action='store_true',
+            help='Enable verbose output'
+        )
+
+        parser.add_argument(
+            '--version',
+            action='version',
+            version='%(prog)s 2.0.0'
+        )
+
+        subparsers = parser.add_subparsers(dest='command', help='Available commands')
+
+        # Status command
+        self._add_status_command(subparsers)
+
+        # Health command
+        self._add_health_command(subparsers)
+
+        # Config command
+        self._add_config_command(subparsers)
+
+        # Backup command
+        self._add_backup_command(subparsers)
+
+        # WordPress command
+        self._add_wordpress_command(subparsers)
+
+        # Metrics command
+        self._add_metrics_command(subparsers)
+
+        # Logs command
+        self._add_logs_command(subparsers)
+
+        # Scripts command
+        self._add_scripts_command(subparsers)
+
+        return parser
+
+    def _add_status_command(self, subparsers):
+        """Add status subcommand"""
+        status_parser = subparsers.add_parser(
+            'status',
+            help='Show system status'
+        )
+        status_parser.add_argument(
+            '--json',
+            action='store_true',
+            help='Output in JSON format'
+        )
+
+    def _add_health_command(self, subparsers):
+        """Add health subcommand"""
+        health_parser = subparsers.add_parser(
+            'health',
+            help='Check system health'
+        )
+        health_parser.add_argument(
+            '--json',
+            action='store_true',
+            help='Output in JSON format'
+        )
+
+    def _add_config_command(self, subparsers):
+        """Add config subcommand"""
+        config_parser = subparsers.add_parser(
+            'config',
+            help='Configuration management'
+        )
+        config_subparsers = config_parser.add_subparsers(dest='config_action')
+
+        config_subparsers.add_parser('validate', help='Validate configuration')
+        config_subparsers.add_parser('show', help='Show current configuration')
+        config_subparsers.add_parser('example', help='Show example configuration')
+
+    def _add_backup_command(self, subparsers):
+        """Add backup subcommand"""
+        backup_parser = subparsers.add_parser(
+            'backup',
+            help='Backup operations'
+        )
+        backup_subparsers = backup_parser.add_subparsers(dest='backup_action')
+
+        create_parser = backup_subparsers.add_parser('create', help='Create backup')
+        create_parser.add_argument('--encrypt', action='store_true', help='Encrypt backup')
+        create_parser.add_argument('--site', help='WordPress site to backup')
+
+        backup_subparsers.add_parser('list', help='List available backups')
+
+        restore_parser = backup_subparsers.add_parser('restore', help='Restore from backup')
+        restore_parser.add_argument('backup_file', help='Backup file to restore')
+
+    def _add_wordpress_command(self, subparsers):
+        """Add WordPress subcommand"""
+        wp_parser = subparsers.add_parser(
+            'wordpress',
+            aliases=['wp'],
+            help='WordPress operations'
+        )
+        wp_subparsers = wp_parser.add_subparsers(dest='wp_action')
+
+        wp_subparsers.add_parser('deploy', help='Deploy WordPress site')
+        wp_subparsers.add_parser('backup', help='Backup WordPress')
+        wp_subparsers.add_parser('update', help='Update WordPress')
+        wp_subparsers.add_parser('status', help='WordPress status')
+
+    def _add_metrics_command(self, subparsers):
+        """Add metrics subcommand"""
+        metrics_parser = subparsers.add_parser(
+            'metrics',
+            help='Performance metrics'
+        )
+        metrics_subparsers = metrics_parser.add_subparsers(dest='metrics_action')
+
+        show_parser = metrics_subparsers.add_parser('show', help='Show metrics')
+        show_parser.add_argument('--operation', help='Filter by operation name')
+        show_parser.add_argument('--json', action='store_true', help='JSON output')
+
+        metrics_subparsers.add_parser('clear', help='Clear metrics history')
+
+    def _add_logs_command(self, subparsers):
+        """Add logs subcommand"""
+        logs_parser = subparsers.add_parser(
+            'logs',
+            help='Log management'
+        )
+        logs_subparsers = logs_parser.add_subparsers(dest='logs_action')
+
+        tail_parser = logs_subparsers.add_parser('tail', help='Tail logs')
+        tail_parser.add_argument('-n', '--lines', type=int, default=20, help='Number of lines')
+        tail_parser.add_argument('-f', '--follow', action='store_true', help='Follow log output')
+
+        logs_subparsers.add_parser('list', help='List available logs')
+
+        show_parser = logs_subparsers.add_parser('show', help='Show specific log')
+        show_parser.add_argument('log_file', help='Log file to show')
+
+    def _add_scripts_command(self, subparsers):
+        """Add scripts subcommand"""
+        scripts_parser = subparsers.add_parser(
+            'scripts',
+            help='Script management'
+        )
+        scripts_subparsers = scripts_parser.add_subparsers(dest='scripts_action')
+
+        scripts_subparsers.add_parser('list', help='List available scripts')
+
+        search_parser = scripts_subparsers.add_parser('search', help='Search scripts')
+        search_parser.add_argument('query', help='Search query')
+
+        run_parser = scripts_subparsers.add_parser('run', help='Run a script')
+        run_parser.add_argument('script_name', help='Script to run')
+        run_parser.add_argument('args', nargs='*', help='Script arguments')
+
+    def run(self, args=None):
+        """Execute CLI command"""
+        parsed_args = self.parser.parse_args(args)
+
+        if not parsed_args.command:
+            self.parser.print_help()
+            return 0
+
+        # Set up logging
+        if parsed_args.verbose:
+            logger.setLevel('DEBUG')
+
+        # Route to appropriate handler
+        command_handlers = {
+            'status': self._handle_status,
+            'health': self._handle_health,
+            'config': self._handle_config,
+            'backup': self._handle_backup,
+            'wordpress': self._handle_wordpress,
+            'wp': self._handle_wordpress,
+            'metrics': self._handle_metrics,
+            'logs': self._handle_logs,
+            'scripts': self._handle_scripts,
+        }
+
+        handler = command_handlers.get(parsed_args.command)
+        if handler:
+            try:
+                return handler(parsed_args)
+            except Exception as e:
+                logger.error(f"Command failed: {e}")
+                return 1
+        else:
+            self.parser.print_help()
+            return 1
+
+    def _handle_status(self, args):
+        """Handle status command"""
+        import json
+
+        print("Skippy System Manager - Status\n")
+
+        # Check configuration
+        config_valid = self._check_config()
+        print(f"Configuration: {'✓ Valid' if config_valid else '✗ Invalid'}")
+
+        # System metrics
+        metrics = SystemMonitor.get_system_metrics()
+        if "error" not in metrics:
+            print(f"CPU: {metrics['cpu']['percent']:.1f}%")
+            print(f"Memory: {metrics['memory']['percent']:.1f}%")
+            print(f"Disk: {metrics['disk']['percent']:.1f}%")
+
+        # MCP Server status
+        print("\nMCP Server: Not running (check with: make mcp-server)")
+
+        if args.json:
+            print("\n" + json.dumps({
+                "config_valid": config_valid,
+                "system_metrics": metrics
+            }, indent=2))
+
+        return 0
+
+    def _handle_health(self, args):
+        """Handle health command"""
+        import json
+
+        health = SystemMonitor.check_health()
+
+        if not args.json:
+            print(f"System Health: {health['status'].upper()}\n")
+
+            if health.get('warnings'):
+                print("⚠ Warnings:")
+                for warning in health['warnings']:
+                    print(f"  - {warning}")
+                print()
+
+            if health.get('critical'):
+                print("✗ Critical Issues:")
+                for issue in health['critical']:
+                    print(f"  - {issue}")
+                print()
+
+            if health['status'] == 'healthy':
+                print("✓ All systems operational")
+        else:
+            print(json.dumps(health, indent=2))
+
+        return 0 if health['status'] in ['healthy', 'warning'] else 1
+
+    def _handle_config(self, args):
+        """Handle config command"""
+        action = args.config_action
+
+        if action == 'validate':
+            return self._validate_config()
+        elif action == 'show':
+            return self._show_config()
+        elif action == 'example':
+            return self._show_example_config()
+        else:
+            print("Usage: skippy config {validate|show|example}")
+            return 1
+
+    def _handle_backup(self, args):
+        """Handle backup command"""
+        print(f"Backup operation: {args.backup_action}")
+        print("(Implementation pending - use scripts/backup/ directly)")
+        return 0
+
+    def _handle_wordpress(self, args):
+        """Handle WordPress command"""
+        print(f"WordPress operation: {args.wp_action}")
+        print("(Implementation pending - use scripts/wordpress/ directly)")
+        return 0
+
+    def _handle_metrics(self, args):
+        """Handle metrics command"""
+        import json
+
+        action = args.metrics_action
+
+        if action == 'show':
+            summary = get_performance_summary(args.operation if hasattr(args, 'operation') else None)
+            if args.json if hasattr(args, 'json') else False:
+                print(json.dumps(summary, indent=2))
+            else:
+                print(f"Performance Metrics: {summary.get('operation', 'all')}")
+                print(f"Total Executions: {summary.get('total_executions', 0)}")
+                if 'duration' in summary:
+                    print(f"Duration (seconds):")
+                    print(f"  Min: {summary['duration']['min']:.3f}")
+                    print(f"  Max: {summary['duration']['max']:.3f}")
+                    print(f"  Avg: {summary['duration']['avg']:.3f}")
+        elif action == 'clear':
+            print("Metrics cleared (not implemented)")
+        else:
+            print("Usage: skippy metrics {show|clear}")
+            return 1
+
+        return 0
+
+    def _handle_logs(self, args):
+        """Handle logs command"""
+        print(f"Logs operation: {args.logs_action}")
+        print("(Implementation pending)")
+        return 0
+
+    def _handle_scripts(self, args):
+        """Handle scripts command"""
+        print(f"Scripts operation: {args.scripts_action}")
+        print("(Implementation pending)")
+        return 0
+
+    def _check_config(self) -> bool:
+        """Check if configuration is valid"""
+        config_file = Path(os.getenv("SKIPPY_BASE_PATH", "/home/dave/skippy")) / ".." / "config.env"
+        return config_file.exists()
+
+    def _validate_config(self) -> int:
+        """Validate configuration"""
+        import subprocess
+
+        validate_script = Path(__file__).parent.parent / "scripts" / "utility" / "validate_config.sh"
+
+        if not validate_script.exists():
+            print(f"Validation script not found: {validate_script}")
+            return 1
+
+        result = subprocess.run([str(validate_script)], capture_output=False)
+        return result.returncode
+
+    def _show_config(self) -> int:
+        """Show current configuration"""
+        env_vars = [
+            "SKIPPY_BASE_PATH",
+            "WORDPRESS_BASE_PATH",
+            "EBON_HOST",
+            "SSH_PRIVATE_KEY",
+            "SKIPPY_LOG_LEVEL"
+        ]
+
+        print("Current Configuration:\n")
+        for var in env_vars:
+            value = os.getenv(var, "(not set)")
+            # Mask sensitive values
+            if "PASSWORD" in var or "KEY" in var:
+                value = "***" if value != "(not set)" else value
+            print(f"  {var}: {value}")
+
+        return 0
+
+    def _show_example_config(self) -> int:
+        """Show example configuration"""
+        example_config = Path(__file__).parent.parent / "config.env.example"
+
+        if example_config.exists():
+            with open(example_config) as f:
+                print(f.read())
+            return 0
+        else:
+            print("Example configuration not found")
+            return 1
+
+
+def main():
+    """Main entry point"""
+    cli = SkippyCLI()
+    sys.exit(cli.run())
+
+
+if __name__ == '__main__':
+    main()
