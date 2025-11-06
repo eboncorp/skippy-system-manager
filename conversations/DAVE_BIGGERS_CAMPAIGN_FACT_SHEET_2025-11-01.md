@@ -53,11 +53,11 @@
 ## POLICY NUMBERS - OFFICIAL COUNTS ⚠️ USE THESE CONSISTENTLY
 
 ### Policy Documents
-- **Total Policy Documents:** 42 documents
-  - **Platform Policies:** 16 comprehensive policies
-  - **Implementation Documents:** 26 supporting documents
+- **Platform Policies:** 16 comprehensive policy areas
+- **Implementation Documents:** Multiple supporting documents (count varies as documents are added/updated)
+- **Total:** Refer to "comprehensive policy platform" or "detailed policy documents" without specifying exact count
 
-**NOTE:** The website says "34 policy documents" in some places - THIS NEEDS TO BE CORRECTED TO 42
+**NOTE:** Do not specify exact total document count - the number changes as documents are added or updated
 
 ### Voter Education Glossary
 - **Total Terms:** 351 terms
