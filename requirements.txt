@@ -1,0 +1,21 @@
+# Skippy System Manager - Core Dependencies
+# Install: pip install -r requirements.txt
+
+# Core Framework
+fastmcp>=0.1.0
+mcp>=1.1.0
+
+# System Utilities
+psutil>=5.9.0
+
+# HTTP Client
+httpx>=0.24.0
+
+# SSH/Remote Access
+paramiko>=3.0.0
+
+# YAML/Config Processing
+PyYAML>=6.0
+
+# Optional but recommended
+python-dotenv>=1.0.0  # For .env file loading
