@@ -48,7 +48,7 @@ services:
     restart: "no"
     environment:
       - SKIPPY_BASE_PATH=/app
-      - SKIP PY_LOG_LEVEL=DEBUG
+      - SKIPPY_LOG_LEVEL=DEBUG
     volumes:
       - .:/app
     networks:
