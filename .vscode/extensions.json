@@ -1,0 +1,36 @@
+{
+  "recommendations": [
+    // Python
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.black-formatter",
+
+    // Testing
+    "littlefoxteam.vscode-python-test-adapter",
+
+    // Shell scripting
+    "foxundermoon.shell-format",
+    "timonwong.shellcheck",
+
+    // Git
+    "eamodio.gitlens",
+
+    // Docker
+    "ms-azuretools.vscode-docker",
+
+    // YAML
+    "redhat.vscode-yaml",
+
+    // Markdown
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint",
+
+    // Utilities
+    "editorconfig.editorconfig",
+    "tyriar.sort-lines",
+    "streetsidesoftware.code-spell-checker",
+
+    // Remote development
+    "ms-vscode-remote.remote-ssh"
+  ]
+}

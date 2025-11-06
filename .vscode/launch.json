@@ -1,0 +1,76 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/lib/python"
+      }
+    },
+    {
+      "name": "Python: MCP Server",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/mcp-servers/general-server/server.py",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/lib/python",
+        "SKIPPY_LOG_LEVEL": "DEBUG"
+      }
+    },
+    {
+      "name": "Python: Skippy CLI",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/skippy",
+      "console": "integratedTerminal",
+      "args": [
+        "status"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/lib/python"
+      }
+    },
+    {
+      "name": "Python: Run Tests",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "tests",
+        "-v",
+        "--cov=lib",
+        "--cov-report=html"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Python: Debug Tests",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "${file}",
+        "-v",
+        "-s"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Bash: Current Script",
+      "type": "bashdb",
+      "request": "launch",
+      "program": "${file}",
+      "cwd": "${workspaceFolder}",
+      "args": []
+    }
+  ]
+}
