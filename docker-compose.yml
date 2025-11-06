@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # MCP Server
+  skippy-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: skippy-mcp-server
+    image: skippy-system-manager:latest
+    restart: unless-stopped
+    environment:
+      # Load from .env file
+      - SKIPPY_BASE_PATH=${SKIPPY_BASE_PATH:-/app}
+      - WORDPRESS_BASE_PATH=${WORDPRESS_BASE_PATH:-/wordpress}
+      - EBON_HOST=${EBON_HOST}
+      - EBON_PASSWORD=${EBON_PASSWORD}
+      - SKIPPY_LOG_LEVEL=${SKIPPY_LOG_LEVEL:-INFO}
+    volumes:
+      # Mount configuration
+      - ./config.env:/app/config.env:ro
+      # Mount logs
+      - ./logs:/app/logs
+      # Mount backups
+      - ./backups:/app/backups
+      # Mount conversations
+      - ./conversations:/app/conversations
+      # Mount scripts (for development)
+      - ./scripts:/app/scripts:ro
+    networks:
+      - skippy-network
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Optional: Development container
+  skippy-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: skippy-dev
+    image: skippy-system-manager:latest
+    restart: "no"
+    environment:
+      - SKIPPY_BASE_PATH=/app
+      - SKIP PY_LOG_LEVEL=DEBUG
+    volumes:
+      - .:/app
+    networks:
+      - skippy-network
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+    profiles:
+      - dev
+
+networks:
+  skippy-network:
+    driver: bridge
+
+volumes:
+  logs:
+  backups:
+  conversations:
