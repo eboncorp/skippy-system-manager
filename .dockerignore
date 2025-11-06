@@ -1,0 +1,84 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Sensitive files
+config.env
+.env
+*.pem
+*.key
+*.crt
+secrets/
+
+# Logs
+logs/
+*.log
+
+# Backups
+backups/
+*.tar.gz
+*.zip
+
+# Conversations
+conversations/
+
+# Archives
+archive/
+legacy_system_managers/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
