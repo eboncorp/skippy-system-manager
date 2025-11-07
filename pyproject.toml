@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "skippy-system-manager"
-version = "2.0.0"
+version = "2.0.1"
 description = "Comprehensive automation and management suite for infrastructure, WordPress, and system administration"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -268,7 +268,7 @@ skips = ["B101", "B601"]  # Allow assert, shell=True (with caution)
 # ============================================================================
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "2.0.0"
+version = "2.0.1"
 tag_format = "v$version"
 version_files = [
     "pyproject.toml:version",
