@@ -280,13 +280,21 @@ def get_disk_usage(path: str = "/") -> str:
         path: Path to check disk usage for (default '/')
     """
     try:
-        usage = psutil.disk_usage(path)
+        # Validate path
+        validated_path = SkippyValidator.validate_path(path, must_exist=True)
+        usage = psutil.disk_usage(str(validated_path))
         return f"""Disk Usage for {path}:
 Total: {usage.total / (1024**3):.2f} GB
 Used: {usage.used / (1024**3):.2f} GB
 Free: {usage.free / (1024**3):.2f} GB
 Percentage: {usage.percent}%"""
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid path - {str(e)}"
+    except FileNotFoundError:
+        return f"Error: Path not found: {path}"
+    except PermissionError:
+        return f"Error: Permission denied: {path}"
+    except OSError as e:
         return f"Error getting disk usage: {str(e)}"
 
 
@@ -309,8 +317,10 @@ SWAP:
   Used: {swap.used / (1024**3):.2f} GB
   Free: {swap.free / (1024**3):.2f} GB
   Percentage: {swap.percent}%"""
-    except Exception as e:
-        return f"Error getting memory info: {str(e)}"
+    except OSError as e:
+        return f"Error accessing system memory info: {str(e)}"
+    except AttributeError as e:
+        return f"Error: Memory info not available on this system: {str(e)}"
 
 
 @mcp.tool()
@@ -332,8 +342,10 @@ def get_cpu_info() -> str:
             result.append(f"\nFrequency: {cpu_freq.current:.2f} MHz")
 
         return '\n'.join(result)
-    except Exception as e:
-        return f"Error getting CPU info: {str(e)}"
+    except OSError as e:
+        return f"Error accessing CPU info: {str(e)}"
+    except AttributeError as e:
+        return f"Error: CPU info not available on this system: {str(e)}"
 
 
 @mcp.tool()
@@ -367,8 +379,10 @@ def list_processes(filter_name: str = "") -> str:
             )
 
         return '\n'.join(result)
-    except Exception as e:
-        return f"Error listing processes: {str(e)}"
+    except OSError as e:
+        return f"Error accessing process list: {str(e)}"
+    except AttributeError as e:
+        return f"Error: Process info not available: {str(e)}"
 
 
 @mcp.tool()
@@ -379,6 +393,10 @@ def check_service_status(service_name: str) -> str:
         service_name: Name of the systemd service (e.g., 'nginx', 'mysql')
     """
     try:
+        # Basic validation to prevent command injection
+        if not service_name.replace('-', '').replace('_', '').replace('.', '').isalnum():
+            return f"Error: Invalid service name: {service_name}"
+
         result = subprocess.run(
             ['systemctl', 'status', service_name],
             capture_output=True,
@@ -387,8 +405,10 @@ def check_service_status(service_name: str) -> str:
         )
         return result.stdout if result.stdout else result.stderr
     except subprocess.TimeoutExpired:
-        return f"Error: Command timed out checking {service_name}"
-    except Exception as e:
+        return f"Error: Command timed out (5s) checking {service_name}"
+    except FileNotFoundError:
+        return "Error: systemctl command not found (systemd not available)"
+    except subprocess.SubprocessError as e:
         return f"Error checking service status: {str(e)}"
 
 
@@ -516,11 +536,18 @@ def wp_cli_command(command: str, use_allow_root: bool = True) -> str:
         use_allow_root: Whether to add --allow-root flag (default True for Local by Flywheel)
     """
     try:
+        # Validate command to prevent command injection
+        validated_command = SkippyValidator.validate_command(
+            command,
+            allow_pipes=False,
+            allow_redirects=False
+        )
+
         wp_cmd = ['wp', '--path=' + WORDPRESS_PATH]
         if use_allow_root:
             wp_cmd.append('--allow-root')
 
-        wp_cmd.extend(command.split())
+        wp_cmd.extend(validated_command.split())
 
         result = subprocess.run(
             wp_cmd,
@@ -534,7 +561,13 @@ def wp_cli_command(command: str, use_allow_root: bool = True) -> str:
             return f"Error (exit code {result.returncode}):\n{result.stderr}\n{result.stdout}"
 
         return result.stdout if result.stdout else "Command executed successfully"
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid command - {str(e)}"
+    except subprocess.TimeoutExpired:
+        return "Error: Command timed out (30s)"
+    except FileNotFoundError:
+        return "Error: wp command not found (WP-CLI not installed)"
+    except subprocess.SubprocessError as e:
         return f"Error running WP-CLI command: {str(e)}"
 
 
