@@ -1,23 +1,32 @@
 #!/usr/bin/env python3
 """
 General Purpose MCP Server
-Version: 2.0.0
+Version: 2.0.1
 Author: Claude Code
 Created: 2025-10-31
-Updated: 2025-10-31 (Added 27 new tools)
+Updated: 2025-11-07 (Security hardening: v2.0.1)
 
 A comprehensive MCP server providing tools for:
-- File operations (read, write, search, list)
+- File operations (read, write, search, list) - NOW WITH INPUT VALIDATION
 - System monitoring (disk, memory, processes, services)
-- Remote server management (SSH to ebon)
-- Web requests (HTTP GET/POST)
-- WordPress management (WP-CLI, backups, database)
+- Remote server management (SSH to ebon) - NOW WITH SSH KEY SUPPORT
+- Web requests (HTTP GET/POST) - NOW WITH URL VALIDATION
+- WordPress management (WP-CLI, backups, database) - ENHANCED SECURITY
 - Git operations (status, diff, credential scanning)
 - Skippy script management (search, info)
 - Protocol and conversation access
 - Docker container management
 - Log file analysis
-- Database queries (safe read-only)
+- Database queries (safe read-only) - SQL INJECTION PROTECTION
+
+Security Features (v2.0.1):
+- Path traversal prevention (SkippyValidator)
+- Command injection prevention
+- SSH key authentication (preferred over password)
+- URL validation (SSRF/XSS prevention)
+- SQL injection detection
+- Specific exception handling (no broad catches)
+- MITM protection (StrictHostKeyChecking=accept-new)
 """
 
 from typing import Any
