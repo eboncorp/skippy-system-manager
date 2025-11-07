@@ -22,6 +22,7 @@ A comprehensive MCP server providing tools for:
 
 from typing import Any
 import os
+import sys
 import subprocess
 import json
 import logging
@@ -32,6 +33,10 @@ from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 import psutil
 import httpx
+
+# Add lib/python to path for skippy modules
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "lib" / "python"))
+from skippy_validator import SkippyValidator, ValidationError
 
 # Load environment variables from .env file
 def load_env():
@@ -53,7 +58,7 @@ mcp = FastMCP("general-server")
 # Constants - Load from environment or use defaults
 EBON_HOST = os.getenv("EBON_HOST", "ebon@10.0.0.29")
 EBON_PASSWORD = os.getenv("EBON_PASSWORD", "")
-SSH_OPTS = os.getenv("SSH_OPTS", "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null")
+SSH_OPTS = os.getenv("SSH_OPTS", "-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null")
 
 # Path configuration - now uses environment variables with fallback defaults
 SKIPPY_PATH = os.getenv("SKIPPY_BASE_PATH", "/home/dave/skippy")
@@ -85,9 +90,9 @@ def read_file(file_path: str, start_line: int = 0, num_lines: int = -1) -> str:
         num_lines: Number of lines to read (-1 for all lines, default -1)
     """
     try:
-        path = Path(file_path).expanduser()
-        if not path.exists():
-            return f"Error: File not found: {file_path}"
+        # Validate path to prevent directory traversal attacks
+        path = SkippyValidator.validate_path(file_path, must_exist=True)
+
         if not path.is_file():
             return f"Error: Not a file: {file_path}"
 
@@ -100,7 +105,15 @@ def read_file(file_path: str, start_line: int = 0, num_lines: int = -1) -> str:
             lines_to_return = lines[start_line:start_line + num_lines]
 
         return ''.join(lines_to_return)
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid path - {str(e)}"
+    except FileNotFoundError:
+        return f"Error: File not found: {file_path}"
+    except PermissionError:
+        return f"Error: Permission denied: {file_path}"
+    except UnicodeDecodeError:
+        return f"Error: Unable to decode file (not a text file): {file_path}"
+    except OSError as e:
         return f"Error reading file: {str(e)}"
 
 
@@ -117,14 +130,19 @@ def write_file(file_path: str, content: str, mode: str = "w") -> str:
         if mode not in ["w", "a"]:
             return "Error: mode must be 'w' (overwrite) or 'a' (append)"
 
-        path = Path(file_path).expanduser()
+        # Validate path to prevent directory traversal attacks
+        path = SkippyValidator.validate_path(file_path, allow_create=True)
         path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(path, mode, encoding='utf-8') as f:
             f.write(content)
 
         return f"Successfully wrote to {file_path} ({len(content)} characters)"
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid path - {str(e)}"
+    except PermissionError:
+        return f"Error: Permission denied: {file_path}"
+    except OSError as e:
         return f"Error writing file: {str(e)}"
 
 
@@ -138,9 +156,9 @@ def list_directory(directory_path: str, pattern: str = "*", recursive: bool = Fa
         recursive: Whether to list recursively (default False)
     """
     try:
-        path = Path(directory_path).expanduser()
-        if not path.exists():
-            return f"Error: Directory not found: {directory_path}"
+        # Validate path to prevent directory traversal attacks
+        path = SkippyValidator.validate_path(directory_path, must_exist=True)
+
         if not path.is_dir():
             return f"Error: Not a directory: {directory_path}"
 
@@ -161,7 +179,13 @@ def list_directory(directory_path: str, pattern: str = "*", recursive: bool = Fa
                 result.append(f"[FILE] {rel_path} ({size:,} bytes)")
 
         return '\n'.join(result) if result else "No files found"
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid path - {str(e)}"
+    except FileNotFoundError:
+        return f"Error: Directory not found: {directory_path}"
+    except PermissionError:
+        return f"Error: Permission denied: {directory_path}"
+    except OSError as e:
         return f"Error listing directory: {str(e)}"
 
 
@@ -175,9 +199,11 @@ def search_files(directory_path: str, search_term: str, file_pattern: str = "*.p
         file_pattern: Glob pattern for files to search (default '*.py')
     """
     try:
-        path = Path(directory_path).expanduser()
-        if not path.exists():
-            return f"Error: Directory not found: {directory_path}"
+        # Validate path to prevent directory traversal attacks
+        path = SkippyValidator.validate_path(directory_path, must_exist=True)
+
+        if not path.is_dir():
+            return f"Error: Not a directory: {directory_path}"
 
         matches = []
         for file_path in path.rglob(file_pattern):
@@ -194,7 +220,13 @@ def search_files(directory_path: str, search_term: str, file_pattern: str = "*.p
             return f"No matches found for '{search_term}' in {file_pattern} files"
 
         return '\n'.join(matches[:100])  # Limit to first 100 matches
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid path - {str(e)}"
+    except FileNotFoundError:
+        return f"Error: Directory not found: {directory_path}"
+    except PermissionError:
+        return f"Error: Permission denied: {directory_path}"
+    except OSError as e:
         return f"Error searching files: {str(e)}"
 
 
@@ -206,9 +238,8 @@ def get_file_info(file_path: str) -> str:
         file_path: Absolute path to the file or directory
     """
     try:
-        path = Path(file_path).expanduser()
-        if not path.exists():
-            return f"Error: Path not found: {file_path}"
+        # Validate path to prevent directory traversal attacks
+        path = SkippyValidator.validate_path(file_path, must_exist=True)
 
         stat = path.stat()
 
@@ -227,7 +258,13 @@ def get_file_info(file_path: str) -> str:
             result.append(f"\nContains {len(items)} items")
 
         return '\n'.join(result)
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid path - {str(e)}"
+    except FileNotFoundError:
+        return f"Error: Path not found: {file_path}"
+    except PermissionError:
+        return f"Error: Permission denied: {file_path}"
+    except OSError as e:
         return f"Error getting file info: {str(e)}"
 
 
@@ -368,15 +405,22 @@ def run_remote_command(command: str, use_sshpass: bool = True) -> str:
         use_sshpass: Whether to use sshpass for authentication (default True)
     """
     try:
+        # Validate command to prevent command injection
+        validated_command = SkippyValidator.validate_command(
+            command,
+            allow_pipes=True,
+            allow_redirects=True
+        )
+
         if use_sshpass:
             full_command = [
                 'sshpass', '-p', EBON_PASSWORD,
-                'ssh', '-o', 'StrictHostKeyChecking=no',
+                'ssh', '-o', 'StrictHostKeyChecking=accept-new',
                 '-o', 'UserKnownHostsFile=/dev/null',
-                EBON_HOST, command
+                EBON_HOST, validated_command
             ]
         else:
-            full_command = ['ssh'] + SSH_OPTS.split() + [EBON_HOST, command]
+            full_command = ['ssh'] + SSH_OPTS.split() + [EBON_HOST, validated_command]
 
         result = subprocess.run(
             full_command,
@@ -387,9 +431,13 @@ def run_remote_command(command: str, use_sshpass: bool = True) -> str:
 
         output = result.stdout if result.stdout else result.stderr
         return output if output else "Command executed successfully (no output)"
+    except ValidationError as e:
+        return f"Error: Invalid command - {str(e)}"
     except subprocess.TimeoutExpired:
-        return "Error: Command timed out"
-    except Exception as e:
+        return "Error: Command timed out (30s)"
+    except FileNotFoundError as e:
+        return f"Error: Command not found - {str(e)}"
+    except subprocess.SubprocessError as e:
         return f"Error running remote command: {str(e)}"
 
 
@@ -400,7 +448,7 @@ def check_ebon_status() -> str:
         result = subprocess.run(
             [
                 'sshpass', '-p', EBON_PASSWORD,
-                'ssh', '-o', 'StrictHostKeyChecking=no',
+                'ssh', '-o', 'StrictHostKeyChecking=accept-new',
                 '-o', 'UserKnownHostsFile=/dev/null',
                 EBON_HOST,
                 "hostname && uptime && df -h / && free -h"
@@ -410,7 +458,11 @@ def check_ebon_status() -> str:
             timeout=10
         )
         return result.stdout if result.stdout else result.stderr
-    except Exception as e:
+    except subprocess.TimeoutExpired:
+        return "Error: Command timed out (10s)"
+    except FileNotFoundError:
+        return "Error: sshpass or ssh command not found"
+    except subprocess.SubprocessError as e:
         return f"Error checking ebon status: {str(e)}"
 
 
@@ -439,7 +491,7 @@ def ebon_full_status() -> str:
 
         result = subprocess.run(
             ['sshpass', '-p', EBON_PASSWORD,
-             'ssh', '-o', 'StrictHostKeyChecking=no',
+             'ssh', '-o', 'StrictHostKeyChecking=accept-new',
              '-o', 'UserKnownHostsFile=/dev/null',
              EBON_HOST, cmd],
             capture_output=True,
@@ -994,7 +1046,7 @@ def docker_ps_remote(filter_name: str = "") -> str:
 
         result = subprocess.run(
             ['sshpass', '-p', EBON_PASSWORD,
-             'ssh', '-o', 'StrictHostKeyChecking=no',
+             'ssh', '-o', 'StrictHostKeyChecking=accept-new',
              '-o', 'UserKnownHostsFile=/dev/null',
              EBON_HOST, cmd],
             capture_output=True,
@@ -1019,7 +1071,7 @@ def docker_logs_remote(container_name: str, lines: int = 50) -> str:
 
         result = subprocess.run(
             ['sshpass', '-p', EBON_PASSWORD,
-             'ssh', '-o', 'StrictHostKeyChecking=no',
+             'ssh', '-o', 'StrictHostKeyChecking=accept-new',
              '-o', 'UserKnownHostsFile=/dev/null',
              EBON_HOST, cmd],
             capture_output=True,
@@ -1041,7 +1093,7 @@ def jellyfin_status() -> str:
 
         result = subprocess.run(
             ['sshpass', '-p', EBON_PASSWORD,
-             'ssh', '-o', 'StrictHostKeyChecking=no',
+             'ssh', '-o', 'StrictHostKeyChecking=accept-new',
              '-o', 'UserKnownHostsFile=/dev/null',
              EBON_HOST, cmd],
             capture_output=True,
