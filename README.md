@@ -360,7 +360,10 @@ We've completed a comprehensive security audit and hardening initiative:
 - Functions hardened: 15+ critical operations
 - Lines of security tests: 400+
 
-See [SECURITY.md](SECURITY.md) for complete details and security checklist.
+**📚 Upgrade to v2.0.1**:
+- **Quick Start**: Run `./scripts/utility/migrate_ssh_keys.sh` (5 minutes)
+- **Full Guide**: See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for detailed instructions
+- **Security Docs**: See [SECURITY.md](SECURITY.md) for security checklist and best practices
 
 ### Reporting Security Issues
 
@@ -385,8 +388,9 @@ Email: dave@eboncorp.com (or see [SECURITY.md](SECURITY.md))
 ### Q1 2026
 - [ ] Microservices architecture
 - [ ] Enhanced monitoring dashboard
-- [ ] SSH key authentication migration
+- [x] SSH key authentication migration (✅ Completed in v2.0.1)
 - [ ] Backup encryption
+- [ ] Rate limiting for API endpoints
 
 ### Q2 2026
 - [ ] Advanced AI integration
