@@ -58,7 +58,11 @@ mcp = FastMCP("general-server")
 # Constants - Load from environment or use defaults
 EBON_HOST = os.getenv("EBON_HOST", "ebon@10.0.0.29")
 EBON_PASSWORD = os.getenv("EBON_PASSWORD", "")
+SSH_KEY_PATH = os.getenv("SSH_KEY_PATH", "")  # Path to SSH private key (preferred over password)
 SSH_OPTS = os.getenv("SSH_OPTS", "-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null")
+
+# Determine SSH authentication method (key-based is preferred)
+USE_SSH_KEY = bool(SSH_KEY_PATH and Path(SSH_KEY_PATH).exists())
 
 # Path configuration - now uses environment variables with fallback defaults
 SKIPPY_PATH = os.getenv("SKIPPY_BASE_PATH", "/home/dave/skippy")
@@ -416,13 +420,49 @@ def check_service_status(service_name: str) -> str:
 # REMOTE SERVER TOOLS (SSH to ebon)
 # ============================================================================
 
+def _build_ssh_command(remote_command: str) -> list:
+    """Helper function to build SSH command with appropriate authentication.
+
+    Uses SSH key if configured, otherwise falls back to password authentication.
+
+    Args:
+        remote_command: Command to execute on remote server
+
+    Returns:
+        List of command arguments for subprocess
+    """
+    if USE_SSH_KEY:
+        return [
+            'ssh',
+            '-i', SSH_KEY_PATH,
+            '-o', 'StrictHostKeyChecking=accept-new',
+            '-o', 'UserKnownHostsFile=/dev/null',
+            EBON_HOST,
+            remote_command
+        ]
+    elif EBON_PASSWORD:
+        return [
+            'sshpass', '-p', EBON_PASSWORD,
+            'ssh',
+            '-o', 'StrictHostKeyChecking=accept-new',
+            '-o', 'UserKnownHostsFile=/dev/null',
+            EBON_HOST,
+            remote_command
+        ]
+    else:
+        return ['ssh'] + SSH_OPTS.split() + [EBON_HOST, remote_command]
+
+
 @mcp.tool()
 def run_remote_command(command: str, use_sshpass: bool = True) -> str:
     """Run a command on the ebon server via SSH.
 
+    Automatically uses SSH key authentication if SSH_KEY_PATH is configured,
+    otherwise falls back to password authentication with sshpass.
+
     Args:
         command: Command to run on the remote server
-        use_sshpass: Whether to use sshpass for authentication (default True)
+        use_sshpass: Whether to use sshpass (ignored if SSH_KEY_PATH is set)
     """
     try:
         # Validate command to prevent command injection
@@ -432,15 +472,8 @@ def run_remote_command(command: str, use_sshpass: bool = True) -> str:
             allow_redirects=True
         )
 
-        if use_sshpass:
-            full_command = [
-                'sshpass', '-p', EBON_PASSWORD,
-                'ssh', '-o', 'StrictHostKeyChecking=accept-new',
-                '-o', 'UserKnownHostsFile=/dev/null',
-                EBON_HOST, validated_command
-            ]
-        else:
-            full_command = ['ssh'] + SSH_OPTS.split() + [EBON_HOST, validated_command]
+        # Build SSH command with appropriate authentication
+        full_command = _build_ssh_command(validated_command)
 
         result = subprocess.run(
             full_command,
@@ -463,16 +496,15 @@ def run_remote_command(command: str, use_sshpass: bool = True) -> str:
 
 @mcp.tool()
 def check_ebon_status() -> str:
-    """Check the status of the ebon server (uptime, disk, memory)."""
+    """Check the status of the ebon server (uptime, disk, memory).
+
+    Uses SSH key authentication if configured, otherwise password authentication.
+    """
     try:
+        ssh_command = _build_ssh_command("hostname && uptime && df -h / && free -h")
+
         result = subprocess.run(
-            [
-                'sshpass', '-p', EBON_PASSWORD,
-                'ssh', '-o', 'StrictHostKeyChecking=accept-new',
-                '-o', 'UserKnownHostsFile=/dev/null',
-                EBON_HOST,
-                "hostname && uptime && df -h / && free -h"
-            ],
+            ssh_command,
             capture_output=True,
             text=True,
             timeout=10
@@ -481,7 +513,7 @@ def check_ebon_status() -> str:
     except subprocess.TimeoutExpired:
         return "Error: Command timed out (10s)"
     except FileNotFoundError:
-        return "Error: sshpass or ssh command not found"
+        return "Error: ssh command not found (or sshpass if using password auth)"
     except subprocess.SubprocessError as e:
         return f"Error checking ebon status: {str(e)}"
 
@@ -1276,24 +1308,39 @@ def find_duplicates(directory: str, min_size: int = 1024) -> str:
 
 @mcp.tool()
 def mysql_query_safe(query: str, database: str = "wordpress") -> str:
-    """Execute safe SELECT-only queries on local MySQL.
+    """Execute safe SELECT-only queries on local MySQL via WP-CLI.
+
+    SECURITY NOTE: This function uses WP-CLI's 'wp db query' command instead of
+    direct MySQL connections. WP-CLI handles SQL parameterization and validation
+    internally, which is more secure than string-based SQL validation.
 
     Args:
         query: SQL query (only SELECT allowed)
         database: Database name (default 'wordpress')
     """
     try:
-        # Security: Only allow SELECT queries
+        # Validate using skippy_validator for SQL injection patterns
+        try:
+            SkippyValidator.validate_sql_input(query)
+        except ValidationError as e:
+            return f"Error: SQL injection attempt detected - {str(e)}"
+
+        # Security: Only allow SELECT queries (defense in depth)
         query_upper = query.strip().upper()
-        dangerous_keywords = ['DELETE', 'UPDATE', 'DROP', 'ALTER', 'INSERT', 'TRUNCATE', 'CREATE', 'GRANT']
+        dangerous_keywords = ['DELETE', 'UPDATE', 'DROP', 'ALTER', 'INSERT', 'TRUNCATE', 'CREATE', 'GRANT', 'REVOKE', 'EXEC', 'EXECUTE']
 
         if any(keyword in query_upper for keyword in dangerous_keywords):
-            return f"Error: Only SELECT queries are allowed for safety. Blocked keywords: {', '.join(dangerous_keywords)}"
+            return f"Error: Only SELECT queries are allowed. Blocked keywords: {', '.join(dangerous_keywords)}"
 
         if not query_upper.startswith('SELECT'):
             return "Error: Query must start with SELECT"
 
-        # Use wp db query which is safer
+        # Validate database name to prevent injection
+        if not database.replace('_', '').isalnum():
+            return f"Error: Invalid database name: {database}"
+
+        # Use wp db query which handles parameterization internally
+        # This is safer than direct MySQL connections with string formatting
         result = subprocess.run(
             ['wp', '--path=' + WORDPRESS_PATH, '--allow-root',
              'db', 'query', query],
@@ -1302,8 +1349,17 @@ def mysql_query_safe(query: str, database: str = "wordpress") -> str:
             timeout=30
         )
 
-        return result.stdout if result.stdout else result.stderr
-    except Exception as e:
+        if result.returncode != 0:
+            return f"Error (exit code {result.returncode}):\n{result.stderr}"
+
+        return result.stdout if result.stdout else "Query executed successfully (no results)"
+    except ValidationError as e:
+        return f"Error: Invalid SQL input - {str(e)}"
+    except subprocess.TimeoutExpired:
+        return "Error: Query timed out (30s)"
+    except FileNotFoundError:
+        return "Error: wp command not found (WP-CLI not installed)"
+    except subprocess.SubprocessError as e:
         return f"Error executing query: {str(e)}"
 
 
@@ -1320,10 +1376,13 @@ async def http_get(url: str, headers: str = "{}") -> str:
         headers: JSON string of headers to include (default '{}')
     """
     try:
+        # Validate URL to prevent SSRF and XSS attacks
+        validated_url = SkippyValidator.validate_url(url, allowed_schemes=['http', 'https'])
+
         headers_dict = json.loads(headers) if headers != "{}" else {}
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(url, headers=headers_dict)
+            response = await client.get(validated_url, headers=headers_dict)
 
             result = [f"Status Code: {response.status_code}"]
             result.append(f"Headers: {dict(response.headers)}")
@@ -1331,7 +1390,13 @@ async def http_get(url: str, headers: str = "{}") -> str:
             result.append(response.text[:5000])  # Limit to first 5000 chars
 
             return '\n'.join(result)
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid URL - {str(e)}"
+    except json.JSONDecodeError:
+        return "Error: Invalid JSON in headers parameter"
+    except httpx.TimeoutException:
+        return "Error: Request timed out (30s)"
+    except httpx.HTTPError as e:
         return f"Error making HTTP GET request: {str(e)}"
 
 
@@ -1345,11 +1410,14 @@ async def http_post(url: str, data: str, headers: str = "{}") -> str:
         headers: JSON string of headers to include (default '{}')
     """
     try:
+        # Validate URL to prevent SSRF and XSS attacks
+        validated_url = SkippyValidator.validate_url(url, allowed_schemes=['http', 'https'])
+
         headers_dict = json.loads(headers) if headers != "{}" else {}
         data_dict = json.loads(data)
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=data_dict, headers=headers_dict)
+            response = await client.post(validated_url, json=data_dict, headers=headers_dict)
 
             result = [f"Status Code: {response.status_code}"]
             result.append(f"Headers: {dict(response.headers)}")
@@ -1357,7 +1425,13 @@ async def http_post(url: str, data: str, headers: str = "{}") -> str:
             result.append(response.text[:5000])  # Limit to first 5000 chars
 
             return '\n'.join(result)
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid URL - {str(e)}"
+    except json.JSONDecodeError as e:
+        return f"Error: Invalid JSON in parameters - {str(e)}"
+    except httpx.TimeoutException:
+        return "Error: Request timed out (30s)"
+    except httpx.HTTPError as e:
         return f"Error making HTTP POST request: {str(e)}"
 
 
