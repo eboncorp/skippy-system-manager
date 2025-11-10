@@ -112,3 +112,42 @@ gh_token*
 oauth*
 .oauth*
 mcp-servers/general-server/.env
+
+# ============================================
+# WORK & SESSION FILES
+# ============================================
+# Work session directories (preserved locally, not tracked)
+work/
+
+# Temporary session files
+tmp/
+temp/
+.temp/
+
+# ============================================
+# CONVERSATIONS & UPLOADS
+# ============================================
+# Conversation logs (tracked selectively)
+conversations/*.md
+!conversations/README.md
+
+# Claude uploads/downloads
+claude/downloads/**/*.pdf
+claude/downloads/**/*.docx
+claude/downloads/**/*.xlsx
+claude/uploads/**/*.pdf
+claude/uploads/**/
+
+# ============================================
+# SCRIPTS & BINARIES
+# ============================================
+# Development binaries (not versioned)
+bin/protocol-dashboard
+bin/session-recovery
+bin/wp-update
+
+# ============================================
+# SUBMODULES
+# ============================================
+# Modified submodule content
+app-to-deploy/NexusController/

@@ -61,7 +61,7 @@
 
 ### Voter Education Glossary
 - **Total Terms:** 351 terms
-- **Categories:** 48 categories
+- **Categories:** 24 categories
 - **Title:** "Complete Voter Education Glossary"
 
 ### Budget
