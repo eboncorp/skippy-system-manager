@@ -1,9 +1,27 @@
 # WordPress Maintenance Protocol
 
+**Version:** 1.0.0
+**Last Updated:** 2025-11-10
+**Owner:** Protocol Working Group
+**Status:** Active
+
+
 **Date Created**: 2025-10-28
 **Purpose**: Complete WordPress development, deployment, and troubleshooting procedures
 **Applies To**: All WordPress sites, especially rundaverun.org campaign site
 **Priority**: CRITICAL (40% of recent work)
+
+## Purpose
+
+This protocol covers comprehensive WordPress operations:
+- Local development setup (Local by Flywheel)
+- Production environment management (GoDaddy)
+- Database operations (export, import, search-replace)
+- WP-CLI commands and troubleshooting
+- GoDaddy-specific quirks and workarounds
+- Deployment workflows and verification
+
+---
 
 ## Overview
 
@@ -1009,3 +1027,4 @@ wp db check --allow-root
 
 **This protocol is part of the persistent memory system.**
 **Reference when performing any WordPress operations.**
+```

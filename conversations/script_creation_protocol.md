@@ -7,6 +7,17 @@
 
 ---
 
+## Purpose
+
+This protocol defines:
+- Mandatory search procedures before creating new scripts
+- Decision matrix for modifying existing vs creating new
+- Script library organization (226+ scripts across 12 categories)
+- Search strategies by functionality, keyword, and technology
+- Integration with script_saving and version control protocols
+
+---
+
 ## Overview
 
 Before creating any new script, ALWAYS search the existing script library first. There are 226+ scripts already organized in `/home/dave/skippy/scripts/` that may already solve the problem or can be easily modified.

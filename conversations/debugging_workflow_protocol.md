@@ -1081,6 +1081,11 @@ openssl s_client -connect yourdomain.com:443
 **Date:** YYYY-MM-DD
 **Status:** Investigating / Resolved
 
+## Purpose
+
+This protocol defines the procedures and standards for debugging workflow  within the Skippy System Manager.
+
+
 **Symptoms:**
 - What's broken
 
@@ -1103,3 +1108,4 @@ openssl s_client -connect yourdomain.com:443
 **This protocol is part of the persistent memory system.**
 **Reference when debugging any issue to work systematically.**
 **Version:** 1.1.0 (Added quick reference 2025-11-05)
+```
