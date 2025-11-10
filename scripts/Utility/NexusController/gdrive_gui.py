@@ -15,6 +15,7 @@ import json
 from pathlib import Path
 import queue
 import re
+import shlex
 
 class GoogleDriveManagerGUI:
     def __init__(self, root):
@@ -732,9 +733,9 @@ snap/*/[0-9]*/"""
         if not os.path.exists(file_path):
             messagebox.showerror("Error", "Selected file does not exist.")
             return
-            
-        command = f"{self.script_path} upload '{file_path}'"
-        self.run_command(command, 
+
+        command = f"{self.script_path} upload {shlex.quote(file_path)}"
+        self.run_command(command,
                         lambda x: messagebox.showinfo("Success", "File uploaded successfully!"))
         
     def browse_drive(self):
@@ -748,15 +749,15 @@ snap/*/[0-9]*/"""
         if not drive_path:
             messagebox.showwarning("Warning", "Please enter a file path to download.")
             return
-            
-        command = f"{self.script_path} download '{drive_path}'"
-        self.run_command(command, 
+
+        command = f"{self.script_path} download {shlex.quote(drive_path)}"
+        self.run_command(command,
                         lambda x: messagebox.showinfo("Success", "File downloaded successfully!"))
         
     def browse_drive_path(self):
         """Browse to specified drive path"""
         path = self.browser_path.get()
-        command = f"{self.script_path} list '{path}'"
+        command = f"{self.script_path} list {shlex.quote(path)}"
         
         def update_browser(output):
             # Clear existing items
