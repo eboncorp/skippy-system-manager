@@ -16,6 +16,25 @@ Protocols are standardized procedures that ensure consistency, quality, and repr
 
 ## Available Protocols
 
+### 🚀 NEW: WordPress-Specific Protocols (HIGH PRIORITY)
+
+**Essential for WordPress work:**
+
+1. **[WordPress Content Update Protocol](wordpress_content_update_protocol.md)** ⭐⭐⭐ **NEW**
+   - Complete workflow for updating pages/posts/policies
+   - 7-step mandatory process
+   - Examples and verification procedures
+
+2. **[Fact-Checking Protocol](fact_checking_protocol.md)** ⭐⭐⭐ **NEW** **CRITICAL**
+   - Verify all numbers and claims before publishing
+   - Master source of truth (QUICK_FACTS_SHEET.md)
+   - Prevents outdated/incorrect data publication
+
+3. **[Multi-Site WordPress Protocol](multi_site_wordpress_protocol.md)** ⭐⭐ **NEW**
+   - When to use local vs production
+   - Safe testing and deployment workflow
+   - Environment-specific guidelines
+
 ### Everyday Claude Code Use Protocols (Start Here!)
 
 **New users should read these first:**
@@ -80,6 +99,28 @@ Protocols are standardized procedures that ensure consistency, quality, and repr
     - Branching strategy
     - Commit message format
     - Code review process
+
+### 🆕 Development & Debugging Protocols
+
+18. **[Diagnostic & Debugging Protocol](diagnostic_debugging_protocol.md)** ⭐⭐ **NEW**
+    - Systematic troubleshooting approach
+    - WordPress diagnostic tools
+    - Common issues and solutions
+
+19. **[Report Generation Protocol](report_generation_protocol.md)** ⭐⭐ **NEW**
+    - When to create reports
+    - Standard report templates
+    - Naming conventions
+
+20. **[Content Migration Protocol](content_migration_protocol.md)** ⭐ **NEW**
+    - Markdown to HTML conversion
+    - Content format conversions
+    - Verification procedures
+
+21. **[Analytics & Tracking Protocol](analytics_tracking_protocol.md)** ⭐ **NEW**
+    - GA4 event naming standards
+    - Privacy compliance
+    - Implementation guidelines
 
 ### Operations Protocols
 
@@ -297,14 +338,15 @@ All protocols are version-controlled with the repository. Changes to protocols:
 
 ## Protocol Statistics
 
-**Total Protocols:** 17
+**Total Protocols:** 27
+**WordPress-Specific:** 3 (NEW)
 **Everyday Use:** 10
-**Development:** 2
-**Operations:** 5
+**Development:** 6 (4 NEW)
+**Operations:** 8
 **Status:** All active
 
 **Created:** 2025-11-06
-**Last Updated:** 2025-11-06
+**Last Updated:** 2025-11-08 (Major Update - WordPress Enhancement)
 
 ---
 

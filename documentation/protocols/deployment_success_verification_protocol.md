@@ -1,7 +1,7 @@
 # Deployment Success Verification Protocol
 
-**Version:** 1.0.0
-**Last Updated:** 2025-11-06
+**Version:** 1.1.0
+**Last Updated:** 2025-11-07
 **Owner:** Claude Code / Dave
 
 ---
@@ -16,6 +16,12 @@ Formal criteria for when deployment is truly "done" and successful.
 - No ambiguity about completion
 - Comprehensive verification
 - Sign-off checklist
+
+## Related Protocols
+
+⚠️ **IMPORTANT:** This protocol should be used in conjunction with:
+- `wordpress_site_diagnostic_protocol.md` - For comprehensive 7-layer diagnostics
+- Use the WordPress Site Diagnostic Protocol for deep content and navigation validation
 
 ---
 
@@ -42,6 +48,10 @@ Formal criteria for when deployment is truly "done" and successful.
 - [ ] No PHP errors in logs
 - [ ] Database connection successful
 - [ ] Cron jobs configured
+- [ ] **Run 7-Layer Diagnostic** (see `wordpress_site_diagnostic_protocol.md`)
+  - [ ] Layer 3: Content integrity verified (no bash commands in pages)
+  - [ ] Layer 4: Navigation tested (all critical pages return 200)
+  - [ ] Layer 6: Frontend rendering validated
 
 ### Feature Verification
 - [ ] Analytics tracking verified (GA4)
