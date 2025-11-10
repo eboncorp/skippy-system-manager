@@ -5,6 +5,17 @@
 **Applies To**: All code changes, deployments, and releases
 **Priority**: HIGH (prevents bugs, ensures quality)
 
+## Purpose
+
+This protocol establishes:
+- Testing workflows at all levels (unit, integration, system, UAT)
+- WordPress-specific local and production testing procedures
+- Browser and mobile device testing requirements
+- Performance benchmarking standards
+- Regression testing to prevent breaking existing functionality
+
+---
+
 ## Overview
 
 This protocol establishes testing standards to ensure all changes are properly validated before deployment. Systematic testing prevents bugs from reaching production and ensures a stable, reliable user experience.

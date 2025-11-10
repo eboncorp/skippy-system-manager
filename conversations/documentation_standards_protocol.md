@@ -5,6 +5,17 @@
 **Applies To**: All documentation (README, protocols, code comments, user guides)
 **Priority**: MEDIUM-HIGH (affects long-term maintainability)
 
+## Purpose
+
+This protocol establishes:
+- Markdown formatting standards for all documentation
+- File naming conventions across the project
+- Code documentation requirements (headers, comments, docstrings)
+- README, protocol, and user guide templates
+- Version history and changelog standards
+
+---
+
 ## Overview
 
 This protocol establishes documentation standards to ensure all project documentation is consistent, clear, and maintainable. Well-documented code and processes are essential for long-term success.
@@ -1355,3 +1366,4 @@ Horizontal rule
 
 **This protocol is part of the persistent memory system.**
 **Reference when creating or updating any documentation.**
+```

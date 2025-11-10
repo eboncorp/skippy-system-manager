@@ -7,6 +7,18 @@
 
 ---
 
+## Purpose
+
+This protocol covers the complete script lifecycle:
+- Search existing scripts first (avoid duplication)
+- Create new scripts when necessary
+- Save properly with correct location and naming
+- Version correctly using semantic versioning
+- Organize logically within category structure
+- Maintain comprehensive documentation
+
+---
+
 ## Overview
 
 This protocol covers the complete lifecycle of script management in the skippy system:
