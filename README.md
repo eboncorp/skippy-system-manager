@@ -180,14 +180,23 @@ cat SCRIPT_STATUS.md
 
 ### Protocols (Systematic Workflows)
 
-Located in `documentation/protocols/`:
+Located in `documentation/protocols/` - **30+ operational protocols**
 
+**Branch Structure:**
+- `master` - Stable, production-ready protocols
+- `protocols/dev` - Active protocol development
+
+**Key Protocols:**
+- **Branch Workflow Protocol** - Protocol branch management
 - **Script Saving Protocol** - How to save and version scripts
 - **Git Workflow Protocol** - Branching and commit standards
-- **WordPress Maintenance Protocol** - WP update procedures
-- **Error Logging Protocol** - Error handling standards
-- **Backup Strategy Protocol** - Backup and recovery procedures
-- **And 11 more...**
+- **WordPress Site Diagnostic Protocol** - Complete site diagnostics
+- **Fact Checking Protocol** - Comprehensive verification procedures
+- **Emergency Rollback Protocol** - Production incident recovery
+- **WordPress Backup Protocol** - Backup and recovery procedures
+- **And 23 more...**
+
+See [documentation/protocols/README.md](documentation/protocols/README.md) for complete index.
 
 ### MCP Server Documentation
 
