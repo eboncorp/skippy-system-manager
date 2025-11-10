@@ -229,7 +229,7 @@ log "Script started"
 ## Related Protocols
 
 - [Git Workflow Protocol](git_workflow_protocol.md) - How to commit scripts
-- [Testing Standards Protocol](testing_standards_protocol.md) - How to test scripts
+- [Testing & QA Protocol](../../conversations/testing_qa_protocol.md) - How to test scripts
 - [Error Logging Protocol](error_logging_protocol.md) - How to log errors
 
 ## References
