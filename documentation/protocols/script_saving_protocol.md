@@ -237,3 +237,4 @@ log "Script started"
 - [Semantic Versioning](https://semver.org/)
 - [Google Shell Style Guide](https://google.github.io/styleguide/shellguide.html)
 - [PEP 8 - Python Style Guide](https://pep8.org/)
+```
