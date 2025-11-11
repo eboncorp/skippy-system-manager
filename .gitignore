@@ -151,3 +151,16 @@ bin/wp-update
 # ============================================
 # Modified submodule content
 app-to-deploy/NexusController/
+
+# ============================================
+# LOCAL WORDPRESS DEVELOPMENT
+# ============================================
+# Local by Flywheel sites
+Local Sites/
+rundaverun_local_site/
+
+# WordPress backups (kept in campaign/, not in general backups/)
+backups/wordpress/
+
+# WordPress logs
+rundaverun_local_logs/
