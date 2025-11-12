@@ -1,13 +1,34 @@
 # Conversation Index
-**Last Updated:** 2025-11-03
-**Total Conversations:** 116+ files
-**Index Version:** 1.0
+**Last Updated:** 2025-11-12
+**Total Conversations:** 125+ files
+**Index Version:** 1.1
 
 ---
 
 ## Recent Activity (Last 30 Days)
 
 ### November 2025
+
+- **github_integration_complete_2025-11-12.md** [Nov 12]
+  - Tags: `github`, `security`, `integration`, `rundaverun`, `features`
+  - Summary: Reviewed all 8 GitHub branches, fixed critical security vulnerability (removed SQL files), documented 2 existing features (donation tracker, Spanish support)
+  - Key Achievements: Security fix pushed to GitHub, 27 security issues identified, features ready to use
+
+- **security_audit_rundaverun_2025-11-12.md** [Nov 12]
+  - Tags: `security`, `audit`, `vulnerabilities`, `rundaverun`
+  - Summary: Comprehensive 37KB security audit with 27 issues (5 critical, 8 high, 9 medium, 5 low). Risk score 6.2/10.
+  - Critical Issues: Database credentials in repo (FIXED), unsanitized input, wp-config exposure, low test coverage
+
+- **pexels_setup_complete_2025-11-12.md** [Nov 12]
+  - Tags: `mcp-server`, `pexels`, `stock-photos`, `integration`, `v2.3.2`
+  - Summary: Successfully integrated Pexels stock photos API with 4 tools. Fully tested and operational. 3M+ free photos available.
+  - Tools: search_photos, get_photo, download_photo, curated_photos
+
+- **google_photos_final_troubleshooting.md** [Nov 12]
+  - Tags: `mcp-server`, `google-photos`, `oauth`, `troubleshooting`, `pending`
+  - Summary: Google Photos integration (6 tools) complete but blocked by OAuth 403 error. To be revisited when OAuth propagates.
+  - Status: Code complete, documentation complete, OAuth issue pending
+
 - **site_quality_assurance_complete_session_2025-11-03.md** [Nov 3]
   - Tags: `wordpress`, `qa`, `bugfixes`, `production-ready`, `rundaverun`
   - Summary: Fixed 22 critical issues including factual errors, broken links, and budget inconsistencies. Site now production-ready for deployment.
@@ -39,10 +60,38 @@
 
 ## Active Projects
 
+### MCP Server Development
+**Status:** 🟢 Active Development
+**Current Version:** v2.3.2 (75 tools)
+**Last Update:** November 12, 2025
+**Session Count:** 8+ files
+
+**Key Files:**
+- `/home/dave/skippy/mcp-servers/general-server/server.py` - Main server (v2.3.2)
+- `CHANGELOG_v2.3.2.md` - Latest version documentation
+- `PEXELS_SETUP.md` - Stock photos integration guide
+- `GOOGLE_PHOTOS_SETUP.md` - Google Photos setup (pending OAuth)
+
+**Current State:**
+- ✅ 4 Pexels stock photo tools (fully operational)
+- ⚠️ 6 Google Photos tools (OAuth 403 issue pending)
+- ✅ 13 Google Drive tools (fully operational)
+- ✅ 52 general-purpose tools
+- 📚 Comprehensive documentation
+
+**Integrations:**
+1. **Pexels Stock Photos** (v2.3.2) ✅ - Free campaign photography
+2. **Google Photos** (v2.3.2) ⚠️ - Personal photo library (OAuth pending)
+3. **Google Drive** (v2.2.0-v2.3.0) ✅ - File management
+4. **GitHub** (v2.1.0) ✅ - Repository operations
+5. **Slack** (v2.1.0) ✅ - Team notifications
+
+---
+
 ### RunDaveRun Campaign Website (rundaverun.org)
 **Status:** ✅ Production Ready (awaiting deployment)
-**Last Update:** November 3, 2025
-**Session Count:** 47+ files
+**Last Update:** November 12, 2025 (GitHub integration review)
+**Session Count:** 51+ files
 
 **Key Files:**
 - `DAVE_BIGGERS_CAMPAIGN_FACT_SHEET_2025-11-01.md` - Authoritative campaign data
@@ -50,11 +99,19 @@
 - `site_quality_assurance_complete_session_2025-11-03.md` - Latest QA session
 
 **Current State:**
-- 22 critical fixes completed
-- All factual errors corrected
-- Budget figures standardized
-- Privacy Policy published
-- Ready for GoDaddy production deployment
+- ✅ 22 critical fixes completed
+- ✅ All factual errors corrected
+- ✅ Budget figures standardized
+- ✅ Privacy Policy published
+- ✅ Critical security fix (SQL files removed from GitHub)
+- ✅ 2 features documented (donation tracker, Spanish support)
+- 🟢 Ready for GoDaddy production deployment
+
+**GitHub Repository Status:**
+- Repository: `eboncorp/rundaverun-website`
+- Security: 1 critical issue fixed, 4 remaining
+- Features Available: Campaign donation tracker, Spanish/English switcher
+- Branches: 8 branches reviewed and documented
 
 **Deployment Infrastructure:**
 1. **REST API**: WordPress API for content/database sync
@@ -107,12 +164,16 @@
 
 ### Most Common Tags
 - `wordpress` (47 files)
-- `rundaverun` (45 files)
+- `rundaverun` (47 files)
+- `mcp-server` (8 files) ⭐ NEW
 - `deployment` (15 files)
 - `protocols` (12 files)
+- `security` (10 files) ⭐ UPDATED
 - `qa` (8 files)
 - `bugfixes` (22 files)
+- `integration` (8 files) ⭐ NEW
 - `rest-api` (6 files)
+- `github` (6 files) ⭐ UPDATED
 - `github-actions` (5 files)
 
 ### Topics by Category
@@ -139,10 +200,21 @@
 - Accessibility improvements
 
 **Tools & Automation:**
-- Skippy script library
-- Protocol system
+- Skippy script library (226+ scripts)
+- Protocol system (18 protocols)
 - Auto-transcription
-- MCP server creation
+- **MCP server development** ⭐ NEW
+- **API integrations** (Pexels, Google Photos, Google Drive) ⭐ NEW
+- **Security auditing** ⭐ NEW
+
+**MCP Server & Integrations:** ⭐ NEW CATEGORY
+- General-purpose MCP server (75 tools)
+- Pexels stock photos integration
+- Google Photos integration (pending OAuth)
+- Google Drive management (13 tools)
+- GitHub operations (3 tools)
+- Slack notifications (2 tools)
+- Browser automation (2 tools)
 
 ---
 

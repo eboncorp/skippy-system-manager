@@ -1,392 +1,242 @@
-# General Purpose MCP Server
+# General Purpose MCP Server v2.3.2
 
-**Version**: 2.0.0
-**Created**: 2025-10-31
-**Updated**: 2025-11-01 (Security Enhancements)
-**Author**: Claude Code
+FastMCP-based Model Context Protocol server with 75 tools for file operations, system utilities, Google Drive, stock photos, and Google Photos.
 
-A comprehensive Model Context Protocol (MCP) server providing 43 tools for file operations, system monitoring, remote server management, WordPress management, Git operations, and more.
+## Overview
 
-⚠️ **Security Update**: Version 2.0.0 includes important security improvements including credential externalization and comprehensive security documentation.
+This MCP server provides comprehensive tooling for:
+- File system operations (read, write, search, archive)
+- System utilities (process management, network, monitoring)
+- **Google Drive management (13 tools)** - Organization, uploads, sharing, metadata
+- **Pexels stock photos (4 tools)** ✅ - Free high-quality photography for campaigns
+- **Google Photos (6 tools)** ⚠️ - Personal photo library access (OAuth pending)
+
+## Version 2.3.2 Highlights
+
+**New in v2.3.2 (2025-11-12):**
+- ✅ 4 Pexels stock photo tools (search, download, curated)
+- ⚠️ 6 Google Photos tools (OAuth issue being resolved)
+- Campaign-ready stock photography integration
+- 3M+ free photos available for website and social media
+- Complete documentation for both integrations
+
+**Previous (v2.3.0):**
+- 5 new Google Drive tools for uploads, sharing, and metadata
+- Complete file upload functionality with MIME type detection
+- Public and user-specific file sharing
+- Comprehensive metadata retrieval
+- File copying and batch upload capabilities
+
+**Previous (v2.2.0):**
+- 8 Google Drive organization tools
+- Pattern-based file organization
+- Batch file operations
+- Folder management
+
+## Quick Start
+
+```bash
+# Activate virtual environment
+cd /home/dave/skippy/mcp-servers/general-server
+source .venv/bin/activate
+
+# Run the server
+python server.py
+```
+
+## Google Drive Tools (13 Total)
+
+### Organization & Management (v2.2.0)
+1. **gdrive_create_folder** - Create folders
+2. **gdrive_move_file** - Move files/folders
+3. **gdrive_list_folder_contents** - Browse contents
+4. **gdrive_trash_file** - Move to trash
+5. **gdrive_rename_file** - Rename files/folders
+6. **gdrive_batch_move_files** - Bulk moves
+7. **gdrive_get_folder_id_by_name** - Find folders
+8. **gdrive_organize_by_pattern** - Pattern-based organization
+
+### Upload & Sharing (v2.3.0)
+9. **gdrive_upload_file** - Upload single files
+10. **gdrive_share_file** - Share with link generation
+11. **gdrive_get_file_metadata** - Get detailed metadata
+12. **gdrive_copy_file** - Copy files
+13. **gdrive_batch_upload** - Batch upload from directory
+
+## Example Usage
+
+### Upload and Share a File
+
+```python
+from server import gdrive_upload_file, gdrive_share_file
+import json
+
+# Upload file
+upload_result = gdrive_upload_file(
+    local_file_path="/path/to/document.pdf",
+    destination_folder_id="1abc123xyz"
+)
+
+file_data = json.loads(upload_result)
+file_id = file_data['file_id']
+
+# Share publicly
+share_result = gdrive_share_file(
+    file_id=file_id,
+    permission_type="anyone",
+    role="reader"
+)
+
+link = json.loads(share_result)['view_link']
+print(f"Shareable link: {link}")
+```
+
+### Organize Files by Pattern
+
+```python
+from server import gdrive_organize_by_pattern
+
+# Move all invoices to Invoices folder
+result = gdrive_organize_by_pattern(
+    search_pattern="name contains 'invoice'",
+    destination_folder_id="1invoices123",
+    max_files=100
+)
+```
+
+### Batch Upload Directory
+
+```python
+from server import gdrive_batch_upload
+
+# Upload all PDFs from directory
+result = gdrive_batch_upload(
+    local_directory="/home/user/reports",
+    destination_folder_id="1reports456",
+    file_pattern="*.pdf"
+)
+```
+
+## Documentation
+
+- **[GDRIVE_TOOLS_REFERENCE.md](GDRIVE_TOOLS_REFERENCE.md)** - Complete Google Drive tools documentation
+- **[CHANGELOG_v2.3.0.md](CHANGELOG_v2.3.0.md)** - Version 2.3.0 release notes
 
 ## Features
 
-### 📁 File Operations
-- **read_file** - Read contents of any file with optional line range
-- **write_file** - Write or append content to files
-- **list_directory** - List directory contents with glob patterns
-- **search_files** - Search for text within files
-- **get_file_info** - Get detailed file/directory metadata
+### File Operations
+- Read, write, edit files
+- File search (glob patterns, regex)
+- Archive operations (zip, tar)
+- Directory management
 
-### 💻 System Monitoring
-- **get_disk_usage** - Check disk usage for any path
-- **get_memory_info** - View RAM and swap memory stats
-- **get_cpu_info** - Monitor CPU usage per core
-- **list_processes** - View running processes with filtering
-- **check_service_status** - Check systemd service status
+### System Utilities
+- Process management
+- Network operations
+- System monitoring
+- Shell command execution
 
-### 🌐 Remote Server Management
-- **run_remote_command** - Execute commands on ebon server via SSH
-- **check_ebon_status** - Quick status check of ebon (uptime, disk, memory)
+### Google Drive (13 tools)
+- Complete folder hierarchy management
+- Pattern-based file organization
+- Single and batch file uploads
+- Public and user-specific sharing
+- Comprehensive metadata access
+- File copying and renaming
 
-### 🌍 Web Requests
-- **http_get** - Make HTTP GET requests with custom headers
-- **http_post** - Make HTTP POST requests with JSON data
+## Technical Details
 
-### 🔧 Utilities
-- **run_shell_command** - Execute local shell commands
-- **get_file_info** - Detailed file/directory information
+- **Framework:** FastMCP
+- **Language:** Python 3.12
+- **Google API:** Drive API v3
+- **Authentication:** OAuth 2.0
+- **Warning Suppression:** Configured for oauth2client compatibility
 
-**For complete tool documentation, see [TOOLS_REFERENCE.md](TOOLS_REFERENCE.md)**
+## Tool Count by Category
 
-## Security
+| Category | Tools | Version | Status |
+|----------|-------|---------|--------|
+| File Operations | 15 | v2.1.0 | ✅ |
+| System Utilities | 12 | v2.1.0 | ✅ |
+| Network Tools | 8 | v2.1.0 | ✅ |
+| Archive Operations | 5 | v2.1.0 | ✅ |
+| Process Management | 7 | v2.1.0 | ✅ |
+| Google Drive Organization | 8 | v2.2.0 | ✅ |
+| Google Drive Upload/Share | 5 | v2.3.0 | ✅ |
+| **Pexels Stock Photos** | **4** | **v2.3.2** | **✅** |
+| **Google Photos** | **6** | **v2.3.2** | **⚠️** |
+| Other Tools | 5 | v2.1.0 | ✅ |
+| **Total** | **75** | **v2.3.2** | - |
 
-⚠️ **Important**: This server includes tools that interact with your system, WordPress installation, and remote servers. Please review [SECURITY.md](SECURITY.md) for:
+## Requirements
 
-- Credential management (SSH, database)
-- Tool safety features
-- Pre-commit security protocols
-- Emergency procedures
-
-**Key Security Features**:
-- SSH credentials stored in `.env` file (not in code)
-- Database tool blocks all destructive operations (SELECT only)
-- WordPress search-replace defaults to dry-run mode
-- Integrated credential scanning for git commits
-- All subprocess calls have safety timeouts
-
-## Installation
-
-### Prerequisites
-- Python 3.10 or higher
-- Claude for Desktop
-
-### Setup
-
-1. **Navigate to the server directory:**
-   ```bash
-   cd /home/dave/skippy/mcp-servers/general-server
-   ```
-
-2. **Activate the virtual environment:**
-   ```bash
-   source .venv/bin/activate
-   ```
-
-3. **Dependencies are already installed**, but if you need to reinstall:
-   ```bash
-   pip3 install -r requirements.txt
-   ```
+```
+fastmcp
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+```
 
 ## Configuration
 
-### Environment Variables (.env)
+Google Drive authentication:
+- Credentials stored in `~/.credentials/`
+- OAuth 2.0 with user consent
+- Automatic token refresh
 
-**Required for security**: Create a `.env` file in the server directory:
+## Recent Accomplishments
 
-```bash
-# Create .env file
-cat > /home/dave/skippy/mcp-servers/general-server/.env << 'EOF'
-# MCP Server Configuration
-EBON_HOST=ebon@10.0.0.29
-EBON_PASSWORD=your_password_here
-EOF
+### Google Drive Organization (November 2025)
+- Organized 390+ files across Google Drive
+- Created professional folder structure matching local conventions
+- Organized categories: Documents, Downloads, Pictures, Technical, Financial, Business, Campaign, Taxes, etc.
+- Pattern-based organization for backups, logs, archives
 
-# Set secure permissions
-chmod 600 /home/dave/skippy/mcp-servers/general-server/.env
+### MCP Server Evolution
+- **v2.1.0** (Oct 2025): 52 general-purpose tools
+- **v2.2.0** (Nov 2025): +8 Google Drive organization tools
+- **v2.3.0** (Nov 2025): +5 upload/share/metadata tools
+- **v2.3.2** (Nov 2025): +4 Pexels stock photos, +6 Google Photos tools
+
+## Project Structure
+
+```
+/home/dave/skippy/mcp-servers/general-server/
+├── server.py                    # Main MCP server (2687 lines)
+├── .venv/                       # Python virtual environment
+├── README.md                    # This file
+├── GDRIVE_TOOLS_REFERENCE.md    # Complete Drive tools documentation
+├── CHANGELOG_v2.3.0.md          # Version 2.3.0 release notes
+└── credentials/                 # Google OAuth credentials
 ```
 
-⚠️ **Important**:
-- Never commit `.env` file to git (already in .gitignore)
-- Keep file permissions at 600 (owner read/write only)
-- Consider using SSH keys instead of password authentication
+## Author
 
-### Claude for Desktop Setup
-
-1. **Open Claude for Desktop configuration:**
-   ```bash
-   code ~/Library/Application\ Support/Claude/claude_desktop_config.json
-   ```
-
-2. **Add the general-server configuration:**
-   ```json
-   {
-     "mcpServers": {
-       "general-server": {
-         "command": "/home/dave/skippy/mcp-servers/general-server/.venv/bin/python3",
-         "args": [
-           "/home/dave/skippy/mcp-servers/general-server/server.py"
-         ]
-       }
-     }
-   }
-   ```
-
-3. **Restart Claude for Desktop completely** (Quit the application fully, don't just close the window)
-
-## Usage Examples
-
-### File Operations
-
-**Read a file:**
-```
-Read the contents of /home/dave/skippy/scripts/monitoring/downloads_watcher_v1.0.0.py
-```
-
-**Write to a file:**
-```
-Write "Hello World" to /home/dave/test.txt
-```
-
-**List directory:**
-```
-List all Python files in /home/dave/skippy/scripts recursively
-```
-
-**Search files:**
-```
-Search for "FastMCP" in all Python files in /home/dave/skippy/mcp-servers
-```
-
-### System Monitoring
-
-**Check disk space:**
-```
-What's the disk usage on /home/dave?
-```
-
-**Memory info:**
-```
-How much RAM is being used?
-```
-
-**List processes:**
-```
-Show me all Python processes running
-```
-
-**Check service:**
-```
-Check the status of the nginx service
-```
-
-### Remote Server Management
-
-**Run command on ebon:**
-```
-Check the uptime on ebon server
-```
-
-**Check ebon status:**
-```
-What's the current status of the ebon server?
-```
-
-### Web Requests
-
-**HTTP GET:**
-```
-Fetch the content from https://api.github.com/repos/anthropics/claude-code
-```
-
-**HTTP POST:**
-```
-Send a POST request to https://httpbin.org/post with {"test": "data"}
-```
-
-## Tool Reference
-
-### read_file
-```python
-read_file(file_path: str, start_line: int = 0, num_lines: int = -1) -> str
-```
-- **file_path**: Absolute path to the file
-- **start_line**: Starting line number (0-indexed)
-- **num_lines**: Number of lines to read (-1 for all)
-
-### write_file
-```python
-write_file(file_path: str, content: str, mode: str = "w") -> str
-```
-- **file_path**: Absolute path to the file
-- **content**: Content to write
-- **mode**: 'w' (overwrite) or 'a' (append)
-
-### list_directory
-```python
-list_directory(directory_path: str, pattern: str = "*", recursive: bool = False) -> str
-```
-- **directory_path**: Absolute path to directory
-- **pattern**: Glob pattern to filter files
-- **recursive**: Whether to search subdirectories
-
-### search_files
-```python
-search_files(directory_path: str, search_term: str, file_pattern: str = "*.py") -> str
-```
-- **directory_path**: Directory to search
-- **search_term**: Text to find
-- **file_pattern**: File pattern to match
-
-### get_disk_usage
-```python
-get_disk_usage(path: str = "/") -> str
-```
-- **path**: Path to check disk usage for
-
-### get_memory_info
-```python
-get_memory_info() -> str
-```
-Returns RAM and swap memory statistics.
-
-### get_cpu_info
-```python
-get_cpu_info() -> str
-```
-Returns CPU usage and core information.
-
-### list_processes
-```python
-list_processes(filter_name: str = "") -> str
-```
-- **filter_name**: Optional filter for process names
-
-### check_service_status
-```python
-check_service_status(service_name: str) -> str
-```
-- **service_name**: Name of systemd service
-
-### run_remote_command
-```python
-run_remote_command(command: str, use_sshpass: bool = True) -> str
-```
-- **command**: Command to run on ebon server
-- **use_sshpass**: Whether to use password authentication
-
-### check_ebon_status
-```python
-check_ebon_status() -> str
-```
-Quick health check of ebon server.
-
-### http_get
-```python
-http_get(url: str, headers: str = "{}") -> str
-```
-- **url**: URL to request
-- **headers**: JSON string of headers
-
-### http_post
-```python
-http_post(url: str, data: str, headers: str = "{}") -> str
-```
-- **url**: URL to request
-- **data**: JSON string of data
-- **headers**: JSON string of headers
-
-### run_shell_command
-```python
-run_shell_command(command: str, working_dir: str = "/home/dave") -> str
-```
-- **command**: Shell command to execute
-- **working_dir**: Working directory
-
-### get_file_info
-```python
-get_file_info(file_path: str) -> str
-```
-- **file_path**: Path to file or directory
-
-## Testing
-
-Test the server manually before connecting to Claude for Desktop:
-
-```bash
-cd /home/dave/skippy/mcp-servers/general-server
-source .venv/bin/activate
-python3 server.py
-```
-
-The server should start and wait for JSON-RPC messages via stdin.
-
-## Troubleshooting
-
-### Server Not Showing Up in Claude for Desktop
-
-1. **Check the configuration file path:**
-   ```bash
-   cat ~/Library/Application\ Support/Claude/claude_desktop_config.json
-   ```
-
-2. **Verify the paths are absolute** (not relative)
-
-3. **Restart Claude for Desktop completely** (use Cmd+Q on macOS)
-
-4. **Check Claude logs:**
-   ```bash
-   tail -f ~/Library/Logs/Claude/mcp*.log
-   ```
-
-### Tools Not Working
-
-1. **Verify the virtual environment is being used** in the config
-2. **Check that all dependencies are installed**
-3. **Look for errors in Claude logs**
-
-### Permission Errors
-
-Some operations may require elevated permissions. The server runs with your user privileges.
-
-## Security Notes
-
-⚠️ **Important**: This server includes SSH credentials for the ebon server. Ensure:
-- The server is only accessible locally
-- Claude for Desktop config is protected
-- Credentials are kept secure
-
-## Extending the Server
-
-To add new tools:
-
-1. Add a new function decorated with `@mcp.tool()`
-2. Include a comprehensive docstring with Args documentation
-3. Handle errors gracefully and return descriptive messages
-4. Restart the server for changes to take effect
-
-Example:
-```python
-@mcp.tool()
-def my_new_tool(param: str) -> str:
-    """Description of what the tool does.
-
-    Args:
-        param: Description of the parameter
-    """
-    try:
-        # Your tool logic here
-        return "Success!"
-    except Exception as e:
-        return f"Error: {str(e)}"
-```
+**Claude Code** - Anthropic AI Assistant
+- MCP Server Development
+- Google Drive Integration
+- Documentation & Testing
 
 ## Version History
 
-- **1.0.0** (2025-10-31) - Initial release
-  - File operations tools
-  - System monitoring tools
-  - Remote server management
-  - Web request tools
-  - Utility tools
-
-## License
-
-Created for personal use. Free to modify and extend.
+- **v2.3.2** (2025-11-12): Added Pexels (4 tools) & Google Photos (6 tools) - 75 total
+- **v2.3.0** (2025-11-11): Added 5 Google Drive upload/share tools (65 total)
+- **v2.2.0** (2025-11-10): Added 8 Google Drive organization tools (60 total)
+- **v2.1.0** (2025-10-31): Initial release with 52 general-purpose tools
 
 ## Support
 
-For issues or questions, refer to:
-- [MCP Documentation](https://modelcontextprotocol.io/docs)
-- [Claude for Desktop MCP Guide](https://modelcontextprotocol.io/docs/quickstart/server)
-- Skippy protocols in `/home/dave/skippy/conversations/`
+For issues or questions:
+- Review documentation in `GDRIVE_TOOLS_REFERENCE.md`
+- Check `CHANGELOG_v2.3.0.md` for recent changes
+- Verify Google Drive authentication is configured
+
+## License
+
+Internal tool for personal use.
+
+---
+
+**Last Updated:** November 12, 2025
+**Current Version:** v2.3.2
+**Total Tools:** 75 (52 general + 13 Google Drive + 4 Pexels + 6 Google Photos)
