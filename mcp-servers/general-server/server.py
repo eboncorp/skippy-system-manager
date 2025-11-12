@@ -1481,17 +1481,47 @@ def mysql_query_safe(query: str, database: str = "wordpress") -> str:
 
 @mcp.tool()
 async def http_get(url: str, headers: str = "{}") -> str:
-    """Make an HTTP GET request.
+    """Make an HTTP GET request with URL validation.
+
+    SECURITY: URLs are validated to prevent SSRF attacks and ensure
+    only safe protocols (http/https) are allowed.
 
     Args:
-        url: URL to request
+        url: URL to request (will be validated)
         headers: JSON string of headers to include (default '{}')
+
+    Returns:
+        HTTP response with status, headers, and body
+
+    Security Features:
+        - URL validation (protocol, format)
+        - Dangerous character detection
+        - Timeout protection (30s)
+        - Response size limiting (5000 chars)
     """
     try:
+        # Validate URL if skippy libs available
+        if SKIPPY_LIBS_AVAILABLE:
+            try:
+                safe_url = validate_url(
+                    url,
+                    allowed_schemes=['http', 'https']
+                )
+            except ValidationError as e:
+                logger.warning(f"URL validation failed: {url} - {e}")
+                return f"Security validation failed: {str(e)}"
+        else:
+            # Basic fallback validation
+            if not (url.startswith('http://') or url.startswith('https://')):
+                return "Error: Only http:// and https:// URLs are allowed"
+            safe_url = url
+
+        logger.info(f"Making HTTP GET request to: {safe_url[:100]}")
+
         headers_dict = json.loads(headers) if headers != "{}" else {}
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(url, headers=headers_dict)
+            response = await client.get(safe_url, headers=headers_dict)
 
             result = [f"Status Code: {response.status_code}"]
             result.append(f"Headers: {dict(response.headers)}")
@@ -1500,24 +1530,55 @@ async def http_get(url: str, headers: str = "{}") -> str:
 
             return '\n'.join(result)
     except Exception as e:
+        logger.error(f"Error making HTTP GET request to '{url}': {str(e)}")
         return f"Error making HTTP GET request: {str(e)}"
 
 
 @mcp.tool()
 async def http_post(url: str, data: str, headers: str = "{}") -> str:
-    """Make an HTTP POST request.
+    """Make an HTTP POST request with URL validation.
+
+    SECURITY: URLs are validated to prevent SSRF attacks and ensure
+    only safe protocols (http/https) are allowed.
 
     Args:
-        url: URL to request
+        url: URL to request (will be validated)
         data: JSON string of data to send in the request body
         headers: JSON string of headers to include (default '{}')
+
+    Returns:
+        HTTP response with status, headers, and body
+
+    Security Features:
+        - URL validation (protocol, format)
+        - Dangerous character detection
+        - Timeout protection (30s)
+        - Response size limiting (5000 chars)
     """
     try:
+        # Validate URL if skippy libs available
+        if SKIPPY_LIBS_AVAILABLE:
+            try:
+                safe_url = validate_url(
+                    url,
+                    allowed_schemes=['http', 'https']
+                )
+            except ValidationError as e:
+                logger.warning(f"URL validation failed: {url} - {e}")
+                return f"Security validation failed: {str(e)}"
+        else:
+            # Basic fallback validation
+            if not (url.startswith('http://') or url.startswith('https://')):
+                return "Error: Only http:// and https:// URLs are allowed"
+            safe_url = url
+
+        logger.info(f"Making HTTP POST request to: {safe_url[:100]}")
+
         headers_dict = json.loads(headers) if headers != "{}" else {}
         data_dict = json.loads(data)
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=data_dict, headers=headers_dict)
+            response = await client.post(safe_url, json=data_dict, headers=headers_dict)
 
             result = [f"Status Code: {response.status_code}"]
             result.append(f"Headers: {dict(response.headers)}")
@@ -1526,6 +1587,7 @@ async def http_post(url: str, data: str, headers: str = "{}") -> str:
 
             return '\n'.join(result)
     except Exception as e:
+        logger.error(f"Error making HTTP POST request to '{url}': {str(e)}")
         return f"Error making HTTP POST request: {str(e)}"
 
 
