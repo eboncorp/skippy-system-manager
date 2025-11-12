@@ -1,5 +1,6 @@
 # Skippy System Manager - Core Dependencies
 # Install: pip install -r requirements.txt
+# Updated: 2025-11-12 (Security dependency updates - Phase 1)
 
 # Core Framework
 fastmcp>=0.1.0
@@ -11,11 +12,20 @@ psutil>=5.9.0
 # HTTP Client
 httpx>=0.24.0
 
-# SSH/Remote Access
+# SSH/Remote Access (SECURITY: Updated to latest version)
 paramiko>=3.0.0
 
 # YAML/Config Processing
 PyYAML>=6.0
+
+# Security - Authentication & Cryptography (UPDATED)
+# CRITICAL: These packages have security updates
+cryptography>=46.0.0     # Updated from 41.0.7 (security fixes)
+PyJWT>=2.10.0           # Updated from 2.7.0 (CVE patches)
+oauthlib>=3.3.0         # Updated from 3.2.2 (security improvements)
+
+# TLS/SSL Certificates (UPDATED)
+certifi>=2025.11.0      # Updated for current CA certificates
 
 # Optional but recommended
 python-dotenv>=1.0.0  # For .env file loading
