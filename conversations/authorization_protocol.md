@@ -10,6 +10,17 @@
 
 ---
 
+## Purpose
+
+This protocol defines:
+- When Claude requires explicit user authorization for sensitive operations
+- How to grant and verify authorization
+- What operations require authorization vs those that don't
+- Integration with backup and safety protocols
+- Emergency authorization procedures
+
+---
+
 ## Overview
 
 The authorization system grants Claude temporary permission to perform sensitive operations that could affect system stability or data integrity. This protocol defines when authorization is required and how to properly use it.
@@ -433,3 +444,4 @@ After receiving authorization:
 
 **This protocol is part of the persistent memory system.**
 **Reference before requesting user authorization.**
+```

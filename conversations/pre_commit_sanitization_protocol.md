@@ -2,9 +2,21 @@
 
 **Version:** 1.0.0
 **Created:** 2025-10-31
+**Last Updated:** 2025-11-10
 **Purpose:** Prevent credentials and sensitive data from being committed to Git
 **Priority:** CRITICAL - MUST follow before EVERY commit
 **Trigger Event:** Oct 31, 2025 - Anthropic API key exposed on GitHub
+
+---
+
+## Purpose
+
+This protocol ensures:
+- Zero credentials committed to Git repositories (API keys, tokens, passwords)
+- Automated pre-commit scanning for sensitive data
+- Comprehensive .gitignore patterns for credential files
+- Emergency response procedures for exposed credentials
+- Secure credential storage best practices
 
 ---
 
@@ -611,3 +623,4 @@ git push origin --force --all
 **Owner:** All developers with Git access
 
 **This protocol is live and prevents credential exposure to GitHub.**
+```

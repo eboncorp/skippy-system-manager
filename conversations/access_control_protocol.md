@@ -515,3 +515,4 @@ wp user create svc-monitor monitor@rundaverun.local \
 
 **Version History:**
 - 1.0.0 (2025-11-04): Initial protocol creation
+```

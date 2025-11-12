@@ -5,6 +5,17 @@
 **Applies To**: All deployments (WordPress, scripts, packages)
 **Priority**: HIGH (prevents deployment failures)
 
+## Purpose
+
+This protocol provides:
+- Comprehensive pre-deployment checklists
+- Deployment verification procedures
+- Post-deployment testing workflows
+- Rollback procedures for failed deployments
+- Type-specific checklists for WordPress, scripts, and packages
+
+---
+
 ## Overview
 
 This protocol provides comprehensive checklists for deploying changes from local/development to staging/production environments. Following these steps prevents common deployment issues and ensures rollback capability.
