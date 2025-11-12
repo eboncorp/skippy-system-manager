@@ -114,21 +114,21 @@ mv *_complete.md docs/archived/
 ## Documentation Index
 
 ### Core Documentation
-- [README.md](../README.md) - Project overview
-- [QUICK_START.md](../QUICK_START.md) - 5-minute setup
+- README.md - Project overview (../README.md)
+- QUICK_START.md - 5-minute setup (../QUICK_START.md)
 
 ### Policies
-- [Policy 01: Public Safety](policies/POLICY_01_PUBLIC_SAFETY_COMMUNITY_POLICING.md)
-- [Policy 02: Criminal Justice Reform](policies/POLICY_02_CRIMINAL_JUSTICE_REFORM.md)
+- Policy 01: Public Safety (policies/POLICY_01_PUBLIC_SAFETY_COMMUNITY_POLICING.md)
+- Policy 02: Criminal Justice Reform (policies/POLICY_02_CRIMINAL_JUSTICE_REFORM.md)
 [...]
 
 ### Deployment
-- [Post-Deployment Checklist](deployment/POST_DEPLOYMENT_CHECKLIST.md)
-- [Deployment Verification](deployment/deployment_verification.md)
+- Post-Deployment Checklist (deployment/POST_DEPLOYMENT_CHECKLIST.md)
+- Deployment Verification (deployment/deployment_verification.md)
 
 ### Guides
-- [Budget Implementation](guides/budget_implementation_roadmap.md)
-- [Volunteer Mobilization](guides/volunteer_mobilization_guide.md)
+- Budget Implementation (guides/budget_implementation_roadmap.md)
+- Volunteer Mobilization (guides/volunteer_mobilization_guide.md)
 ```
 
 ---
@@ -153,9 +153,9 @@ Brief explanation (2-3 paragraphs max)
 
 ## Documentation
 
-- [Quick Start](QUICK_START.md) - Get running in 5 minutes
-- [Full Documentation](docs/COMPREHENSIVE_GUIDE.md)
-- [API Reference](docs/API_REFERENCE.md)
+- Quick Start - Get running in 5 minutes (QUICK_START.md)
+- Full Documentation - Complete reference (docs/COMPREHENSIVE_GUIDE.md)
+- API Reference - API docs (docs/API_REFERENCE.md)
 
 ## Support
 
@@ -189,7 +189,7 @@ test command
 
 ## Next Steps
 
-- [Full Documentation](docs/COMPREHENSIVE_GUIDE.md)
+- Full Documentation (docs/COMPREHENSIVE_GUIDE.md)
 ```
 
 ---
