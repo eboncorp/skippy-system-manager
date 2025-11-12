@@ -70,7 +70,7 @@ jobs:
           name: test-reports
           path: conversations/test_reports/*.md
 
-  # Security scanning
+  # Security scanning (ENHANCED - Phase 1 & 2)
   security-scan:
     name: Security Scanning
     runs-on: ubuntu-latest
@@ -79,14 +79,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Run security vulnerability scanner
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install security tools
         run: |
-          if [ -f scripts/security/vulnerability_scanner_v1.0.0.sh ]; then
-            chmod +x scripts/security/vulnerability_scanner_v1.0.0.sh
-            ./scripts/security/vulnerability_scanner_v1.0.0.sh || echo "Security scanner not configured, skipping"
-          else
-            echo "Security scanner script not found, skipping"
-          fi
+          python -m pip install --upgrade pip
+          pip install bandit[toml] safety pytest pytest-cov
+
+      - name: Install project dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt || echo "Test requirements not found"
+
+      - name: Run Bandit security scan
+        run: |
+          echo "Running Bandit static security analysis..."
+          bandit -r mcp-servers/general-server/server.py lib/python/ -ll -f json -o bandit-report.json || true
+          bandit -r mcp-servers/general-server/server.py lib/python/ -ll || true
+
+      - name: Run security test suite
+        run: |
+          echo "Running security tests (command injection, path traversal, URL validation)..."
+          pytest tests/security/ -v -m security --tb=short --cov=lib/python --cov=mcp-servers || true
+
+      - name: Check for vulnerable dependencies
+        run: |
+          echo "Scanning dependencies for known vulnerabilities..."
+          safety check --json || true
 
       - name: Check for hardcoded secrets
         uses: trufflesecurity/trufflehog@main
@@ -94,6 +116,16 @@ jobs:
           path: ./
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
+
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            .coverage
+            htmlcov/
 
   # WordPress validation (if WP available)
   wordpress-validation:

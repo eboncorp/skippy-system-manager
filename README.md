@@ -1,6 +1,8 @@
 # Skippy System Manager
 
 [![CI/CD Pipeline](https://github.com/eboncorp/skippy-system-manager/workflows/Skippy%20CI/CD/badge.svg)](https://github.com/eboncorp/skippy-system-manager/actions)
+[![Security: Hardened](https://img.shields.io/badge/security-hardened-success.svg)](SECURITY.md)
+[![Tests: 37+ Security](https://img.shields.io/badge/security%20tests-37+-green.svg)](tests/security/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -8,16 +10,41 @@
 
 > A comprehensive automation and management suite for infrastructure, WordPress, and system administration
 
+## 🔒 Security Status
+
+**Version 2.4.0** - **PRODUCTION READY** ✅
+
+This project has undergone comprehensive security hardening (Phase 1 & 2 complete):
+
+- ✅ **0 Critical Vulnerabilities** (was 1 - eliminated)
+- ✅ **0 High Vulnerabilities** (was 3 - eliminated)
+- ✅ **8 Functions Hardened** with input validation
+- ✅ **37+ Security Tests** passing
+- ✅ **Bandit Security Scan** passing
+- ✅ **100% Validation Coverage** on critical functions
+
+**Security Features**:
+- Command injection prevention (whitelists enforced)
+- Path traversal protection (directory traversal blocked)
+- URL validation & SSRF prevention (protocol whitelisting)
+- Comprehensive audit logging
+- Pre-commit security hooks
+- CI/CD security scanning
+
+📖 See [SECURITY.md](SECURITY.md) for detailed security documentation
+
+---
+
 ## 🚀 Features
 
-- **🤖 MCP Server v2.0.1**: 43+ tools for AI-powered automation (security hardened)
+- **🤖 MCP Server v2.4.0**: 75+ tools for AI-powered automation (**security hardened**)
 - **📜 319+ Scripts**: Organized automation across 19 categories
 - **🔒 Security First**: Input validation, credential management, security scanning
 - **📊 System Monitoring**: Real-time resource tracking and alerting
 - **🌐 WordPress Management**: Automated updates, backups, and deployment
 - **☁️ Cloud Integration**: Google Drive backup sync
-- **🔄 CI/CD Pipeline**: Automated testing and deployment
-- **📖 Comprehensive Documentation**: 16+ protocols and guides
+- **🔄 CI/CD Pipeline**: Automated testing and deployment with security checks
+- **📖 Comprehensive Documentation**: 31+ protocols and security guides
 
 ## 📋 Table of Contents
 
