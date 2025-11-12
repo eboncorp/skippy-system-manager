@@ -48,6 +48,95 @@ Please include the following information in your report:
 4. **Regular Audits**: Run security scans regularly
 5. **Minimal Permissions**: Follow principle of least privilege
 
+## Security Features (v2.0.1+)
+
+### Input Validation & Sanitization
+
+**Status**: ✅ **ACTIVE** (as of 2025-11-12)
+
+Skippy System Manager includes comprehensive input validation to prevent security vulnerabilities:
+
+#### Command Injection Prevention
+
+All command execution functions validate input before execution:
+
+- **Command Whitelist**: Only pre-approved commands can be executed
+- **Dangerous Character Blocking**: `;`, `&`, `|`, `` ` ``, `$`, `(`, `)`, `<`, `>` are blocked or restricted
+- **Audit Logging**: All command executions are logged for security monitoring
+
+**Protected Functions**:
+- `run_shell_command()` - Local command execution (whitelist enforced)
+- `run_remote_command()` - SSH remote execution (whitelist enforced)
+- `wp_cli_command()` - WordPress CLI commands (whitelist + dangerous subcommand blocking)
+
+**Example**: Attempting `run_shell_command("ls; rm -rf /")` will be blocked with validation error.
+
+#### Path Traversal Prevention
+
+All file operations validate paths to prevent unauthorized access:
+
+- **Directory Traversal Detection**: `../`, `..\\`, `~` patterns blocked
+- **Path Resolution**: All paths resolved to absolute form before validation
+- **Base Directory Restriction**: Optional restriction to specific directories
+- **Audit Logging**: All file operations logged
+
+**Protected Functions**:
+- `read_file()` - File reading with path validation
+- `write_file()` - File writing with path validation
+- `list_directory()` - Directory listing with path validation
+
+**Example**: Attempting `read_file("../../../etc/passwd")` will be blocked with validation error.
+
+#### SQL Injection Prevention
+
+Database operations use parameterized queries and input validation:
+
+- **SQL Pattern Detection**: Common SQL injection patterns blocked
+- **Input Sanitization**: Special characters validated
+- **Parameterized Queries**: Used for all database operations
+
+#### Validation Library
+
+Core validation functions available in `lib/python/skippy_validator.py`:
+
+```python
+from skippy_validator import (
+    validate_command,      # Command injection prevention
+    validate_path,         # Path traversal prevention
+    validate_sql_input,    # SQL injection prevention
+    validate_url,          # URL validation
+    validate_email,        # Email validation
+    validate_ip_address    # IP address validation
+)
+```
+
+### Security Testing
+
+Comprehensive security test suite in `tests/security/`:
+
+- **Command Injection Tests**: 12+ test cases covering various attack vectors
+- **Path Traversal Tests**: Tests for directory traversal attacks
+- **SQL Injection Tests**: Tests for SQL injection patterns
+- **Run tests**: `pytest tests/security/ -v --tb=short -m security`
+
+### Security Audit Trail
+
+All security-sensitive operations are logged:
+
+```python
+# Example log entries
+logger.info(f"Executing validated command: {safe_command}")
+logger.warning(f"Command validation failed: {command} - {error}")
+logger.error(f"Security violation detected: {details}")
+```
+
+Logs include:
+- Timestamp
+- Operation type (command, file, database)
+- Input values (sanitized)
+- Validation results
+- User/session context
+
 ### For Developers
 
 1. **Input Validation**: Always validate user input
