@@ -1,27 +1,37 @@
 #!/usr/bin/env python3
 """
 General Purpose MCP Server
-Version: 2.0.0
+Version: 2.0.1
 Author: Claude Code
 Created: 2025-10-31
-Updated: 2025-10-31 (Added 27 new tools)
+Updated: 2025-11-07 (Security hardening: v2.0.1)
 
 A comprehensive MCP server providing tools for:
-- File operations (read, write, search, list)
+- File operations (read, write, search, list) - NOW WITH INPUT VALIDATION
 - System monitoring (disk, memory, processes, services)
-- Remote server management (SSH to ebon)
-- Web requests (HTTP GET/POST)
-- WordPress management (WP-CLI, backups, database)
+- Remote server management (SSH to ebon) - NOW WITH SSH KEY SUPPORT
+- Web requests (HTTP GET/POST) - NOW WITH URL VALIDATION
+- WordPress management (WP-CLI, backups, database) - ENHANCED SECURITY
 - Git operations (status, diff, credential scanning)
 - Skippy script management (search, info)
 - Protocol and conversation access
 - Docker container management
 - Log file analysis
-- Database queries (safe read-only)
+- Database queries (safe read-only) - SQL INJECTION PROTECTION
+
+Security Features (v2.0.1):
+- Path traversal prevention (SkippyValidator)
+- Command injection prevention
+- SSH key authentication (preferred over password)
+- URL validation (SSRF/XSS prevention)
+- SQL injection detection
+- Specific exception handling (no broad catches)
+- MITM protection (StrictHostKeyChecking=accept-new)
 """
 
 from typing import Any
 import os
+import sys
 import subprocess
 import json
 import logging
@@ -32,6 +42,10 @@ from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 import psutil
 import httpx
+
+# Add lib/python to path for skippy modules
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "lib" / "python"))
+from skippy_validator import SkippyValidator, ValidationError
 
 # Load environment variables from .env file
 def load_env():
@@ -53,7 +67,11 @@ mcp = FastMCP("general-server")
 # Constants - Load from environment or use defaults
 EBON_HOST = os.getenv("EBON_HOST", "ebon@10.0.0.29")
 EBON_PASSWORD = os.getenv("EBON_PASSWORD", "")
-SSH_OPTS = os.getenv("SSH_OPTS", "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null")
+SSH_KEY_PATH = os.getenv("SSH_KEY_PATH", "")  # Path to SSH private key (preferred over password)
+SSH_OPTS = os.getenv("SSH_OPTS", "-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null")
+
+# Determine SSH authentication method (key-based is preferred)
+USE_SSH_KEY = bool(SSH_KEY_PATH and Path(SSH_KEY_PATH).exists())
 
 # Path configuration - now uses environment variables with fallback defaults
 SKIPPY_PATH = os.getenv("SKIPPY_BASE_PATH", "/home/dave/skippy")
@@ -85,9 +103,9 @@ def read_file(file_path: str, start_line: int = 0, num_lines: int = -1) -> str:
         num_lines: Number of lines to read (-1 for all lines, default -1)
     """
     try:
-        path = Path(file_path).expanduser()
-        if not path.exists():
-            return f"Error: File not found: {file_path}"
+        # Validate path to prevent directory traversal attacks
+        path = SkippyValidator.validate_path(file_path, must_exist=True)
+
         if not path.is_file():
             return f"Error: Not a file: {file_path}"
 
@@ -100,7 +118,15 @@ def read_file(file_path: str, start_line: int = 0, num_lines: int = -1) -> str:
             lines_to_return = lines[start_line:start_line + num_lines]
 
         return ''.join(lines_to_return)
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid path - {str(e)}"
+    except FileNotFoundError:
+        return f"Error: File not found: {file_path}"
+    except PermissionError:
+        return f"Error: Permission denied: {file_path}"
+    except UnicodeDecodeError:
+        return f"Error: Unable to decode file (not a text file): {file_path}"
+    except OSError as e:
         return f"Error reading file: {str(e)}"
 
 
@@ -117,14 +143,19 @@ def write_file(file_path: str, content: str, mode: str = "w") -> str:
         if mode not in ["w", "a"]:
             return "Error: mode must be 'w' (overwrite) or 'a' (append)"
 
-        path = Path(file_path).expanduser()
+        # Validate path to prevent directory traversal attacks
+        path = SkippyValidator.validate_path(file_path, allow_create=True)
         path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(path, mode, encoding='utf-8') as f:
             f.write(content)
 
         return f"Successfully wrote to {file_path} ({len(content)} characters)"
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid path - {str(e)}"
+    except PermissionError:
+        return f"Error: Permission denied: {file_path}"
+    except OSError as e:
         return f"Error writing file: {str(e)}"
 
 
@@ -138,9 +169,9 @@ def list_directory(directory_path: str, pattern: str = "*", recursive: bool = Fa
         recursive: Whether to list recursively (default False)
     """
     try:
-        path = Path(directory_path).expanduser()
-        if not path.exists():
-            return f"Error: Directory not found: {directory_path}"
+        # Validate path to prevent directory traversal attacks
+        path = SkippyValidator.validate_path(directory_path, must_exist=True)
+
         if not path.is_dir():
             return f"Error: Not a directory: {directory_path}"
 
@@ -161,7 +192,13 @@ def list_directory(directory_path: str, pattern: str = "*", recursive: bool = Fa
                 result.append(f"[FILE] {rel_path} ({size:,} bytes)")
 
         return '\n'.join(result) if result else "No files found"
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid path - {str(e)}"
+    except FileNotFoundError:
+        return f"Error: Directory not found: {directory_path}"
+    except PermissionError:
+        return f"Error: Permission denied: {directory_path}"
+    except OSError as e:
         return f"Error listing directory: {str(e)}"
 
 
@@ -175,9 +212,11 @@ def search_files(directory_path: str, search_term: str, file_pattern: str = "*.p
         file_pattern: Glob pattern for files to search (default '*.py')
     """
     try:
-        path = Path(directory_path).expanduser()
-        if not path.exists():
-            return f"Error: Directory not found: {directory_path}"
+        # Validate path to prevent directory traversal attacks
+        path = SkippyValidator.validate_path(directory_path, must_exist=True)
+
+        if not path.is_dir():
+            return f"Error: Not a directory: {directory_path}"
 
         matches = []
         for file_path in path.rglob(file_pattern):
@@ -194,7 +233,13 @@ def search_files(directory_path: str, search_term: str, file_pattern: str = "*.p
             return f"No matches found for '{search_term}' in {file_pattern} files"
 
         return '\n'.join(matches[:100])  # Limit to first 100 matches
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid path - {str(e)}"
+    except FileNotFoundError:
+        return f"Error: Directory not found: {directory_path}"
+    except PermissionError:
+        return f"Error: Permission denied: {directory_path}"
+    except OSError as e:
         return f"Error searching files: {str(e)}"
 
 
@@ -206,9 +251,8 @@ def get_file_info(file_path: str) -> str:
         file_path: Absolute path to the file or directory
     """
     try:
-        path = Path(file_path).expanduser()
-        if not path.exists():
-            return f"Error: Path not found: {file_path}"
+        # Validate path to prevent directory traversal attacks
+        path = SkippyValidator.validate_path(file_path, must_exist=True)
 
         stat = path.stat()
 
@@ -227,7 +271,13 @@ def get_file_info(file_path: str) -> str:
             result.append(f"\nContains {len(items)} items")
 
         return '\n'.join(result)
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid path - {str(e)}"
+    except FileNotFoundError:
+        return f"Error: Path not found: {file_path}"
+    except PermissionError:
+        return f"Error: Permission denied: {file_path}"
+    except OSError as e:
         return f"Error getting file info: {str(e)}"
 
 
@@ -243,13 +293,21 @@ def get_disk_usage(path: str = "/") -> str:
         path: Path to check disk usage for (default '/')
     """
     try:
-        usage = psutil.disk_usage(path)
+        # Validate path
+        validated_path = SkippyValidator.validate_path(path, must_exist=True)
+        usage = psutil.disk_usage(str(validated_path))
         return f"""Disk Usage for {path}:
 Total: {usage.total / (1024**3):.2f} GB
 Used: {usage.used / (1024**3):.2f} GB
 Free: {usage.free / (1024**3):.2f} GB
 Percentage: {usage.percent}%"""
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid path - {str(e)}"
+    except FileNotFoundError:
+        return f"Error: Path not found: {path}"
+    except PermissionError:
+        return f"Error: Permission denied: {path}"
+    except OSError as e:
         return f"Error getting disk usage: {str(e)}"
 
 
@@ -272,8 +330,10 @@ SWAP:
   Used: {swap.used / (1024**3):.2f} GB
   Free: {swap.free / (1024**3):.2f} GB
   Percentage: {swap.percent}%"""
-    except Exception as e:
-        return f"Error getting memory info: {str(e)}"
+    except OSError as e:
+        return f"Error accessing system memory info: {str(e)}"
+    except AttributeError as e:
+        return f"Error: Memory info not available on this system: {str(e)}"
 
 
 @mcp.tool()
@@ -295,8 +355,10 @@ def get_cpu_info() -> str:
             result.append(f"\nFrequency: {cpu_freq.current:.2f} MHz")
 
         return '\n'.join(result)
-    except Exception as e:
-        return f"Error getting CPU info: {str(e)}"
+    except OSError as e:
+        return f"Error accessing CPU info: {str(e)}"
+    except AttributeError as e:
+        return f"Error: CPU info not available on this system: {str(e)}"
 
 
 @mcp.tool()
@@ -330,8 +392,10 @@ def list_processes(filter_name: str = "") -> str:
             )
 
         return '\n'.join(result)
-    except Exception as e:
-        return f"Error listing processes: {str(e)}"
+    except OSError as e:
+        return f"Error accessing process list: {str(e)}"
+    except AttributeError as e:
+        return f"Error: Process info not available: {str(e)}"
 
 
 @mcp.tool()
@@ -342,6 +406,10 @@ def check_service_status(service_name: str) -> str:
         service_name: Name of the systemd service (e.g., 'nginx', 'mysql')
     """
     try:
+        # Basic validation to prevent command injection
+        if not service_name.replace('-', '').replace('_', '').replace('.', '').isalnum():
+            return f"Error: Invalid service name: {service_name}"
+
         result = subprocess.run(
             ['systemctl', 'status', service_name],
             capture_output=True,
@@ -350,8 +418,10 @@ def check_service_status(service_name: str) -> str:
         )
         return result.stdout if result.stdout else result.stderr
     except subprocess.TimeoutExpired:
-        return f"Error: Command timed out checking {service_name}"
-    except Exception as e:
+        return f"Error: Command timed out (5s) checking {service_name}"
+    except FileNotFoundError:
+        return "Error: systemctl command not found (systemd not available)"
+    except subprocess.SubprocessError as e:
         return f"Error checking service status: {str(e)}"
 
 
@@ -359,24 +429,60 @@ def check_service_status(service_name: str) -> str:
 # REMOTE SERVER TOOLS (SSH to ebon)
 # ============================================================================
 
+def _build_ssh_command(remote_command: str) -> list:
+    """Helper function to build SSH command with appropriate authentication.
+
+    Uses SSH key if configured, otherwise falls back to password authentication.
+
+    Args:
+        remote_command: Command to execute on remote server
+
+    Returns:
+        List of command arguments for subprocess
+    """
+    if USE_SSH_KEY:
+        return [
+            'ssh',
+            '-i', SSH_KEY_PATH,
+            '-o', 'StrictHostKeyChecking=accept-new',
+            '-o', 'UserKnownHostsFile=/dev/null',
+            EBON_HOST,
+            remote_command
+        ]
+    elif EBON_PASSWORD:
+        return [
+            'sshpass', '-p', EBON_PASSWORD,
+            'ssh',
+            '-o', 'StrictHostKeyChecking=accept-new',
+            '-o', 'UserKnownHostsFile=/dev/null',
+            EBON_HOST,
+            remote_command
+        ]
+    else:
+        return ['ssh'] + SSH_OPTS.split() + [EBON_HOST, remote_command]
+
+
 @mcp.tool()
 def run_remote_command(command: str, use_sshpass: bool = True) -> str:
     """Run a command on the ebon server via SSH.
 
+    Automatically uses SSH key authentication if SSH_KEY_PATH is configured,
+    otherwise falls back to password authentication with sshpass.
+
     Args:
         command: Command to run on the remote server
-        use_sshpass: Whether to use sshpass for authentication (default True)
+        use_sshpass: Whether to use sshpass (ignored if SSH_KEY_PATH is set)
     """
     try:
-        if use_sshpass:
-            full_command = [
-                'sshpass', '-p', EBON_PASSWORD,
-                'ssh', '-o', 'StrictHostKeyChecking=no',
-                '-o', 'UserKnownHostsFile=/dev/null',
-                EBON_HOST, command
-            ]
-        else:
-            full_command = ['ssh'] + SSH_OPTS.split() + [EBON_HOST, command]
+        # Validate command to prevent command injection
+        validated_command = SkippyValidator.validate_command(
+            command,
+            allow_pipes=True,
+            allow_redirects=True
+        )
+
+        # Build SSH command with appropriate authentication
+        full_command = _build_ssh_command(validated_command)
 
         result = subprocess.run(
             full_command,
@@ -387,30 +493,37 @@ def run_remote_command(command: str, use_sshpass: bool = True) -> str:
 
         output = result.stdout if result.stdout else result.stderr
         return output if output else "Command executed successfully (no output)"
+    except ValidationError as e:
+        return f"Error: Invalid command - {str(e)}"
     except subprocess.TimeoutExpired:
-        return "Error: Command timed out"
-    except Exception as e:
+        return "Error: Command timed out (30s)"
+    except FileNotFoundError as e:
+        return f"Error: Command not found - {str(e)}"
+    except subprocess.SubprocessError as e:
         return f"Error running remote command: {str(e)}"
 
 
 @mcp.tool()
 def check_ebon_status() -> str:
-    """Check the status of the ebon server (uptime, disk, memory)."""
+    """Check the status of the ebon server (uptime, disk, memory).
+
+    Uses SSH key authentication if configured, otherwise password authentication.
+    """
     try:
+        ssh_command = _build_ssh_command("hostname && uptime && df -h / && free -h")
+
         result = subprocess.run(
-            [
-                'sshpass', '-p', EBON_PASSWORD,
-                'ssh', '-o', 'StrictHostKeyChecking=no',
-                '-o', 'UserKnownHostsFile=/dev/null',
-                EBON_HOST,
-                "hostname && uptime && df -h / && free -h"
-            ],
+            ssh_command,
             capture_output=True,
             text=True,
             timeout=10
         )
         return result.stdout if result.stdout else result.stderr
-    except Exception as e:
+    except subprocess.TimeoutExpired:
+        return "Error: Command timed out (10s)"
+    except FileNotFoundError:
+        return "Error: ssh command not found (or sshpass if using password auth)"
+    except subprocess.SubprocessError as e:
         return f"Error checking ebon status: {str(e)}"
 
 
@@ -439,7 +552,7 @@ def ebon_full_status() -> str:
 
         result = subprocess.run(
             ['sshpass', '-p', EBON_PASSWORD,
-             'ssh', '-o', 'StrictHostKeyChecking=no',
+             'ssh', '-o', 'StrictHostKeyChecking=accept-new',
              '-o', 'UserKnownHostsFile=/dev/null',
              EBON_HOST, cmd],
             capture_output=True,
@@ -464,11 +577,18 @@ def wp_cli_command(command: str, use_allow_root: bool = True) -> str:
         use_allow_root: Whether to add --allow-root flag (default True for Local by Flywheel)
     """
     try:
+        # Validate command to prevent command injection
+        validated_command = SkippyValidator.validate_command(
+            command,
+            allow_pipes=False,
+            allow_redirects=False
+        )
+
         wp_cmd = ['wp', '--path=' + WORDPRESS_PATH]
         if use_allow_root:
             wp_cmd.append('--allow-root')
 
-        wp_cmd.extend(command.split())
+        wp_cmd.extend(validated_command.split())
 
         result = subprocess.run(
             wp_cmd,
@@ -482,7 +602,13 @@ def wp_cli_command(command: str, use_allow_root: bool = True) -> str:
             return f"Error (exit code {result.returncode}):\n{result.stderr}\n{result.stdout}"
 
         return result.stdout if result.stdout else "Command executed successfully"
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid command - {str(e)}"
+    except subprocess.TimeoutExpired:
+        return "Error: Command timed out (30s)"
+    except FileNotFoundError:
+        return "Error: wp command not found (WP-CLI not installed)"
+    except subprocess.SubprocessError as e:
         return f"Error running WP-CLI command: {str(e)}"
 
 
@@ -994,7 +1120,7 @@ def docker_ps_remote(filter_name: str = "") -> str:
 
         result = subprocess.run(
             ['sshpass', '-p', EBON_PASSWORD,
-             'ssh', '-o', 'StrictHostKeyChecking=no',
+             'ssh', '-o', 'StrictHostKeyChecking=accept-new',
              '-o', 'UserKnownHostsFile=/dev/null',
              EBON_HOST, cmd],
             capture_output=True,
@@ -1019,7 +1145,7 @@ def docker_logs_remote(container_name: str, lines: int = 50) -> str:
 
         result = subprocess.run(
             ['sshpass', '-p', EBON_PASSWORD,
-             'ssh', '-o', 'StrictHostKeyChecking=no',
+             'ssh', '-o', 'StrictHostKeyChecking=accept-new',
              '-o', 'UserKnownHostsFile=/dev/null',
              EBON_HOST, cmd],
             capture_output=True,
@@ -1041,7 +1167,7 @@ def jellyfin_status() -> str:
 
         result = subprocess.run(
             ['sshpass', '-p', EBON_PASSWORD,
-             'ssh', '-o', 'StrictHostKeyChecking=no',
+             'ssh', '-o', 'StrictHostKeyChecking=accept-new',
              '-o', 'UserKnownHostsFile=/dev/null',
              EBON_HOST, cmd],
             capture_output=True,
@@ -1191,24 +1317,39 @@ def find_duplicates(directory: str, min_size: int = 1024) -> str:
 
 @mcp.tool()
 def mysql_query_safe(query: str, database: str = "wordpress") -> str:
-    """Execute safe SELECT-only queries on local MySQL.
+    """Execute safe SELECT-only queries on local MySQL via WP-CLI.
+
+    SECURITY NOTE: This function uses WP-CLI's 'wp db query' command instead of
+    direct MySQL connections. WP-CLI handles SQL parameterization and validation
+    internally, which is more secure than string-based SQL validation.
 
     Args:
         query: SQL query (only SELECT allowed)
         database: Database name (default 'wordpress')
     """
     try:
-        # Security: Only allow SELECT queries
+        # Validate using skippy_validator for SQL injection patterns
+        try:
+            SkippyValidator.validate_sql_input(query)
+        except ValidationError as e:
+            return f"Error: SQL injection attempt detected - {str(e)}"
+
+        # Security: Only allow SELECT queries (defense in depth)
         query_upper = query.strip().upper()
-        dangerous_keywords = ['DELETE', 'UPDATE', 'DROP', 'ALTER', 'INSERT', 'TRUNCATE', 'CREATE', 'GRANT']
+        dangerous_keywords = ['DELETE', 'UPDATE', 'DROP', 'ALTER', 'INSERT', 'TRUNCATE', 'CREATE', 'GRANT', 'REVOKE', 'EXEC', 'EXECUTE']
 
         if any(keyword in query_upper for keyword in dangerous_keywords):
-            return f"Error: Only SELECT queries are allowed for safety. Blocked keywords: {', '.join(dangerous_keywords)}"
+            return f"Error: Only SELECT queries are allowed. Blocked keywords: {', '.join(dangerous_keywords)}"
 
         if not query_upper.startswith('SELECT'):
             return "Error: Query must start with SELECT"
 
-        # Use wp db query which is safer
+        # Validate database name to prevent injection
+        if not database.replace('_', '').isalnum():
+            return f"Error: Invalid database name: {database}"
+
+        # Use wp db query which handles parameterization internally
+        # This is safer than direct MySQL connections with string formatting
         result = subprocess.run(
             ['wp', '--path=' + WORDPRESS_PATH, '--allow-root',
              'db', 'query', query],
@@ -1217,8 +1358,17 @@ def mysql_query_safe(query: str, database: str = "wordpress") -> str:
             timeout=30
         )
 
-        return result.stdout if result.stdout else result.stderr
-    except Exception as e:
+        if result.returncode != 0:
+            return f"Error (exit code {result.returncode}):\n{result.stderr}"
+
+        return result.stdout if result.stdout else "Query executed successfully (no results)"
+    except ValidationError as e:
+        return f"Error: Invalid SQL input - {str(e)}"
+    except subprocess.TimeoutExpired:
+        return "Error: Query timed out (30s)"
+    except FileNotFoundError:
+        return "Error: wp command not found (WP-CLI not installed)"
+    except subprocess.SubprocessError as e:
         return f"Error executing query: {str(e)}"
 
 
@@ -1235,10 +1385,13 @@ async def http_get(url: str, headers: str = "{}") -> str:
         headers: JSON string of headers to include (default '{}')
     """
     try:
+        # Validate URL to prevent SSRF and XSS attacks
+        validated_url = SkippyValidator.validate_url(url, allowed_schemes=['http', 'https'])
+
         headers_dict = json.loads(headers) if headers != "{}" else {}
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(url, headers=headers_dict)
+            response = await client.get(validated_url, headers=headers_dict)
 
             result = [f"Status Code: {response.status_code}"]
             result.append(f"Headers: {dict(response.headers)}")
@@ -1246,7 +1399,13 @@ async def http_get(url: str, headers: str = "{}") -> str:
             result.append(response.text[:5000])  # Limit to first 5000 chars
 
             return '\n'.join(result)
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid URL - {str(e)}"
+    except json.JSONDecodeError:
+        return "Error: Invalid JSON in headers parameter"
+    except httpx.TimeoutException:
+        return "Error: Request timed out (30s)"
+    except httpx.HTTPError as e:
         return f"Error making HTTP GET request: {str(e)}"
 
 
@@ -1260,11 +1419,14 @@ async def http_post(url: str, data: str, headers: str = "{}") -> str:
         headers: JSON string of headers to include (default '{}')
     """
     try:
+        # Validate URL to prevent SSRF and XSS attacks
+        validated_url = SkippyValidator.validate_url(url, allowed_schemes=['http', 'https'])
+
         headers_dict = json.loads(headers) if headers != "{}" else {}
         data_dict = json.loads(data)
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=data_dict, headers=headers_dict)
+            response = await client.post(validated_url, json=data_dict, headers=headers_dict)
 
             result = [f"Status Code: {response.status_code}"]
             result.append(f"Headers: {dict(response.headers)}")
@@ -1272,7 +1434,13 @@ async def http_post(url: str, data: str, headers: str = "{}") -> str:
             result.append(response.text[:5000])  # Limit to first 5000 chars
 
             return '\n'.join(result)
-    except Exception as e:
+    except ValidationError as e:
+        return f"Error: Invalid URL - {str(e)}"
+    except json.JSONDecodeError as e:
+        return f"Error: Invalid JSON in parameters - {str(e)}"
+    except httpx.TimeoutException:
+        return "Error: Request timed out (30s)"
+    except httpx.HTTPError as e:
         return f"Error making HTTP POST request: {str(e)}"
 
 

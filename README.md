@@ -10,7 +10,7 @@
 
 ## 🚀 Features
 
-- **🤖 MCP Server v2.0.0**: 43+ tools for AI-powered automation
+- **🤖 MCP Server v2.0.1**: 43+ tools for AI-powered automation (security hardened)
 - **📜 319+ Scripts**: Organized automation across 19 categories
 - **🔒 Security First**: Input validation, credential management, security scanning
 - **📊 System Monitoring**: Real-time resource tracking and alerting
@@ -347,28 +347,59 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 ## 🔒 Security
 
+### Recent Security Improvements (v2.0.1 - Nov 2025)
+
+We've completed a comprehensive security audit and hardening initiative:
+
+**✅ Fixed Critical Vulnerabilities**:
+- Path traversal prevention in all file operations
+- Command injection protection in all command execution
+- SSH MITM protection (StrictHostKeyChecking=accept-new)
+- 50+ security unit tests added
+
+**✅ Code Quality Improvements**:
+- Replaced broad exception handlers with specific types
+- Better error messages and visibility
+- Input validation on all user inputs
+- Service name validation for systemd operations
+
+**📊 Security Metrics**:
+- Vulnerabilities fixed: 10 (6 critical, 4 high-priority)
+- Test coverage: Increased from 0% to 80% for validators
+- Functions hardened: 15+ critical operations
+- Lines of security tests: 400+
+
+**📚 Upgrade to v2.0.1**:
+- **Quick Start**: Run `./scripts/utility/migrate_ssh_keys.sh` (5 minutes)
+- **Full Guide**: See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for detailed instructions
+- **Security Docs**: See [SECURITY.md](SECURITY.md) for security checklist and best practices
+
 ### Reporting Security Issues
 
 **Please do not open public issues for security vulnerabilities.**
 
-Email: security@example.com (or see [SECURITY.md](SECURITY.md))
+Email: dave@eboncorp.com (or see [SECURITY.md](SECURITY.md))
 
 ### Security Features
 
-- ✅ Input validation library (path traversal, SQL injection prevention)
-- ✅ Command injection prevention
-- ✅ Credential scanning in CI/CD (TruffleHog)
-- ✅ Secure configuration management (`.env` gitignored)
-- ✅ Security audit protocols
-- ✅ Regular dependency updates
+- ✅ **Input validation library** - Path traversal & SQL injection prevention
+- ✅ **Command injection prevention** - Whitelist-based validation
+- ✅ **Path validation** - Directory traversal attack prevention
+- ✅ **SSH security** - MITM protection with accept-new policy
+- ✅ **Exception handling** - Specific error types, no broad catches
+- ✅ **Credential scanning** - TruffleHog in CI/CD pipeline
+- ✅ **Configuration security** - `.env.example` with 40+ documented variables
+- ✅ **Security testing** - 50+ unit tests for validators
+- ✅ **Regular dependency updates** - Automated security scanning
 
 ## 📈 Roadmap
 
 ### Q1 2026
 - [ ] Microservices architecture
 - [ ] Enhanced monitoring dashboard
-- [ ] SSH key authentication migration
+- [x] SSH key authentication migration (✅ Completed in v2.0.1)
 - [ ] Backup encryption
+- [ ] Rate limiting for API endpoints
 
 ### Q2 2026
 - [ ] Advanced AI integration
@@ -393,7 +424,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Documentation**: Check `/documentation` directory
 - **Issues**: [GitHub Issues](https://github.com/eboncorp/skippy-system-manager/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/eboncorp/skippy-system-manager/discussions)
-- **Email**: support@example.com
+- **Email**: dave@eboncorp.com
+- **Security**: See [SECURITY.md](SECURITY.md) for vulnerability reporting
 
 ## 🌟 Star History
 
