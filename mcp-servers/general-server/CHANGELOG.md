@@ -1,5 +1,197 @@
 # Changelog - General Purpose MCP Server
 
+## [2.3.2] - 2025-11-12
+
+### 🚀 Stock Photos & Google Photos Integration - 10 New Tools!
+
+**Total Tools**: 75 (increased from 65)
+
+### Added - Two New Integrations
+
+#### Pexels Stock Photos Integration (4 tools) ✅ FULLY OPERATIONAL
+- `pexels_search_photos` - Search 3M+ free stock photos
+- `pexels_get_photo` - Get specific photo details
+- `pexels_download_photo` - Download photos locally
+- `pexels_curated_photos` - Browse curated collections
+
+**Status**: ✅ Fully tested and operational
+**API Key**: Configured and working (200 requests/hour free tier)
+**Use Case**: Campaign website stock photography, social media, newsletters
+
+#### Google Photos Integration (6 tools) ⚠️ PENDING OAUTH FIX
+- `gphotos_list_albums` - List photo albums
+- `gphotos_search_media` - Search photos by date/location
+- `gphotos_get_album_contents` - Browse album contents
+- `gphotos_download_media` - Download photos/videos
+- `gphotos_get_media_metadata` - Get EXIF data
+- `_get_google_photos_service` - OAuth helper
+
+**Status**: ⚠️ Code complete, OAuth 403 error (scope propagation issue)
+**Known Issue**: Google OAuth consent screen needs time to propagate
+**Documentation**: Complete setup guide available
+
+### Documentation Added
+- `CHANGELOG_v2.3.2.md` - Complete version documentation
+- `PEXELS_SETUP.md` - Pexels integration guide
+- `GOOGLE_PHOTOS_SETUP.md` - Google Photos setup (313 lines)
+- `GOOGLE_PHOTOS_QUICKSTART.md` - Quick reference
+- `GOOGLE_APIS_README.md` - Consolidated Google integrations
+
+### Configuration
+```bash
+# .env additions
+PEXELS_API_KEY=<configured>
+GOOGLE_PHOTOS_CREDENTIALS_PATH=/home/dave/skippy/.credentials/google_drive_credentials.json
+GOOGLE_PHOTOS_TOKEN_PATH=/home/dave/skippy/.credentials/google_photos_token.json
+```
+
+---
+
+## [2.1.0] - 2025-11-10
+
+### 🚀 Major Integration Update - 9 New Tools Added!
+
+**Total Tools**: 52 (increased from 43)
+
+### Added - Four Major Integrations
+
+#### GitHub Integration (3 tools) - HIGH PRIORITY
+- `github_create_pr` - Create pull requests automatically
+- `github_create_issue` - Create issues with labels and assignees
+- `github_list_prs` - List and filter pull requests
+
+**Setup Required**: GitHub Personal Access Token (scopes: repo, workflow, read:org)
+
+**Use Cases**:
+- Automated PR creation after repository updates
+- Issue tracking for bugs and features
+- CI/CD workflow monitoring
+- Repository insights and statistics
+
+#### Slack Integration (2 tools) - HIGH PRIORITY
+- `slack_send_message` - Send messages to channels with threading
+- `slack_upload_file` - Upload files with comments
+
+**Setup Required**: Slack Bot Token (scopes: chat:write, files:write, channels:read)
+
+**Use Cases**:
+- Deployment notifications
+- Error alerts from NexusController
+- Campaign update announcements
+- Team collaboration
+
+#### Browser Automation (2 tools) - MEDIUM PRIORITY
+- `browser_screenshot` - Capture webpage screenshots (full page or viewport)
+- `browser_test_form` - Automated form submission testing
+
+**Setup Required**: None (uses Pyppeteer)
+
+**Use Cases**:
+- Visual regression testing for rundaverun.org
+- Form submission testing (contact, volunteer, email signup)
+- Mobile responsiveness checking
+- Documentation screenshots
+
+#### Google Drive Integration (3 tools) - MEDIUM PRIORITY
+- `gdrive_search_files` - Search files with Drive query syntax
+- `gdrive_download_file` - Download files by ID
+- `gdrive_read_document` - Read Google Docs as text
+
+**Setup Required**: OAuth 2.0 credentials from Google Cloud Console
+
+**Use Cases**:
+- Campaign document access
+- Policy document retrieval
+- Backup verification
+- Document version tracking
+
+### Dependencies Added
+```python
+PyGithub==2.8.1              # GitHub API
+slack-sdk==3.37.0            # Slack API
+pyppeteer==2.0.0             # Browser automation
+google-api-python-client==2.187.0  # Google Drive
+google-auth-httplib2==0.2.1
+google-auth-oauthlib==1.2.3
+```
+
+### Changed
+- Version bumped from 2.0.0 to 2.1.0
+- Tool count increased from 43 to 52
+- Enhanced requirements.txt with 6 new dependencies
+- Updated .env template with integration variables
+- Improved import handling (graceful degradation if packages missing)
+
+### Technical Details
+- **Code**: 1,850+ lines (up from 1,328 lines)
+- **New Dependencies**: 6 packages installed
+- **Async Support**: Added for browser automation
+- **OAuth Support**: Automatic token refresh for Google Drive
+- **Error Handling**: Enhanced for external API failures
+- **Security**: All tokens stored in .env file
+
+### Configuration Required
+
+Add to `.env` file:
+```bash
+# GitHub
+GITHUB_TOKEN=your_github_personal_access_token
+
+# Slack
+SLACK_BOT_TOKEN=xoxb-your-slack-bot-token
+
+# Google Drive
+GOOGLE_DRIVE_CREDENTIALS_PATH=/path/to/credentials.json
+GOOGLE_DRIVE_TOKEN_PATH=/path/to/token.json
+```
+
+### Upgrade Instructions
+
+From v2.0.0 to v2.1.0:
+
+1. **Install Dependencies**:
+```bash
+cd /home/dave/skippy/mcp-servers/general-server
+source .venv/bin/activate
+pip install PyGithub slack-sdk pyppeteer google-api-python-client google-auth-oauthlib
+```
+
+2. **Update Configuration**:
+```bash
+# Add new variables to .env file
+nano .env
+```
+
+3. **Setup Integrations** (optional - only for features you need):
+- GitHub: Create token at https://github.com/settings/tokens
+- Slack: Create bot at https://api.slack.com/apps
+- Google: Create credentials at https://console.cloud.google.com/
+
+4. **Restart Server** (if running):
+```bash
+# Restart Claude for Desktop or restart MCP server
+```
+
+### Breaking Changes
+**None** - All v2.0.0 tools remain unchanged and fully compatible.
+
+### Feature Comparison Matrix
+
+| Feature | v2.0.0 | v2.1.0 | New |
+|---------|--------|--------|-----|
+| File Operations | ✅ | ✅ | |
+| System Monitoring | ✅ | ✅ | |
+| WordPress | ✅ | ✅ | |
+| Git | ✅ | ✅ | |
+| GitHub | ❌ | ✅ | ⭐ |
+| Slack | ❌ | ✅ | ⭐ |
+| Browser Automation | ❌ | ✅ | ⭐ |
+| Google Drive | ❌ | ✅ | ⭐ |
+| Docker | ✅ | ✅ | |
+| Database | ✅ | ✅ | |
+
+---
+
 ## [2.0.0] - 2025-10-31 (Evening)
 
 ### 🚀 Major Update - 27 New Tools Added!
