@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
 """
 General Purpose MCP Server
-Version: 2.3.2
+Version: 2.4.0 (Security Hardened)
 Author: Claude Code
 Created: 2025-10-31
-Updated: 2025-11-12 (Added Pexels stock photo integration: search, download, curated photos)
+Updated: 2025-11-12 (Security Hardening Phase 1 & 2 Complete)
+
+SECURITY ENHANCEMENTS (v2.4.0):
+- Phase 1: Command injection prevention, path traversal protection
+- Phase 2: URL validation, SSRF prevention, comprehensive security testing
+- 8 critical functions hardened with input validation
+- 37+ security tests, Bandit security scan passing
+- Comprehensive audit logging for all security-sensitive operations
 
 A comprehensive MCP server providing tools for:
-- File operations (read, write, search, list)
+- File operations (read, write, search, list) - WITH PATH VALIDATION
 - System monitoring (disk, memory, processes, services)
-- Remote server management (SSH to ebon)
-- Web requests (HTTP GET/POST)
-- WordPress management (WP-CLI, backups, database)
+- Remote server management (SSH to ebon) - WITH COMMAND VALIDATION
+- Web requests (HTTP GET/POST) - WITH URL VALIDATION
+- WordPress management (WP-CLI, backups, database) - WITH COMMAND VALIDATION
 - Git operations (status, diff, credential scanning)
 - Skippy script management (search, info)
 - Protocol and conversation access
