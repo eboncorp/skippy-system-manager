@@ -86,8 +86,7 @@ class SkippyValidator:
         # Convert to Path object
         path_obj = Path(path).expanduser().resolve()
 
-        # Check for dangerous characters
-        path_str = str(path_obj)
+        # Check for dangerous characters in original path
         for dangerous_char in SkippyValidator.DANGEROUS_PATH_CHARS:
             if dangerous_char in str(path):  # Check original path, not resolved
                 raise ValidationError(f"Path contains dangerous pattern: {dangerous_char}")
@@ -333,6 +332,10 @@ class SkippyValidator:
 
             >>> validate_url("javascript:alert(1)")  # Raises ValidationError
         """
+        # Basic checks
+        if not url or not url.strip():
+            raise ValidationError("URL cannot be empty")
+
         try:
             parsed = urlparse(url)
         except Exception as e:
@@ -342,9 +345,18 @@ class SkippyValidator:
         if allowed_schemes is None:
             allowed_schemes = ['http', 'https', 'ftp', 'ftps']
 
+        if not parsed.scheme:
+            raise ValidationError("URL must have a scheme (e.g., http://)")
+
         if parsed.scheme not in allowed_schemes:
             raise ValidationError(
                 f"URL scheme '{parsed.scheme}' not allowed. Allowed: {allowed_schemes}"
+            )
+
+        # Validate URL structure - must have netloc (domain/host)
+        if not parsed.netloc:
+            raise ValidationError(
+                "Invalid URL structure: missing domain/host"
             )
 
         # Check for dangerous patterns
