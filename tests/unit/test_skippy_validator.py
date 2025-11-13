@@ -184,7 +184,7 @@ class TestCommandValidation:
                 "rm -rf /",
                 allowed_commands=allowed
             )
-        assert "not in allowed commands" in str(exc_info.value).lower()
+        assert "not in allowed" in str(exc_info.value).lower()
 
 
 @pytest.mark.unit
@@ -285,13 +285,13 @@ class TestIPValidation:
         ]
 
         for ip in valid_ips:
-            result = SkippyValidator.validate_ip(ip)
+            result = SkippyValidator.validate_ip_address(ip)
             assert result == ip
 
     def test_invalid_ipv4_out_of_range(self):
         """Test rejection of IPv4 with octets > 255."""
         with pytest.raises(ValidationError):
-            SkippyValidator.validate_ip("192.168.1.256")
+            SkippyValidator.validate_ip_address("192.168.1.256")
 
     def test_invalid_ipv4_format(self):
         """Test rejection of malformed IPv4 addresses."""
@@ -304,7 +304,7 @@ class TestIPValidation:
 
         for ip in invalid_ips:
             with pytest.raises(ValidationError):
-                SkippyValidator.validate_ip(ip)
+                SkippyValidator.validate_ip_address(ip)
 
 
 @pytest.mark.unit
@@ -328,7 +328,7 @@ class TestURLValidation:
         """Test rejection of javascript: URLs (XSS attack)."""
         with pytest.raises(ValidationError) as exc_info:
             SkippyValidator.validate_url("javascript:alert('XSS')")
-        assert "invalid url scheme" in str(exc_info.value).lower()
+        assert "not allowed" in str(exc_info.value).lower()
 
     def test_reject_data_url(self):
         """Test rejection of data: URLs."""

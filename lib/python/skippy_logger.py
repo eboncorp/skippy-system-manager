@@ -154,6 +154,26 @@ class SkippyLogger:
         """Get the configured logger instance."""
         return self.logger
 
+    def info(self, msg: str, *args, **kwargs):
+        """Log info level message."""
+        self.logger.info(msg, *args, **kwargs)
+
+    def debug(self, msg: str, *args, **kwargs):
+        """Log debug level message."""
+        self.logger.debug(msg, *args, **kwargs)
+
+    def warning(self, msg: str, *args, **kwargs):
+        """Log warning level message."""
+        self.logger.warning(msg, *args, **kwargs)
+
+    def error(self, msg: str, *args, **kwargs):
+        """Log error level message."""
+        self.logger.error(msg, *args, **kwargs)
+
+    def critical(self, msg: str, *args, **kwargs):
+        """Log critical level message."""
+        self.logger.critical(msg, *args, **kwargs)
+
 
 def get_logger(
     name: str,

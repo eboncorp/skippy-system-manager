@@ -21,19 +21,16 @@ exclude =
     .github
 
 # Ignore specific errors
-ignore =
-    E203,  # whitespace before ':' (conflicts with black)
-    E501,  # line too long (handled by max-line-length)
-    W503,  # line break before binary operator (conflicts with PEP 8)
-    W504,  # line break after binary operator
-    F401,  # imported but unused (be more lenient)
+# whitespace before ':' (conflicts with black)
+# line too long (handled by max-line-length)
+# line break before binary operator (conflicts with PEP 8)
+# line break after binary operator
+# imported but unused (be more lenient)
+ignore = E203,E501,W503,W504,F401
 
 # Select specific errors to check
-select =
-    E,     # pycodestyle errors
-    W,     # pycodestyle warnings
-    F,     # pyflakes
-    C,     # mccabe complexity
+# pycodestyle errors, pycodestyle warnings, pyflakes, mccabe complexity
+select = E,W,F,C
 
 # Per-file ignores
 per-file-ignores =

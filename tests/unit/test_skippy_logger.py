@@ -29,12 +29,12 @@ class TestSkippyLogger:
 
     def test_log_info(self, tmp_path):
         """Test info logging"""
-        log_file = tmp_path / "test.log"
-        logger = SkippyLogger("test", log_file=str(log_file))
+        logger = SkippyLogger("test", log_dir=str(tmp_path))
 
         logger.info("Test info message")
 
         # Check log file was created and contains message
+        log_file = tmp_path / "test.log"
         assert log_file.exists()
         log_content = log_file.read_text()
         assert "Test info message" in log_content
@@ -42,8 +42,8 @@ class TestSkippyLogger:
 
     def test_log_error(self, tmp_path):
         """Test error logging"""
+        logger = SkippyLogger("test", log_dir=str(tmp_path))
         log_file = tmp_path / "test.log"
-        logger = SkippyLogger("test", log_file=str(log_file))
 
         logger.error("Test error message")
 
@@ -53,8 +53,8 @@ class TestSkippyLogger:
 
     def test_log_warning(self, tmp_path):
         """Test warning logging"""
+        logger = SkippyLogger("test", log_dir=str(tmp_path))
         log_file = tmp_path / "test.log"
-        logger = SkippyLogger("test", log_file=str(log_file))
 
         logger.warning("Test warning message")
 
@@ -64,8 +64,8 @@ class TestSkippyLogger:
 
     def test_log_debug(self, tmp_path):
         """Test debug logging"""
+        logger = SkippyLogger("test", log_dir=str(tmp_path), log_level="DEBUG")
         log_file = tmp_path / "test.log"
-        logger = SkippyLogger("test", log_file=str(log_file), log_level="DEBUG")
 
         logger.debug("Test debug message")
 
@@ -75,14 +75,14 @@ class TestSkippyLogger:
 
     def test_multiple_loggers(self, tmp_path):
         """Test multiple logger instances don't interfere"""
-        log_file1 = tmp_path / "test1.log"
-        log_file2 = tmp_path / "test2.log"
-
-        logger1 = SkippyLogger("test1", log_file=str(log_file1))
-        logger2 = SkippyLogger("test2", log_file=str(log_file2))
+        logger1 = SkippyLogger("test1", log_dir=str(tmp_path))
+        logger2 = SkippyLogger("test2", log_dir=str(tmp_path))
 
         logger1.info("Logger 1 message")
         logger2.info("Logger 2 message")
+
+        log_file1 = tmp_path / "test1.log"
+        log_file2 = tmp_path / "test2.log"
 
         assert "Logger 1 message" in log_file1.read_text()
         assert "Logger 2 message" in log_file2.read_text()
