@@ -107,14 +107,43 @@ try:
         AuthenticationError,
         ExternalServiceError
     )
+    # Import resilience modules for robustness
+    from skippy_resilience import (
+        safe_json_parse,
+        safe_json_dumps,
+        async_retry_with_backoff,
+        retry_with_backoff,
+        CircuitBreaker,
+        CircuitBreakerConfig,
+        get_circuit_breaker,
+        get_all_circuit_breaker_states,
+        HealthChecker,
+        RateLimiter,
+        RetryError,
+        CircuitBreakerOpenError
+    )
+    from skippy_config import (
+        SkippyConfig,
+        ConfigValidator,
+        load_config_with_validation,
+        validate_environment_variables
+    )
     SKIPPY_LIBS_AVAILABLE = True
+    SKIPPY_RESILIENCE_AVAILABLE = True
 except ImportError as e:
     # Will log warning after logger is configured
     SKIPPY_LIBS_AVAILABLE = False
+    SKIPPY_RESILIENCE_AVAILABLE = False
     SKIPPY_IMPORT_ERROR = str(e)
     # Fallback validation error
     class ValidationError(Exception):
         pass
+    # Fallback for safe_json_parse
+    def safe_json_parse(s, default=None, raise_on_error=False):
+        try:
+            return json.loads(s) if s and s.strip() not in ("", "{}", "[]") else (default or {})
+        except:
+            return default or {}
 
 # Suppress Google auth warnings at the environment level
 os.environ['PYTHONWARNINGS'] = 'ignore'
@@ -1525,7 +1554,12 @@ async def http_get(url: str, headers: str = "{}") -> str:
 
         logger.info(f"Making HTTP GET request to: {safe_url[:100]}")
 
-        headers_dict = json.loads(headers) if headers != "{}" else {}
+        # Safe JSON parsing with error handling
+        try:
+            headers_dict = safe_json_parse(headers, default={})
+        except Exception as json_err:
+            logger.warning(f"Invalid headers JSON: {json_err}")
+            return f"Error: Invalid JSON in headers parameter: {str(json_err)}"
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(safe_url, headers=headers_dict)
@@ -1581,8 +1615,18 @@ async def http_post(url: str, data: str, headers: str = "{}") -> str:
 
         logger.info(f"Making HTTP POST request to: {safe_url[:100]}")
 
-        headers_dict = json.loads(headers) if headers != "{}" else {}
-        data_dict = json.loads(data)
+        # Safe JSON parsing with error handling
+        try:
+            headers_dict = safe_json_parse(headers, default={})
+        except Exception as json_err:
+            logger.warning(f"Invalid headers JSON: {json_err}")
+            return f"Error: Invalid JSON in headers parameter: {str(json_err)}"
+
+        try:
+            data_dict = safe_json_parse(data, default={}, raise_on_error=True)
+        except Exception as json_err:
+            logger.warning(f"Invalid data JSON: {json_err}")
+            return f"Error: Invalid JSON in data parameter: {str(json_err)}"
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(safe_url, json=data_dict, headers=headers_dict)
@@ -3589,4 +3633,330 @@ def pexels_curated_photos(per_page: int = 15, page: int = 1) -> str:
 
     except Exception as e:
         return f"Error getting curated photos: {str(e)}"
+
+
+# ============================================================================
+# HEALTH CHECK AND MONITORING TOOLS
+# ============================================================================
+
+@mcp.tool()
+def system_health_check() -> str:
+    """Perform comprehensive system health check.
+
+    Checks various system components and validates configuration
+    to ensure the system is operating correctly.
+
+    Returns:
+        JSON string with health check results including:
+        - Overall system health status
+        - Individual component checks
+        - Warnings and recommendations
+    """
+    try:
+        health_results = {
+            "timestamp": datetime.now().isoformat(),
+            "overall_status": "healthy",
+            "checks": {}
+        }
+
+        warnings = []
+        errors = []
+
+        # Check 1: Disk space
+        try:
+            disk_usage = psutil.disk_usage("/")
+            disk_percent = disk_usage.percent
+            health_results["checks"]["disk_space"] = {
+                "status": "healthy" if disk_percent < 85 else "warning" if disk_percent < 95 else "critical",
+                "usage_percent": disk_percent,
+                "free_gb": round(disk_usage.free / (1024**3), 2)
+            }
+            if disk_percent >= 85:
+                warnings.append(f"Disk usage is at {disk_percent}%")
+        except Exception as e:
+            health_results["checks"]["disk_space"] = {"status": "error", "message": str(e)}
+            errors.append(f"Disk check failed: {e}")
+
+        # Check 2: Memory usage
+        try:
+            memory = psutil.virtual_memory()
+            mem_percent = memory.percent
+            health_results["checks"]["memory"] = {
+                "status": "healthy" if mem_percent < 80 else "warning" if mem_percent < 95 else "critical",
+                "usage_percent": mem_percent,
+                "available_gb": round(memory.available / (1024**3), 2)
+            }
+            if mem_percent >= 80:
+                warnings.append(f"Memory usage is at {mem_percent}%")
+        except Exception as e:
+            health_results["checks"]["memory"] = {"status": "error", "message": str(e)}
+            errors.append(f"Memory check failed: {e}")
+
+        # Check 3: CPU load
+        try:
+            cpu_percent = psutil.cpu_percent(interval=0.5)
+            health_results["checks"]["cpu"] = {
+                "status": "healthy" if cpu_percent < 70 else "warning" if cpu_percent < 90 else "critical",
+                "usage_percent": cpu_percent,
+                "cpu_count": psutil.cpu_count()
+            }
+            if cpu_percent >= 70:
+                warnings.append(f"CPU usage is at {cpu_percent}%")
+        except Exception as e:
+            health_results["checks"]["cpu"] = {"status": "error", "message": str(e)}
+            errors.append(f"CPU check failed: {e}")
+
+        # Check 4: Skippy libraries availability
+        health_results["checks"]["skippy_libraries"] = {
+            "status": "healthy" if SKIPPY_LIBS_AVAILABLE else "warning",
+            "available": SKIPPY_LIBS_AVAILABLE,
+            "resilience_available": SKIPPY_RESILIENCE_AVAILABLE if 'SKIPPY_RESILIENCE_AVAILABLE' in globals() else False
+        }
+        if not SKIPPY_LIBS_AVAILABLE:
+            warnings.append("Skippy validation libraries not available - some security features disabled")
+
+        # Check 5: Configuration validation
+        if SKIPPY_LIBS_AVAILABLE and 'SKIPPY_RESILIENCE_AVAILABLE' in globals() and SKIPPY_RESILIENCE_AVAILABLE:
+            try:
+                config = SkippyConfig.from_env()
+                validator = ConfigValidator(config)
+                is_valid = validator.validate()
+                health_results["checks"]["configuration"] = {
+                    "status": "healthy" if is_valid else "warning",
+                    "valid": is_valid,
+                    "errors": validator.errors[:5],
+                    "warnings": validator.warnings[:5]
+                }
+                if not is_valid:
+                    errors.extend(validator.errors[:3])
+                warnings.extend(validator.warnings[:3])
+            except Exception as e:
+                health_results["checks"]["configuration"] = {"status": "error", "message": str(e)}
+        else:
+            health_results["checks"]["configuration"] = {"status": "skipped", "reason": "Resilience modules not available"}
+
+        # Check 6: Log directory writable
+        try:
+            log_dir = Path(os.getenv("SKIPPY_BASE_PATH", "/home/dave/skippy")) / "logs"
+            if log_dir.exists():
+                test_file = log_dir / ".health_check_test"
+                test_file.write_text("test")
+                test_file.unlink()
+                health_results["checks"]["log_directory"] = {"status": "healthy", "path": str(log_dir), "writable": True}
+            else:
+                health_results["checks"]["log_directory"] = {"status": "warning", "path": str(log_dir), "writable": False}
+                warnings.append(f"Log directory does not exist: {log_dir}")
+        except Exception as e:
+            health_results["checks"]["log_directory"] = {"status": "error", "message": str(e)}
+            errors.append(f"Log directory check failed: {e}")
+
+        # Check 7: Circuit breaker status (if available)
+        if 'SKIPPY_RESILIENCE_AVAILABLE' in globals() and SKIPPY_RESILIENCE_AVAILABLE:
+            try:
+                cb_states = get_all_circuit_breaker_states()
+                open_breakers = [name for name, state in cb_states.items() if state.get("state") == "open"]
+                health_results["checks"]["circuit_breakers"] = {
+                    "status": "healthy" if not open_breakers else "warning",
+                    "total": len(cb_states),
+                    "open": open_breakers
+                }
+                if open_breakers:
+                    warnings.append(f"Circuit breakers OPEN: {', '.join(open_breakers)}")
+            except Exception as e:
+                health_results["checks"]["circuit_breakers"] = {"status": "skipped", "message": str(e)}
+
+        # Determine overall status
+        if errors:
+            health_results["overall_status"] = "critical"
+        elif warnings:
+            health_results["overall_status"] = "degraded"
+        else:
+            health_results["overall_status"] = "healthy"
+
+        health_results["warnings"] = warnings
+        health_results["errors"] = errors
+        health_results["summary"] = f"System is {health_results['overall_status']} with {len(errors)} errors and {len(warnings)} warnings"
+
+        return json.dumps(health_results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return json.dumps({
+            "timestamp": datetime.now().isoformat(),
+            "overall_status": "error",
+            "error": str(e)
+        }, indent=2)
+
+
+@mcp.tool()
+def get_system_metrics() -> str:
+    """Get current system performance metrics.
+
+    Returns detailed metrics about system resource usage,
+    process information, and service status.
+
+    Returns:
+        JSON string with comprehensive system metrics
+    """
+    try:
+        metrics = {
+            "timestamp": datetime.now().isoformat(),
+            "uptime_seconds": time.time() - psutil.boot_time(),
+        }
+
+        # CPU metrics
+        cpu_times = psutil.cpu_times()
+        metrics["cpu"] = {
+            "percent": psutil.cpu_percent(interval=0.1),
+            "count_physical": psutil.cpu_count(logical=False),
+            "count_logical": psutil.cpu_count(logical=True),
+            "user_time": cpu_times.user,
+            "system_time": cpu_times.system,
+            "idle_time": cpu_times.idle
+        }
+
+        # Memory metrics
+        mem = psutil.virtual_memory()
+        swap = psutil.swap_memory()
+        metrics["memory"] = {
+            "total_gb": round(mem.total / (1024**3), 2),
+            "available_gb": round(mem.available / (1024**3), 2),
+            "used_gb": round(mem.used / (1024**3), 2),
+            "percent": mem.percent,
+            "swap_total_gb": round(swap.total / (1024**3), 2),
+            "swap_used_gb": round(swap.used / (1024**3), 2),
+            "swap_percent": swap.percent
+        }
+
+        # Disk metrics
+        disk = psutil.disk_usage("/")
+        metrics["disk"] = {
+            "total_gb": round(disk.total / (1024**3), 2),
+            "used_gb": round(disk.used / (1024**3), 2),
+            "free_gb": round(disk.free / (1024**3), 2),
+            "percent": disk.percent
+        }
+
+        # Network metrics
+        net_io = psutil.net_io_counters()
+        metrics["network"] = {
+            "bytes_sent_mb": round(net_io.bytes_sent / (1024**2), 2),
+            "bytes_recv_mb": round(net_io.bytes_recv / (1024**2), 2),
+            "packets_sent": net_io.packets_sent,
+            "packets_recv": net_io.packets_recv,
+            "errors_in": net_io.errin,
+            "errors_out": net_io.errout
+        }
+
+        # Process count
+        metrics["processes"] = {
+            "total": len(list(psutil.process_iter())),
+            "running": len([p for p in psutil.process_iter(['status']) if p.info['status'] == 'running'])
+        }
+
+        # Server-specific metrics
+        metrics["server"] = {
+            "skippy_libs_available": SKIPPY_LIBS_AVAILABLE,
+            "resilience_available": SKIPPY_RESILIENCE_AVAILABLE if 'SKIPPY_RESILIENCE_AVAILABLE' in globals() else False,
+            "python_version": sys.version.split()[0]
+        }
+
+        return json.dumps(metrics, indent=2)
+
+    except Exception as e:
+        logger.error(f"Failed to get system metrics: {e}")
+        return f"Error getting system metrics: {str(e)}"
+
+
+@mcp.tool()
+def validate_skippy_configuration() -> str:
+    """Validate the current Skippy configuration.
+
+    Checks all configuration settings for correctness, security issues,
+    and potential problems.
+
+    Returns:
+        JSON string with validation results including errors and warnings
+    """
+    try:
+        if not SKIPPY_LIBS_AVAILABLE or not ('SKIPPY_RESILIENCE_AVAILABLE' in globals() and SKIPPY_RESILIENCE_AVAILABLE):
+            return json.dumps({
+                "success": False,
+                "error": "Resilience modules not available for configuration validation"
+            }, indent=2)
+
+        # Validate configuration
+        config = SkippyConfig.from_env()
+        validator = ConfigValidator(config)
+        is_valid = validator.validate()
+
+        # Validate environment variables
+        env_validation = validate_environment_variables()
+
+        result = {
+            "timestamp": datetime.now().isoformat(),
+            "configuration_valid": is_valid,
+            "environment_valid": env_validation["valid"],
+            "configuration": {
+                "errors": validator.errors,
+                "warnings": validator.warnings,
+                "settings": config.to_dict()
+            },
+            "environment": env_validation,
+            "recommendations": []
+        }
+
+        # Add recommendations based on issues found
+        if not is_valid:
+            result["recommendations"].append("Fix configuration errors before deploying to production")
+        if validator.warnings:
+            result["recommendations"].append("Review configuration warnings for potential security issues")
+        if not env_validation["valid"]:
+            result["recommendations"].append("Set required environment variables")
+
+        return json.dumps(result, indent=2)
+
+    except Exception as e:
+        logger.error(f"Configuration validation failed: {e}")
+        return json.dumps({
+            "success": False,
+            "error": str(e)
+        }, indent=2)
+
+
+@mcp.tool()
+def get_circuit_breaker_status() -> str:
+    """Get status of all circuit breakers.
+
+    Circuit breakers protect the system from cascading failures by
+    stopping requests to failing services.
+
+    Returns:
+        JSON string with circuit breaker states
+    """
+    try:
+        if not ('SKIPPY_RESILIENCE_AVAILABLE' in globals() and SKIPPY_RESILIENCE_AVAILABLE):
+            return json.dumps({
+                "available": False,
+                "message": "Circuit breaker module not available"
+            }, indent=2)
+
+        states = get_all_circuit_breaker_states()
+
+        summary = {
+            "total": len(states),
+            "closed": sum(1 for s in states.values() if s.get("state") == "closed"),
+            "open": sum(1 for s in states.values() if s.get("state") == "open"),
+            "half_open": sum(1 for s in states.values() if s.get("state") == "half_open")
+        }
+
+        return json.dumps({
+            "timestamp": datetime.now().isoformat(),
+            "summary": summary,
+            "circuit_breakers": states
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Failed to get circuit breaker status: {e}")
+        return f"Error: {str(e)}"
 
