@@ -164,3 +164,9 @@ backups/wordpress/
 
 # WordPress logs
 rundaverun_local_logs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+*.venv/
