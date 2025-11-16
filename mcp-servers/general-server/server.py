@@ -3026,18 +3026,16 @@ def gdrive_batch_upload(
 
 
 # ============================================================================
-# GOOGLE PHOTOS TOOLS (v2.3.1 - Added 2025-11-12)
+# GOOGLE PHOTOS PICKER API TOOLS (v2.4.0 - Updated 2025-11-16)
+# Note: Replaces deprecated Library API (removed March 2025) with Picker API
 # ============================================================================
 
-def _get_google_photos_service():
-    """Get authenticated Google Photos Library service."""
-    if not build:
-        raise Exception("google-api-python-client not installed")
-
+def _get_google_photos_picker_credentials():
+    """Get OAuth credentials for Google Photos Picker API."""
     creds = None
     token_path = os.getenv("GOOGLE_PHOTOS_TOKEN_PATH", "/home/dave/skippy/.credentials/google_photos_token.json")
-    credentials_path = os.getenv("GOOGLE_PHOTOS_CREDENTIALS_PATH", "/home/dave/skippy/.credentials/google_drive_credentials.json")
-    scopes = [os.getenv("GOOGLE_PHOTOS_SCOPES", "https://www.googleapis.com/auth/photoslibrary.readonly")]
+    credentials_path = os.getenv("GOOGLE_PHOTOS_CREDENTIALS_PATH", "/home/dave/skippy/.credentials/credentials.json")
+    scopes = [os.getenv("GOOGLE_PHOTOS_SCOPES", "https://www.googleapis.com/auth/photospicker.mediaitems.readonly")]
 
     token_path = Path(token_path).expanduser()
     credentials_path = Path(credentials_path).expanduser()
@@ -3059,354 +3057,279 @@ def _get_google_photos_service():
         # Save token
         token_path.write_text(creds.to_json())
 
-    return build('photoslibrary', 'v1', credentials=creds, static_discovery=False)
+    return creds
 
 
 @mcp.tool()
-def gphotos_list_albums(max_results: int = 20) -> str:
-    """List photo albums from Google Photos.
+def gphotos_create_picker_session() -> str:
+    """Create a new Google Photos Picker session.
 
-    Args:
-        max_results: Maximum number of albums to return (default: 20)
+    This initiates a photo selection session. The returned pickerUri should be
+    opened in a browser for the user to select photos from their Google Photos library.
 
     Returns:
-        JSON string with album list including:
-        - id: Album ID
-        - title: Album name
-        - mediaItemsCount: Number of items in album
-        - coverPhotoUrl: URL to cover photo
+        JSON string with:
+        - session_id: Unique session identifier for polling and retrieval
+        - picker_uri: URL to open in browser for user to select photos
+        - expires_time: When the session expires
+
+    Workflow:
+        1. Call this function to create a session
+        2. Open picker_uri in browser (or show QR code)
+        3. User selects photos in Google Photos interface
+        4. Poll with gphotos_check_session() until selection complete
+        5. Retrieve photos with gphotos_get_selected_media()
     """
     try:
-        service = _get_google_photos_service()
+        creds = _get_google_photos_picker_credentials()
 
-        albums = []
-        page_token = None
+        headers = {
+            "Authorization": f"Bearer {creds.token}",
+            "Content-Type": "application/json"
+        }
 
-        while len(albums) < max_results:
-            # List albums
-            results = service.albums().list(
-                pageSize=min(50, max_results - len(albums)),
-                pageToken=page_token
-            ).execute()
+        # Create picker session
+        response = httpx.post(
+            "https://photospicker.googleapis.com/v1/sessions",
+            headers=headers,
+            json={}
+        )
+        response.raise_for_status()
 
-            items = results.get('albums', [])
-            if not items:
-                break
-
-            for album in items:
-                albums.append({
-                    "id": album.get('id'),
-                    "title": album.get('title'),
-                    "mediaItemsCount": album.get('mediaItemsCount', '0'),
-                    "coverPhotoUrl": album.get('coverPhotoBaseUrl', ''),
-                    "productUrl": album.get('productUrl', '')
-                })
-
-            page_token = results.get('nextPageToken')
-            if not page_token:
-                break
+        session_data = response.json()
 
         return json.dumps({
             "success": True,
-            "count": len(albums),
-            "albums": albums
+            "session_id": session_data.get("id"),
+            "picker_uri": session_data.get("pickerUri"),
+            "expires_time": session_data.get("expireTime"),
+            "instructions": "Open picker_uri in a browser. User will select photos from their Google Photos. Then call gphotos_check_session() to poll for completion."
         }, indent=2)
 
+    except httpx.HTTPStatusError as e:
+        return f"HTTP Error {e.response.status_code}: {e.response.text}"
     except Exception as e:
-        return f"Error listing albums: {str(e)}"
+        return f"Error creating picker session: {str(e)}"
 
 
 @mcp.tool()
-def gphotos_search_media(
-    album_id: str = None,
-    start_date: str = None,
-    end_date: str = None,
-    max_results: int = 50
-) -> str:
-    """Search for media items (photos/videos) in Google Photos.
+def gphotos_check_session(session_id: str) -> str:
+    """Check the status of a Google Photos Picker session.
 
     Args:
-        album_id: Optional album ID to search within
-        start_date: Optional start date in YYYY-MM-DD format
-        end_date: Optional end date in YYYY-MM-DD format
-        max_results: Maximum number of results (default: 50, max: 100)
+        session_id: The session ID returned from gphotos_create_picker_session()
 
     Returns:
-        JSON string with media items including:
-        - id: Media item ID
-        - filename: Original filename
-        - mimeType: File type (image/jpeg, video/mp4, etc.)
-        - baseUrl: Temporary download URL (valid 60 minutes)
-        - creationTime: When photo was taken
-        - width/height: Dimensions
+        JSON string with:
+        - session_id: The session ID
+        - media_items_set: True if user has finished selecting photos
+        - picker_uri: URL for user to continue selecting (if not done)
+
+    Note:
+        Poll this endpoint periodically (e.g., every 3-5 seconds) until
+        media_items_set is True, then call gphotos_get_selected_media().
     """
     try:
-        service = _get_google_photos_service()
+        creds = _get_google_photos_picker_credentials()
 
-        # Build search filter
-        filters = {}
+        headers = {
+            "Authorization": f"Bearer {creds.token}",
+            "Content-Type": "application/json"
+        }
 
-        if start_date or end_date:
-            date_filter = {"ranges": []}
-            date_range = {}
+        response = httpx.get(
+            f"https://photospicker.googleapis.com/v1/sessions/{session_id}",
+            headers=headers
+        )
+        response.raise_for_status()
 
-            if start_date:
-                parts = start_date.split('-')
-                date_range['startDate'] = {
-                    'year': int(parts[0]),
-                    'month': int(parts[1]),
-                    'day': int(parts[2])
-                }
+        session_data = response.json()
 
-            if end_date:
-                parts = end_date.split('-')
-                date_range['endDate'] = {
-                    'year': int(parts[0]),
-                    'month': int(parts[1]),
-                    'day': int(parts[2])
-                }
+        return json.dumps({
+            "success": True,
+            "session_id": session_data.get("id"),
+            "media_items_set": session_data.get("mediaItemsSet", False),
+            "picker_uri": session_data.get("pickerUri"),
+            "expires_time": session_data.get("expireTime")
+        }, indent=2)
 
-            date_filter['ranges'].append(date_range)
-            filters['dateFilter'] = date_filter
+    except httpx.HTTPStatusError as e:
+        return f"HTTP Error {e.response.status_code}: {e.response.text}"
+    except Exception as e:
+        return f"Error checking session: {str(e)}"
 
-        if album_id:
-            filters['albumId'] = album_id
 
-        # Search media items
+@mcp.tool()
+def gphotos_get_selected_media(session_id: str, max_results: int = 100) -> str:
+    """Get the media items selected by the user in a Picker session.
+
+    Args:
+        session_id: The session ID from gphotos_create_picker_session()
+        max_results: Maximum number of items to return (default: 100)
+
+    Returns:
+        JSON string with selected media items including:
+        - id: Media item ID
+        - baseUrl: Temporary download URL (valid 60 minutes)
+        - mimeType: File type (image/jpeg, video/mp4, etc.)
+        - mediaFile: File metadata (filename, size, etc.)
+
+    Note:
+        Only call this after gphotos_check_session() returns media_items_set=True.
+        The baseUrl expires after 60 minutes or if user revokes access.
+    """
+    try:
+        creds = _get_google_photos_picker_credentials()
+
+        headers = {
+            "Authorization": f"Bearer {creds.token}",
+            "Content-Type": "application/json"
+        }
+
         media_items = []
         page_token = None
 
         while len(media_items) < max_results:
-            body = {
-                'pageSize': min(100, max_results - len(media_items)),
-                'pageToken': page_token
+            params = {
+                "sessionId": session_id,
+                "pageSize": min(100, max_results - len(media_items))
             }
+            if page_token:
+                params["pageToken"] = page_token
 
-            if filters:
-                if 'albumId' in filters:
-                    body['albumId'] = filters['albumId']
-                if 'dateFilter' in filters:
-                    body['filters'] = {'dateFilter': filters['dateFilter']}
+            response = httpx.get(
+                "https://photospicker.googleapis.com/v1/mediaItems",
+                headers=headers,
+                params=params
+            )
+            response.raise_for_status()
 
-            results = service.mediaItems().search(body=body).execute()
+            data = response.json()
+            items = data.get("mediaItems", [])
 
-            items = results.get('mediaItems', [])
             if not items:
                 break
 
             for item in items:
-                metadata = item.get('mediaMetadata', {})
+                media_file = item.get("mediaFile", {})
                 media_items.append({
-                    "id": item.get('id'),
-                    "filename": item.get('filename'),
-                    "mimeType": item.get('mimeType'),
-                    "baseUrl": item.get('baseUrl'),
-                    "productUrl": item.get('productUrl'),
-                    "creationTime": metadata.get('creationTime'),
-                    "width": metadata.get('width'),
-                    "height": metadata.get('height')
+                    "id": item.get("id"),
+                    "baseUrl": media_file.get("baseUrl"),
+                    "mimeType": media_file.get("mimeType"),
+                    "filename": media_file.get("filename", "unknown"),
+                    "fileSize": media_file.get("fileSize")
                 })
 
-            page_token = results.get('nextPageToken')
+            page_token = data.get("nextPageToken")
             if not page_token:
                 break
 
         return json.dumps({
             "success": True,
             "count": len(media_items),
-            "filters_applied": {
-                "album_id": album_id,
-                "date_range": f"{start_date or 'any'} to {end_date or 'any'}"
-            },
-            "mediaItems": media_items
+            "session_id": session_id,
+            "mediaItems": media_items,
+            "note": "baseUrl expires in 60 minutes. Use gphotos_download_selected() to download."
         }, indent=2)
 
+    except httpx.HTTPStatusError as e:
+        return f"HTTP Error {e.response.status_code}: {e.response.text}"
     except Exception as e:
-        return f"Error searching media: {str(e)}"
+        return f"Error getting selected media: {str(e)}"
 
 
 @mcp.tool()
-def gphotos_get_album_contents(album_id: str, max_results: int = 100) -> str:
-    """Get all media items from a specific album.
+def gphotos_download_selected(base_url: str, output_path: str, mime_type: str = "image/jpeg") -> str:
+    """Download a photo or video from a Picker session baseUrl.
 
     Args:
-        album_id: The album ID to get contents from
-        max_results: Maximum number of items to return (default: 100)
-
-    Returns:
-        JSON string with media items from the album
-    """
-    try:
-        service = _get_google_photos_service()
-
-        # Get album info
-        album = service.albums().get(albumId=album_id).execute()
-
-        # Search media items in this album
-        media_items = []
-        page_token = None
-
-        while len(media_items) < max_results:
-            body = {
-                'albumId': album_id,
-                'pageSize': min(100, max_results - len(media_items)),
-                'pageToken': page_token
-            }
-
-            results = service.mediaItems().search(body=body).execute()
-
-            items = results.get('mediaItems', [])
-            if not items:
-                break
-
-            for item in items:
-                metadata = item.get('mediaMetadata', {})
-                media_items.append({
-                    "id": item.get('id'),
-                    "filename": item.get('filename'),
-                    "mimeType": item.get('mimeType'),
-                    "baseUrl": item.get('baseUrl'),
-                    "creationTime": metadata.get('creationTime'),
-                    "width": metadata.get('width'),
-                    "height": metadata.get('height')
-                })
-
-            page_token = results.get('nextPageToken')
-            if not page_token:
-                break
-
-        return json.dumps({
-            "success": True,
-            "album": {
-                "id": album.get('id'),
-                "title": album.get('title'),
-                "totalItems": album.get('mediaItemsCount', '0')
-            },
-            "itemsReturned": len(media_items),
-            "mediaItems": media_items
-        }, indent=2)
-
-    except Exception as e:
-        return f"Error getting album contents: {str(e)}"
-
-
-@mcp.tool()
-def gphotos_download_media(media_id: str, output_path: str) -> str:
-    """Download a photo or video from Google Photos.
-
-    Args:
-        media_id: The media item ID to download
+        base_url: The baseUrl from gphotos_get_selected_media()
         output_path: Local path where file should be saved
+        mime_type: File MIME type (default: image/jpeg)
 
     Returns:
-        Success message with file info
+        JSON string with download result including file size and path.
 
     Note:
-        - Photos: Use baseUrl + "=d" to download original quality
-        - Videos: Use baseUrl + "=dv" to download video
-        - URLs expire after 60 minutes
+        - Photos: Downloads original quality
+        - Videos: Append "=dv" to baseUrl for video download
+        - baseUrl expires after 60 minutes from when session was polled
     """
     try:
-        service = _get_google_photos_service()
+        # Get credentials for authenticated download
+        creds = _get_google_photos_picker_credentials()
 
-        # Get media item details
-        media_item = service.mediaItems().get(mediaItemId=media_id).execute()
-
-        base_url = media_item.get('baseUrl')
-        mime_type = media_item.get('mimeType', '')
-        filename = media_item.get('filename', 'download')
-
-        if not base_url:
-            return "Error: No download URL available for this media item"
-
-        # Determine download parameter based on media type
+        # Determine download URL based on media type
         if mime_type.startswith('video/'):
             download_url = f"{base_url}=dv"
         else:
+            # For images, use =d for original quality download
             download_url = f"{base_url}=d"
 
-        # Download the file
-        import httpx
-        response = httpx.get(download_url, follow_redirects=True)
+        # Download the file with auth headers
+        headers = {
+            "Authorization": f"Bearer {creds.token}"
+        }
+        response = httpx.get(download_url, headers=headers, follow_redirects=True, timeout=60.0)
         response.raise_for_status()
 
         # Save to file
         output_file = Path(output_path).expanduser()
         output_file.parent.mkdir(parents=True, exist_ok=True)
-
         output_file.write_bytes(response.content)
 
         file_size_mb = len(response.content) / (1024 * 1024)
 
         return json.dumps({
             "success": True,
-            "filename": filename,
             "saved_to": str(output_file),
             "size_mb": round(file_size_mb, 2),
-            "mime_type": mime_type,
-            "dimensions": f"{media_item.get('mediaMetadata', {}).get('width')}x{media_item.get('mediaMetadata', {}).get('height')}"
+            "mime_type": mime_type
         }, indent=2)
 
+    except httpx.HTTPStatusError as e:
+        return f"HTTP Error {e.response.status_code}: {e.response.text}"
     except Exception as e:
         return f"Error downloading media: {str(e)}"
 
 
 @mcp.tool()
-def gphotos_get_media_metadata(media_id: str) -> str:
-    """Get detailed metadata for a photo or video.
+def gphotos_delete_session(session_id: str) -> str:
+    """Delete a Google Photos Picker session.
 
     Args:
-        media_id: The media item ID
+        session_id: The session ID to delete
 
     Returns:
-        JSON string with full metadata including:
-        - Basic info (filename, size, type)
-        - Photo metadata (camera, focal length, ISO, etc.)
-        - Video metadata (fps, codec, etc.)
-        - Location data if available
+        Success or error message.
+
+    Note:
+        Sessions automatically expire, but you can delete them early
+        to clean up or if the user wants to start over.
     """
     try:
-        service = _get_google_photos_service()
+        creds = _get_google_photos_picker_credentials()
 
-        media_item = service.mediaItems().get(mediaItemId=media_id).execute()
-
-        metadata = media_item.get('mediaMetadata', {})
-        photo_metadata = metadata.get('photo', {})
-        video_metadata = metadata.get('video', {})
-
-        result = {
-            "success": True,
-            "id": media_item.get('id'),
-            "filename": media_item.get('filename'),
-            "mimeType": media_item.get('mimeType'),
-            "creationTime": metadata.get('creationTime'),
-            "width": metadata.get('width'),
-            "height": metadata.get('height'),
-            "productUrl": media_item.get('productUrl')
+        headers = {
+            "Authorization": f"Bearer {creds.token}",
+            "Content-Type": "application/json"
         }
 
-        # Add photo-specific metadata
-        if photo_metadata:
-            result['photo'] = {
-                "cameraMake": photo_metadata.get('cameraMake'),
-                "cameraModel": photo_metadata.get('cameraModel'),
-                "focalLength": photo_metadata.get('focalLength'),
-                "apertureFNumber": photo_metadata.get('apertureFNumber'),
-                "isoEquivalent": photo_metadata.get('isoEquivalent'),
-                "exposureTime": photo_metadata.get('exposureTime')
-            }
+        response = httpx.delete(
+            f"https://photospicker.googleapis.com/v1/sessions/{session_id}",
+            headers=headers
+        )
+        response.raise_for_status()
 
-        # Add video-specific metadata
-        if video_metadata:
-            result['video'] = {
-                "fps": video_metadata.get('fps'),
-                "status": video_metadata.get('status')
-            }
+        return json.dumps({
+            "success": True,
+            "message": f"Session {session_id} deleted successfully"
+        }, indent=2)
 
-        return json.dumps(result, indent=2)
-
+    except httpx.HTTPStatusError as e:
+        return f"HTTP Error {e.response.status_code}: {e.response.text}"
     except Exception as e:
-        return f"Error getting metadata: {str(e)}"
+        return f"Error deleting session: {str(e)}"
 
 
 
