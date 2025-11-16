@@ -518,7 +518,7 @@ class NexusController:
                                bg='#0a0a1e', fg='#0f8', font=('Arial', 10))
             info_text.pack(fill='x', padx=10, pady=10)
             
-            info_content = f\"\"\"NEXUS CONTROLLER - CENTRAL COMMAND HUB
+            info_content = f"""NEXUS CONTROLLER - CENTRAL COMMAND HUB
 {'=' * 50}
 
 Version: 1.0 Final Stable
@@ -546,7 +546,7 @@ FEATURES:
 ✓ Emergency system recovery
 
 STATUS: All systems operational
-\"\"\"
+"""
             
             info_text.insert('1.0', info_content)
             info_text.config(state='disabled')  # Read-only

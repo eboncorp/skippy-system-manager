@@ -241,13 +241,15 @@ class TestCircuitBreaker:
         config = CircuitBreakerConfig(
             failure_threshold=1,
             success_threshold=2,
-            timeout=0.01
+            timeout=0.01,
+            half_open_max_calls=2  # Allow enough calls to reach success threshold
         )
         cb = CircuitBreaker("test", config)
 
         # Force to HALF_OPEN state
         cb.state = CircuitState.HALF_OPEN
         cb.success_count = 0
+        cb.half_open_calls = 0  # Reset counter to allow calls
 
         @cb
         def service():
