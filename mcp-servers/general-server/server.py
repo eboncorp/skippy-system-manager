@@ -2323,6 +2323,8 @@ def github_create_issue(
 ) -> str:
     """Create an issue on GitHub.
 
+    Features retry logic, circuit breaker protection, and rate limiting.
+
     Args:
         repo_name: Repository name in format "owner/repo"
         title: Issue title
@@ -2344,11 +2346,20 @@ def github_create_issue(
         label_list = [l.strip() for l in labels.split(',')] if labels else []
         assignee_list = [a.strip() for a in assignees.split(',')] if assignees else []
 
-        issue = repo.create_issue(
-            title=title,
-            body=body,
-            labels=label_list,
-            assignees=assignee_list
+        def _create_issue():
+            return repo.create_issue(
+                title=title,
+                body=body,
+                labels=label_list,
+                assignees=assignee_list
+            )
+
+        issue = resilient_api_call(
+            _create_issue,
+            circuit_breaker=_github_cb,
+            rate_limiter=_github_limiter,
+            service_name="GitHub",
+            operation_name="create_issue"
         )
 
         return json.dumps({
@@ -2359,6 +2370,10 @@ def github_create_issue(
             "created_at": issue.created_at.isoformat()
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except GithubException as e:
         return f"GitHub API Error: {e.status} - {e.data.get('message', str(e))}"
     except Exception as e:
@@ -2372,6 +2387,8 @@ def github_list_prs(
     max_results: int = 10
 ) -> str:
     """List pull requests from a GitHub repository.
+
+    Features retry logic, circuit breaker protection, and rate limiting with caching.
 
     Args:
         repo_name: Repository name in format "owner/repo"
@@ -2389,23 +2406,38 @@ def github_list_prs(
         g = Github(github_token)
         repo = g.get_repo(repo_name)
 
-        prs = repo.get_pulls(state=state)
-        results = []
+        def _list_prs():
+            prs = repo.get_pulls(state=state)
+            results = []
 
-        for i, pr in enumerate(prs):
-            if i >= max_results:
-                break
-            results.append({
-                "number": pr.number,
-                "title": pr.title,
-                "state": pr.state,
-                "author": pr.user.login,
-                "created_at": pr.created_at.isoformat(),
-                "url": pr.html_url
-            })
+            for i, pr in enumerate(prs):
+                if i >= max_results:
+                    break
+                results.append({
+                    "number": pr.number,
+                    "title": pr.title,
+                    "state": pr.state,
+                    "author": pr.user.login,
+                    "created_at": pr.created_at.isoformat(),
+                    "url": pr.html_url
+                })
+            return results
+
+        results = resilient_api_call(
+            _list_prs,
+            circuit_breaker=_github_cb,
+            rate_limiter=_github_limiter,
+            service_name="GitHub",
+            operation_name="list_prs",
+            cache_key=f"github_prs_{repo_name}_{state}_{max_results}"
+        )
 
         return json.dumps(results, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except GithubException as e:
         return f"GitHub API Error: {e.status} - {e.data.get('message', str(e))}"
     except Exception as e:
@@ -3825,6 +3857,8 @@ def _get_google_photos_picker_credentials():
 def gphotos_create_picker_session() -> str:
     """Create a new Google Photos Picker session.
 
+    Features retry logic, circuit breaker protection, and rate limiting.
+
     This initiates a photo selection session. The returned pickerUri should be
     opened in a browser for the user to select photos from their Google Photos library.
 
@@ -3849,15 +3883,23 @@ def gphotos_create_picker_session() -> str:
             "Content-Type": "application/json"
         }
 
-        # Create picker session
-        response = httpx.post(
-            "https://photospicker.googleapis.com/v1/sessions",
-            headers=headers,
-            json={}
-        )
-        response.raise_for_status()
+        def _create_session():
+            # Create picker session
+            response = httpx.post(
+                "https://photospicker.googleapis.com/v1/sessions",
+                headers=headers,
+                json={}
+            )
+            response.raise_for_status()
+            return response.json()
 
-        session_data = response.json()
+        session_data = resilient_api_call(
+            _create_session,
+            circuit_breaker=_google_photos_cb,
+            rate_limiter=_google_photos_limiter,
+            service_name="Google Photos",
+            operation_name="create_session"
+        )
 
         return json.dumps({
             "success": True,
@@ -3867,6 +3909,10 @@ def gphotos_create_picker_session() -> str:
             "instructions": "Open picker_uri in a browser. User will select photos from their Google Photos. Then call gphotos_check_session() to poll for completion."
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except httpx.HTTPStatusError as e:
         return f"HTTP Error {e.response.status_code}: {e.response.text}"
     except Exception as e:
@@ -3876,6 +3922,8 @@ def gphotos_create_picker_session() -> str:
 @mcp.tool()
 def gphotos_check_session(session_id: str) -> str:
     """Check the status of a Google Photos Picker session.
+
+    Features retry logic, circuit breaker protection, and rate limiting.
 
     Args:
         session_id: The session ID returned from gphotos_create_picker_session()
@@ -3898,13 +3946,21 @@ def gphotos_check_session(session_id: str) -> str:
             "Content-Type": "application/json"
         }
 
-        response = httpx.get(
-            f"https://photospicker.googleapis.com/v1/sessions/{session_id}",
-            headers=headers
-        )
-        response.raise_for_status()
+        def _check_session():
+            response = httpx.get(
+                f"https://photospicker.googleapis.com/v1/sessions/{session_id}",
+                headers=headers
+            )
+            response.raise_for_status()
+            return response.json()
 
-        session_data = response.json()
+        session_data = resilient_api_call(
+            _check_session,
+            circuit_breaker=_google_photos_cb,
+            rate_limiter=_google_photos_limiter,
+            service_name="Google Photos",
+            operation_name="check_session"
+        )
 
         return json.dumps({
             "success": True,
@@ -3914,6 +3970,10 @@ def gphotos_check_session(session_id: str) -> str:
             "expires_time": session_data.get("expireTime")
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except httpx.HTTPStatusError as e:
         return f"HTTP Error {e.response.status_code}: {e.response.text}"
     except Exception as e:
@@ -4058,6 +4118,8 @@ def gphotos_download_selected(base_url: str, output_path: str, mime_type: str = 
 def gphotos_delete_session(session_id: str) -> str:
     """Delete a Google Photos Picker session.
 
+    Features retry logic, circuit breaker protection, and rate limiting.
+
     Args:
         session_id: The session ID to delete
 
@@ -4076,17 +4138,31 @@ def gphotos_delete_session(session_id: str) -> str:
             "Content-Type": "application/json"
         }
 
-        response = httpx.delete(
-            f"https://photospicker.googleapis.com/v1/sessions/{session_id}",
-            headers=headers
+        def _delete_session():
+            response = httpx.delete(
+                f"https://photospicker.googleapis.com/v1/sessions/{session_id}",
+                headers=headers
+            )
+            response.raise_for_status()
+            return True
+
+        resilient_api_call(
+            _delete_session,
+            circuit_breaker=_google_photos_cb,
+            rate_limiter=_google_photos_limiter,
+            service_name="Google Photos",
+            operation_name="delete_session"
         )
-        response.raise_for_status()
 
         return json.dumps({
             "success": True,
             "message": f"Session {session_id} deleted successfully"
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except httpx.HTTPStatusError as e:
         return f"HTTP Error {e.response.status_code}: {e.response.text}"
     except Exception as e:
@@ -4108,6 +4184,8 @@ def pexels_search_photos(
     color: str = None
 ) -> str:
     """Search for free stock photos on Pexels.
+
+    Features retry logic, circuit breaker protection, and rate limiting with caching.
 
     Args:
         query: Search query (e.g., "campaign event", "political rally", "community")
@@ -4150,11 +4228,21 @@ def pexels_search_photos(
         if color:
             params["color"] = color
 
-        # Make API request
-        response = httpx.get(url, headers=headers, params=params, timeout=30)
-        response.raise_for_status()
+        def _search_photos():
+            # Make API request
+            response = httpx.get(url, headers=headers, params=params, timeout=30)
+            response.raise_for_status()
+            return response.json()
 
-        data = response.json()
+        data = resilient_api_call(
+            _search_photos,
+            circuit_breaker=_pexels_cb,
+            rate_limiter=_pexels_limiter,
+            service_name="Pexels",
+            operation_name="search_photos",
+            cache_key=f"pexels_search_{query}_{page}_{per_page}_{orientation}_{size}_{color}"
+        )
+
         photos = data.get("photos", [])
 
         # Format results
@@ -4187,6 +4275,10 @@ def pexels_search_photos(
             "photos": results
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except Exception as e:
         return f"Error searching Pexels: {str(e)}"
 
@@ -4194,6 +4286,8 @@ def pexels_search_photos(
 @mcp.tool()
 def pexels_get_photo(photo_id: int) -> str:
     """Get details of a specific photo by ID.
+
+    Features retry logic, circuit breaker protection, and rate limiting with caching.
 
     Args:
         photo_id: The Pexels photo ID
@@ -4211,10 +4305,19 @@ def pexels_get_photo(photo_id: int) -> str:
         url = f"https://api.pexels.com/v1/photos/{photo_id}"
         headers = {"Authorization": api_key}
 
-        response = httpx.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
+        def _get_photo():
+            response = httpx.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            return response.json()
 
-        photo = response.json()
+        photo = resilient_api_call(
+            _get_photo,
+            circuit_breaker=_pexels_cb,
+            rate_limiter=_pexels_limiter,
+            service_name="Pexels",
+            operation_name="get_photo",
+            cache_key=f"pexels_photo_{photo_id}"
+        )
 
         return json.dumps({
             "success": True,
@@ -4229,6 +4332,10 @@ def pexels_get_photo(photo_id: int) -> str:
             "alt": photo.get("alt", "")
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except Exception as e:
         return f"Error getting photo: {str(e)}"
 
@@ -4236,6 +4343,8 @@ def pexels_get_photo(photo_id: int) -> str:
 @mcp.tool()
 def pexels_download_photo(photo_id: int, output_path: str, size: str = "large") -> str:
     """Download a photo from Pexels.
+
+    Features retry logic, circuit breaker protection, and rate limiting.
 
     Args:
         photo_id: The Pexels photo ID
@@ -4256,10 +4365,18 @@ def pexels_download_photo(photo_id: int, output_path: str, size: str = "large") 
         url = f"https://api.pexels.com/v1/photos/{photo_id}"
         headers = {"Authorization": api_key}
 
-        response = httpx.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
+        def _get_photo_details():
+            response = httpx.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            return response.json()
 
-        photo = response.json()
+        photo = resilient_api_call(
+            _get_photo_details,
+            circuit_breaker=_pexels_cb,
+            rate_limiter=_pexels_limiter,
+            service_name="Pexels",
+            operation_name="download_photo_metadata"
+        )
 
         # Get download URL for requested size
         src = photo.get("src", {})
@@ -4268,17 +4385,26 @@ def pexels_download_photo(photo_id: int, output_path: str, size: str = "large") 
         if not download_url:
             return f"Error: Size '{size}' not available. Available sizes: {list(src.keys())}"
 
-        # Download the photo
-        photo_response = httpx.get(download_url, timeout=60)
-        photo_response.raise_for_status()
+        def _download_photo():
+            # Download the photo
+            photo_response = httpx.get(download_url, timeout=60)
+            photo_response.raise_for_status()
+            return photo_response.content
+
+        photo_content = resilient_api_call(
+            _download_photo,
+            circuit_breaker=_pexels_cb,
+            service_name="Pexels",
+            operation_name="download_photo_content"
+        )
 
         # Save to file
         output_file = Path(output_path).expanduser()
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        output_file.write_bytes(photo_response.content)
+        output_file.write_bytes(photo_content)
 
-        file_size_mb = len(photo_response.content) / (1024 * 1024)
+        file_size_mb = len(photo_content) / (1024 * 1024)
 
         return json.dumps({
             "success": True,
@@ -4290,6 +4416,10 @@ def pexels_download_photo(photo_id: int, output_path: str, size: str = "large") 
             "dimensions": f"{photo.get('width')}x{photo.get('height')}"
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except Exception as e:
         return f"Error downloading photo: {str(e)}"
 
@@ -4297,6 +4427,8 @@ def pexels_download_photo(photo_id: int, output_path: str, size: str = "large") 
 @mcp.tool()
 def pexels_curated_photos(per_page: int = 15, page: int = 1) -> str:
     """Get curated photos from Pexels (trending/popular photos).
+
+    Features retry logic, circuit breaker protection, and rate limiting with caching.
 
     Args:
         per_page: Number of results per page (max 80, default 15)
@@ -4320,10 +4452,20 @@ def pexels_curated_photos(per_page: int = 15, page: int = 1) -> str:
             "page": page
         }
 
-        response = httpx.get(url, headers=headers, params=params, timeout=30)
-        response.raise_for_status()
+        def _get_curated():
+            response = httpx.get(url, headers=headers, params=params, timeout=30)
+            response.raise_for_status()
+            return response.json()
 
-        data = response.json()
+        data = resilient_api_call(
+            _get_curated,
+            circuit_breaker=_pexels_cb,
+            rate_limiter=_pexels_limiter,
+            service_name="Pexels",
+            operation_name="curated_photos",
+            cache_key=f"pexels_curated_{page}_{per_page}"
+        )
+
         photos = data.get("photos", [])
 
         results = []
@@ -4348,6 +4490,10 @@ def pexels_curated_photos(per_page: int = 15, page: int = 1) -> str:
             "photos": results
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except Exception as e:
         return f"Error getting curated photos: {str(e)}"
 
