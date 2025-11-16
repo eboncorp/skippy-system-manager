@@ -107,14 +107,58 @@ try:
         AuthenticationError,
         ExternalServiceError
     )
+    # Import resilience modules for robustness
+    from skippy_resilience import (
+        safe_json_parse,
+        safe_json_dumps,
+        async_retry_with_backoff,
+        retry_with_backoff,
+        CircuitBreaker,
+        CircuitBreakerConfig,
+        get_circuit_breaker,
+        get_all_circuit_breaker_states,
+        HealthChecker,
+        RateLimiter,
+        RetryError,
+        CircuitBreakerOpenError
+    )
+    from skippy_config import (
+        SkippyConfig,
+        ConfigValidator,
+        load_config_with_validation,
+        validate_environment_variables
+    )
+    # Import advanced resilience features
+    from skippy_resilience_advanced import (
+        RequestTracer,
+        MetricsPersistence,
+        GracefulCache,
+        AlertManager,
+        AlertLevel,
+        get_tracer,
+        get_cache,
+        get_alert_manager,
+        init_metrics_persistence,
+        create_file_alert_handler
+    )
     SKIPPY_LIBS_AVAILABLE = True
+    SKIPPY_RESILIENCE_AVAILABLE = True
+    SKIPPY_ADVANCED_RESILIENCE = True
 except ImportError as e:
     # Will log warning after logger is configured
     SKIPPY_LIBS_AVAILABLE = False
+    SKIPPY_RESILIENCE_AVAILABLE = False
+    SKIPPY_ADVANCED_RESILIENCE = False
     SKIPPY_IMPORT_ERROR = str(e)
     # Fallback validation error
     class ValidationError(Exception):
         pass
+    # Fallback for safe_json_parse
+    def safe_json_parse(s, default=None, raise_on_error=False):
+        try:
+            return json.loads(s) if s and s.strip() not in ("", "{}", "[]") else (default or {})
+        except:
+            return default or {}
 
 # Suppress Google auth warnings at the environment level
 os.environ['PYTHONWARNINGS'] = 'ignore'
@@ -157,6 +201,431 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# RESILIENCE INFRASTRUCTURE
+# ============================================================================
+
+# Initialize circuit breakers, rate limiters, and health checker
+if SKIPPY_RESILIENCE_AVAILABLE:
+    # Circuit breakers for external services
+    _google_drive_cb = get_circuit_breaker("google-drive-api", CircuitBreakerConfig(
+        failure_threshold=5,
+        success_threshold=3,
+        timeout=120.0
+    ))
+    _google_photos_cb = get_circuit_breaker("google-photos-api", CircuitBreakerConfig(
+        failure_threshold=5,
+        success_threshold=3,
+        timeout=120.0
+    ))
+    _github_cb = get_circuit_breaker("github-api", CircuitBreakerConfig(
+        failure_threshold=5,
+        success_threshold=3,
+        timeout=120.0
+    ))
+    _pexels_cb = get_circuit_breaker("pexels-api", CircuitBreakerConfig(
+        failure_threshold=3,
+        success_threshold=2,
+        timeout=60.0
+    ))
+    _http_cb = get_circuit_breaker("http-api", CircuitBreakerConfig(
+        failure_threshold=10,  # More lenient for general HTTP
+        success_threshold=2,
+        timeout=60.0
+    ))
+
+    # Rate limiters (requests per minute)
+    _google_drive_limiter = RateLimiter(max_calls=60, period=60.0)  # 60 req/min
+    _google_photos_limiter = RateLimiter(max_calls=30, period=60.0)  # 30 req/min
+    _github_limiter = RateLimiter(max_calls=30, period=60.0)  # 30 req/min
+    _pexels_limiter = RateLimiter(max_calls=200, period=3600.0)  # 200 req/hour
+    _http_limiter = RateLimiter(max_calls=100, period=60.0)  # 100 req/min for general HTTP
+
+    # Global health checker
+    _health_checker = HealthChecker()
+
+    # Alert callback for circuit breaker state changes
+    def _on_circuit_breaker_alert(service_name: str, old_state: str, new_state: str):
+        """Log circuit breaker state changes as alerts."""
+        if new_state == "open":
+            logger.critical(
+                f"ALERT: Circuit breaker '{service_name}' OPENED - Service unavailable, "
+                f"failing fast to prevent cascading failures"
+            )
+        elif new_state == "half_open":
+            logger.warning(
+                f"Circuit breaker '{service_name}' testing recovery (HALF_OPEN)"
+            )
+        elif new_state == "closed" and old_state != "closed":
+            logger.info(
+                f"Circuit breaker '{service_name}' recovered and CLOSED - Service restored"
+            )
+
+    # Register health checks
+    @_health_checker.register("google_drive")
+    def _check_google_drive_health():
+        if not build:
+            return False, "Google API client not installed"
+        cb_state = _google_drive_cb.get_state()
+        if cb_state["state"] == "open":
+            return False, f"Circuit breaker OPEN (failures: {cb_state['failure_count']})"
+        return True, f"OK (state: {cb_state['state']}, remaining calls: {_google_drive_limiter.get_remaining_calls()})"
+
+    @_health_checker.register("google_photos")
+    def _check_google_photos_health():
+        if not build:
+            return False, "Google API client not installed"
+        cb_state = _google_photos_cb.get_state()
+        if cb_state["state"] == "open":
+            return False, f"Circuit breaker OPEN (failures: {cb_state['failure_count']})"
+        return True, f"OK (state: {cb_state['state']}, remaining calls: {_google_photos_limiter.get_remaining_calls()})"
+
+    @_health_checker.register("github")
+    def _check_github_health():
+        if not Github:
+            return False, "PyGithub not installed"
+        cb_state = _github_cb.get_state()
+        if cb_state["state"] == "open":
+            return False, f"Circuit breaker OPEN (failures: {cb_state['failure_count']})"
+        return True, f"OK (state: {cb_state['state']}, remaining calls: {_github_limiter.get_remaining_calls()})"
+
+    @_health_checker.register("pexels")
+    def _check_pexels_health():
+        if not os.getenv("PEXELS_API_KEY"):
+            return False, "PEXELS_API_KEY not set"
+        cb_state = _pexels_cb.get_state()
+        if cb_state["state"] == "open":
+            return False, f"Circuit breaker OPEN (failures: {cb_state['failure_count']})"
+        return True, f"OK (state: {cb_state['state']}, remaining calls: {_pexels_limiter.get_remaining_calls()})"
+
+    @_health_checker.register("http_client")
+    def _check_http_health():
+        cb_state = _http_cb.get_state()
+        if cb_state["state"] == "open":
+            return False, f"Circuit breaker OPEN (failures: {cb_state['failure_count']})"
+        return True, f"OK (state: {cb_state['state']}, remaining calls: {_http_limiter.get_remaining_calls()})"
+
+    logger.info("Resilience infrastructure initialized: Circuit breakers, rate limiters, and health checks ready")
+
+    # Initialize advanced resilience features
+    if SKIPPY_ADVANCED_RESILIENCE:
+        _request_tracer = get_tracer()
+        _graceful_cache = get_cache()
+        _alert_manager = get_alert_manager()
+
+        # Initialize metrics persistence
+        try:
+            _metrics_persistence = init_metrics_persistence()
+
+            # Add file-based alert handler
+            alert_log_path = Path(SKIPPY_PATH) / "logs" / "alerts.jsonl"
+            alert_log_path.parent.mkdir(parents=True, exist_ok=True)
+            _alert_manager.add_handler("file", create_file_alert_handler(str(alert_log_path)))
+
+            logger.info("Advanced resilience initialized: Tracing, caching, alerts, and metrics persistence ready")
+        except Exception as e:
+            logger.warning(f"Metrics persistence init failed: {e}")
+            _metrics_persistence = None
+
+        # Alert on circuit breaker state changes
+        def _cb_alert_on_open(service_name: str):
+            _alert_manager.alert(
+                AlertLevel.CRITICAL,
+                f"Circuit Breaker OPEN: {service_name}",
+                f"Service {service_name} has failed multiple times and is now unavailable",
+                service=service_name
+            )
+            if _metrics_persistence:
+                cb = get_circuit_breaker(service_name)
+                _metrics_persistence.save_circuit_breaker_state(service_name, cb.get_state())
+    else:
+        _request_tracer = None
+        _graceful_cache = None
+        _alert_manager = None
+        _metrics_persistence = None
+else:
+    logger.warning("Resilience modules not available - running without circuit breakers and rate limiting")
+    _google_drive_cb = None
+    _google_photos_cb = None
+    _github_cb = None
+    _pexels_cb = None
+    _google_drive_limiter = None
+    _google_photos_limiter = None
+    _github_limiter = None
+    _pexels_limiter = None
+    _health_checker = None
+    _request_tracer = None
+    _graceful_cache = None
+    _alert_manager = None
+    _metrics_persistence = None
+
+
+def resilient_api_call(
+    func,
+    *args,
+    circuit_breaker=None,
+    rate_limiter=None,
+    max_retries=3,
+    retry_delay=1.0,
+    service_name="api",
+    operation_name="call",
+    cache_key=None,
+    cache_ttl=3600,
+    use_cache_on_failure=True,
+    **kwargs
+):
+    """
+    Execute an API call with circuit breaker, rate limiting, retry, tracing, and caching.
+
+    Args:
+        func: Function to call
+        circuit_breaker: CircuitBreaker instance (optional)
+        rate_limiter: RateLimiter instance (optional)
+        max_retries: Maximum retry attempts (default 3)
+        retry_delay: Base delay between retries in seconds (default 1.0)
+        service_name: Name of the service for logging
+        operation_name: Name of the operation for tracing
+        cache_key: Key for caching result (optional, enables caching)
+        cache_ttl: Cache time-to-live in seconds (default 3600)
+        use_cache_on_failure: Return cached result if all retries fail (default True)
+
+    Returns:
+        Result of the function call
+
+    Raises:
+        CircuitBreakerOpenError: If circuit breaker is open
+        RetryError: If all retries exhausted
+    """
+    # Start request tracing
+    trace = None
+    if _request_tracer and SKIPPY_ADVANCED_RESILIENCE:
+        trace = _request_tracer.start_trace(service_name, operation_name)
+
+    # Apply rate limiting
+    if rate_limiter and SKIPPY_RESILIENCE_AVAILABLE:
+        rate_limiter._wait_if_needed()
+
+    # Check circuit breaker
+    if circuit_breaker and SKIPPY_RESILIENCE_AVAILABLE:
+        if not circuit_breaker._can_execute():
+            # Try to return cached result for graceful degradation
+            if cache_key and _graceful_cache and use_cache_on_failure:
+                cached = _graceful_cache.get(cache_key, allow_stale=True)
+                if cached is not None:
+                    logger.info(f"{service_name} circuit open, returning cached result")
+                    if trace:
+                        trace.metadata["cache_hit"] = True
+                        trace.metadata["stale_cache"] = True
+                        _request_tracer.end_trace(trace, success=True)
+                    return cached
+
+            if trace:
+                _request_tracer.end_trace(trace, success=False, error="Circuit breaker open")
+            raise CircuitBreakerOpenError(
+                f"Circuit breaker for '{service_name}' is OPEN. Service unavailable."
+            )
+
+    # Execute with retry logic
+    last_exception = None
+    attempt_count = 0
+
+    for attempt in range(1, max_retries + 1):
+        attempt_count = attempt
+        try:
+            result = func(*args, **kwargs)
+
+            # Record success with circuit breaker
+            if circuit_breaker and SKIPPY_RESILIENCE_AVAILABLE:
+                circuit_breaker._on_success()
+
+            # Cache successful result
+            if cache_key and _graceful_cache:
+                _graceful_cache.set(cache_key, result, ttl=cache_ttl)
+
+            # End tracing
+            if trace:
+                trace.attempt_count = attempt_count
+                _request_tracer.end_trace(trace, success=True)
+
+            return result
+
+        except (ConnectionError, TimeoutError, OSError) as e:
+            last_exception = e
+            if circuit_breaker and SKIPPY_RESILIENCE_AVAILABLE:
+                circuit_breaker._on_failure()
+
+            if attempt < max_retries:
+                delay = retry_delay * (2 ** (attempt - 1))  # Exponential backoff
+                logger.warning(
+                    f"{service_name} call failed (attempt {attempt}/{max_retries}): {e}. "
+                    f"Retrying in {delay:.1f}s..."
+                )
+                time.sleep(delay)
+            else:
+                logger.error(f"{service_name} call failed after {max_retries} attempts: {e}")
+
+                # Alert on repeated failures
+                if _alert_manager and SKIPPY_ADVANCED_RESILIENCE:
+                    _alert_manager.alert(
+                        AlertLevel.ERROR,
+                        f"{service_name} API Failure",
+                        f"Operation {operation_name} failed after {max_retries} retries: {e}",
+                        service=service_name,
+                        attempts=max_retries
+                    )
+
+        except Exception as e:
+            # Non-retryable error
+            if circuit_breaker and SKIPPY_RESILIENCE_AVAILABLE:
+                circuit_breaker._on_failure()
+            if trace:
+                trace.attempt_count = attempt_count
+                _request_tracer.end_trace(trace, success=False, error=str(e))
+            raise
+
+    # All retries exhausted - try cache for graceful degradation
+    if cache_key and _graceful_cache and use_cache_on_failure:
+        cached = _graceful_cache.get(cache_key, allow_stale=True)
+        if cached is not None:
+            logger.warning(f"{service_name} all retries failed, returning stale cached result")
+            if trace:
+                trace.attempt_count = attempt_count
+                trace.metadata["cache_fallback"] = True
+                _request_tracer.end_trace(trace, success=True)
+            return cached
+
+    if trace:
+        trace.attempt_count = attempt_count
+        _request_tracer.end_trace(trace, success=False, error=str(last_exception))
+
+    if SKIPPY_RESILIENCE_AVAILABLE:
+        raise RetryError(
+            f"Max retry attempts ({max_retries}) exceeded for {service_name}",
+            attempts=max_retries,
+            last_exception=last_exception
+        )
+    else:
+        raise last_exception
+
+
+async def resilient_async_api_call(
+    func,
+    *args,
+    circuit_breaker=None,
+    rate_limiter=None,
+    max_retries=3,
+    retry_delay=1.0,
+    service_name="api",
+    operation_name="call",
+    **kwargs
+):
+    """
+    Execute an async API call with circuit breaker, rate limiting, and retry.
+
+    Args:
+        func: Async function to call
+        circuit_breaker: CircuitBreaker instance (optional)
+        rate_limiter: RateLimiter instance (optional)
+        max_retries: Maximum retry attempts (default 3)
+        retry_delay: Base delay between retries in seconds (default 1.0)
+        service_name: Name of the service for logging
+        operation_name: Name of the operation for tracing
+
+    Returns:
+        Result of the async function call
+
+    Raises:
+        CircuitBreakerOpenError: If circuit breaker is open
+        RetryError: If all retries exhausted
+    """
+    import asyncio
+
+    # Start request tracing
+    trace = None
+    if _request_tracer and SKIPPY_ADVANCED_RESILIENCE:
+        trace = _request_tracer.start_trace(service_name, operation_name)
+
+    # Apply rate limiting
+    if rate_limiter and SKIPPY_RESILIENCE_AVAILABLE:
+        rate_limiter._wait_if_needed()
+
+    # Check circuit breaker
+    if circuit_breaker and SKIPPY_RESILIENCE_AVAILABLE:
+        if not circuit_breaker._can_execute():
+            if trace:
+                _request_tracer.end_trace(trace, success=False, error="Circuit breaker open")
+            raise CircuitBreakerOpenError(
+                f"Circuit breaker for '{service_name}' is OPEN. Service unavailable."
+            )
+
+    # Execute with retry logic
+    last_exception = None
+    attempt_count = 0
+
+    for attempt in range(1, max_retries + 1):
+        attempt_count = attempt
+        try:
+            result = await func(*args, **kwargs)
+
+            # Record success with circuit breaker
+            if circuit_breaker and SKIPPY_RESILIENCE_AVAILABLE:
+                circuit_breaker._on_success()
+
+            # End tracing
+            if trace:
+                trace.attempt_count = attempt_count
+                _request_tracer.end_trace(trace, success=True)
+
+            return result
+
+        except (ConnectionError, TimeoutError, OSError, httpx.ConnectError, httpx.TimeoutException) as e:
+            last_exception = e
+            if circuit_breaker and SKIPPY_RESILIENCE_AVAILABLE:
+                circuit_breaker._on_failure()
+
+            if attempt < max_retries:
+                delay = retry_delay * (2 ** (attempt - 1))  # Exponential backoff
+                logger.warning(
+                    f"{service_name} async call failed (attempt {attempt}/{max_retries}): {e}. "
+                    f"Retrying in {delay:.1f}s..."
+                )
+                await asyncio.sleep(delay)
+            else:
+                logger.error(f"{service_name} async call failed after {max_retries} attempts: {e}")
+
+                # Alert on repeated failures
+                if _alert_manager and SKIPPY_ADVANCED_RESILIENCE:
+                    _alert_manager.alert(
+                        AlertLevel.ERROR,
+                        f"{service_name} API Failure",
+                        f"Operation {operation_name} failed after {max_retries} retries: {e}",
+                        service=service_name,
+                        attempts=max_retries
+                    )
+
+        except Exception as e:
+            # Non-retryable error
+            if circuit_breaker and SKIPPY_RESILIENCE_AVAILABLE:
+                circuit_breaker._on_failure()
+            if trace:
+                trace.attempt_count = attempt_count
+                _request_tracer.end_trace(trace, success=False, error=str(e))
+            raise
+
+    if trace:
+        trace.attempt_count = attempt_count
+        _request_tracer.end_trace(trace, success=False, error=str(last_exception))
+
+    if SKIPPY_RESILIENCE_AVAILABLE:
+        raise RetryError(
+            f"Max retry attempts ({max_retries}) exceeded for {service_name}",
+            attempts=max_retries,
+            last_exception=last_exception
+        )
+    else:
+        raise last_exception
 
 
 # ============================================================================
@@ -1493,6 +1962,8 @@ async def http_get(url: str, headers: str = "{}") -> str:
     SECURITY: URLs are validated to prevent SSRF attacks and ensure
     only safe protocols (http/https) are allowed.
 
+    Features retry logic, circuit breaker protection, and rate limiting.
+
     Args:
         url: URL to request (will be validated)
         headers: JSON string of headers to include (default '{}')
@@ -1505,6 +1976,8 @@ async def http_get(url: str, headers: str = "{}") -> str:
         - Dangerous character detection
         - Timeout protection (30s)
         - Response size limiting (5000 chars)
+        - Circuit breaker for fault tolerance
+        - Automatic retry with exponential backoff
     """
     try:
         # Validate URL if skippy libs available
@@ -1525,17 +1998,42 @@ async def http_get(url: str, headers: str = "{}") -> str:
 
         logger.info(f"Making HTTP GET request to: {safe_url[:100]}")
 
-        headers_dict = json.loads(headers) if headers != "{}" else {}
+        # Safe JSON parsing with error handling
+        try:
+            headers_dict = safe_json_parse(headers, default={})
+        except Exception as json_err:
+            logger.warning(f"Invalid headers JSON: {json_err}")
+            return f"Error: Invalid JSON in headers parameter: {str(json_err)}"
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(safe_url, headers=headers_dict)
+        async def _make_get_request():
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(safe_url, headers=headers_dict)
 
-            result = [f"Status Code: {response.status_code}"]
-            result.append(f"Headers: {dict(response.headers)}")
-            result.append(f"\nResponse Body:")
-            result.append(response.text[:5000])  # Limit to first 5000 chars
+                result = [f"Status Code: {response.status_code}"]
+                result.append(f"Headers: {dict(response.headers)}")
+                result.append(f"\nResponse Body:")
+                result.append(response.text[:5000])  # Limit to first 5000 chars
 
-            return '\n'.join(result)
+                return '\n'.join(result)
+
+        # Apply resilience: circuit breaker, rate limiting, retry
+        if SKIPPY_RESILIENCE_AVAILABLE:
+            return await resilient_async_api_call(
+                _make_get_request,
+                circuit_breaker=_http_cb,
+                rate_limiter=_http_limiter,
+                service_name="HTTP GET",
+                operation_name=f"GET {safe_url[:50]}"
+            )
+        else:
+            return await _make_get_request()
+
+    except CircuitBreakerOpenError as e:
+        logger.warning(f"HTTP circuit breaker open: {e}")
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        logger.error(f"HTTP GET retry exhausted: {e}")
+        return f"Failed after multiple retry attempts: {str(e)}"
     except Exception as e:
         logger.error(f"Error making HTTP GET request to '{url}': {str(e)}")
         return f"Error making HTTP GET request: {str(e)}"
@@ -1547,6 +2045,8 @@ async def http_post(url: str, data: str, headers: str = "{}") -> str:
 
     SECURITY: URLs are validated to prevent SSRF attacks and ensure
     only safe protocols (http/https) are allowed.
+
+    Features retry logic, circuit breaker protection, and rate limiting.
 
     Args:
         url: URL to request (will be validated)
@@ -1561,6 +2061,8 @@ async def http_post(url: str, data: str, headers: str = "{}") -> str:
         - Dangerous character detection
         - Timeout protection (30s)
         - Response size limiting (5000 chars)
+        - Circuit breaker for fault tolerance
+        - Automatic retry with exponential backoff
     """
     try:
         # Validate URL if skippy libs available
@@ -1581,18 +2083,48 @@ async def http_post(url: str, data: str, headers: str = "{}") -> str:
 
         logger.info(f"Making HTTP POST request to: {safe_url[:100]}")
 
-        headers_dict = json.loads(headers) if headers != "{}" else {}
-        data_dict = json.loads(data)
+        # Safe JSON parsing with error handling
+        try:
+            headers_dict = safe_json_parse(headers, default={})
+        except Exception as json_err:
+            logger.warning(f"Invalid headers JSON: {json_err}")
+            return f"Error: Invalid JSON in headers parameter: {str(json_err)}"
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(safe_url, json=data_dict, headers=headers_dict)
+        try:
+            data_dict = safe_json_parse(data, default={}, raise_on_error=True)
+        except Exception as json_err:
+            logger.warning(f"Invalid data JSON: {json_err}")
+            return f"Error: Invalid JSON in data parameter: {str(json_err)}"
 
-            result = [f"Status Code: {response.status_code}"]
-            result.append(f"Headers: {dict(response.headers)}")
-            result.append(f"\nResponse Body:")
-            result.append(response.text[:5000])  # Limit to first 5000 chars
+        async def _make_post_request():
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(safe_url, json=data_dict, headers=headers_dict)
 
-            return '\n'.join(result)
+                result = [f"Status Code: {response.status_code}"]
+                result.append(f"Headers: {dict(response.headers)}")
+                result.append(f"\nResponse Body:")
+                result.append(response.text[:5000])  # Limit to first 5000 chars
+
+                return '\n'.join(result)
+
+        # Apply resilience: circuit breaker, rate limiting, retry
+        if SKIPPY_RESILIENCE_AVAILABLE:
+            return await resilient_async_api_call(
+                _make_post_request,
+                circuit_breaker=_http_cb,
+                rate_limiter=_http_limiter,
+                service_name="HTTP POST",
+                operation_name=f"POST {safe_url[:50]}"
+            )
+        else:
+            return await _make_post_request()
+
+    except CircuitBreakerOpenError as e:
+        logger.warning(f"HTTP circuit breaker open: {e}")
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        logger.error(f"HTTP POST retry exhausted: {e}")
+        return f"Failed after multiple retry attempts: {str(e)}"
     except Exception as e:
         logger.error(f"Error making HTTP POST request to '{url}': {str(e)}")
         return f"Error making HTTP POST request: {str(e)}"
@@ -1727,6 +2259,8 @@ def github_create_pr(
 ) -> str:
     """Create a pull request on GitHub.
 
+    Features retry logic, circuit breaker protection, and rate limiting.
+
     Args:
         repo_name: Repository name in format "owner/repo" (e.g., "eboncorp/NexusController")
         title: PR title
@@ -1743,13 +2277,22 @@ def github_create_pr(
             return "Error: GITHUB_TOKEN not set in environment"
 
         g = Github(github_token)
-        repo = g.get_repo(repo_name)
 
-        pr = repo.create_pull(
-            title=title,
-            body=body,
-            head=head_branch,
-            base=base_branch
+        def _create_pr():
+            repo = g.get_repo(repo_name)
+            return repo.create_pull(
+                title=title,
+                body=body,
+                head=head_branch,
+                base=base_branch
+            )
+
+        # Apply resilience: circuit breaker, rate limiting, retry
+        pr = resilient_api_call(
+            _create_pr,
+            circuit_breaker=_github_cb,
+            rate_limiter=_github_limiter,
+            service_name="GitHub"
         )
 
         return json.dumps({
@@ -1760,6 +2303,10 @@ def github_create_pr(
             "created_at": pr.created_at.isoformat()
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except GithubException as e:
         return f"GitHub API Error: {e.status} - {e.data.get('message', str(e))}"
     except Exception as e:
@@ -1775,6 +2322,8 @@ def github_create_issue(
     assignees: str = ""
 ) -> str:
     """Create an issue on GitHub.
+
+    Features retry logic, circuit breaker protection, and rate limiting.
 
     Args:
         repo_name: Repository name in format "owner/repo"
@@ -1797,11 +2346,20 @@ def github_create_issue(
         label_list = [l.strip() for l in labels.split(',')] if labels else []
         assignee_list = [a.strip() for a in assignees.split(',')] if assignees else []
 
-        issue = repo.create_issue(
-            title=title,
-            body=body,
-            labels=label_list,
-            assignees=assignee_list
+        def _create_issue():
+            return repo.create_issue(
+                title=title,
+                body=body,
+                labels=label_list,
+                assignees=assignee_list
+            )
+
+        issue = resilient_api_call(
+            _create_issue,
+            circuit_breaker=_github_cb,
+            rate_limiter=_github_limiter,
+            service_name="GitHub",
+            operation_name="create_issue"
         )
 
         return json.dumps({
@@ -1812,6 +2370,10 @@ def github_create_issue(
             "created_at": issue.created_at.isoformat()
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except GithubException as e:
         return f"GitHub API Error: {e.status} - {e.data.get('message', str(e))}"
     except Exception as e:
@@ -1825,6 +2387,8 @@ def github_list_prs(
     max_results: int = 10
 ) -> str:
     """List pull requests from a GitHub repository.
+
+    Features retry logic, circuit breaker protection, and rate limiting with caching.
 
     Args:
         repo_name: Repository name in format "owner/repo"
@@ -1842,23 +2406,38 @@ def github_list_prs(
         g = Github(github_token)
         repo = g.get_repo(repo_name)
 
-        prs = repo.get_pulls(state=state)
-        results = []
+        def _list_prs():
+            prs = repo.get_pulls(state=state)
+            results = []
 
-        for i, pr in enumerate(prs):
-            if i >= max_results:
-                break
-            results.append({
-                "number": pr.number,
-                "title": pr.title,
-                "state": pr.state,
-                "author": pr.user.login,
-                "created_at": pr.created_at.isoformat(),
-                "url": pr.html_url
-            })
+            for i, pr in enumerate(prs):
+                if i >= max_results:
+                    break
+                results.append({
+                    "number": pr.number,
+                    "title": pr.title,
+                    "state": pr.state,
+                    "author": pr.user.login,
+                    "created_at": pr.created_at.isoformat(),
+                    "url": pr.html_url
+                })
+            return results
+
+        results = resilient_api_call(
+            _list_prs,
+            circuit_breaker=_github_cb,
+            rate_limiter=_github_limiter,
+            service_name="GitHub",
+            operation_name="list_prs",
+            cache_key=f"github_prs_{repo_name}_{state}_{max_results}"
+        )
 
         return json.dumps(results, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except GithubException as e:
         return f"GitHub API Error: {e.status} - {e.data.get('message', str(e))}"
     except Exception as e:
@@ -2129,6 +2708,8 @@ def gdrive_search_files(
 ) -> str:
     """Search for files in Google Drive.
 
+    Features retry logic, circuit breaker protection, and rate limiting.
+
     Args:
         query: Search query (supports Google Drive query syntax)
         max_results: Maximum number of results (default: 10)
@@ -2144,11 +2725,20 @@ def gdrive_search_files(
 
         service = _get_google_drive_service()
 
-        results = service.files().list(
-            q=query,
-            pageSize=max_results,
-            fields="files(id, name, mimeType, modifiedTime, webViewLink)"
-        ).execute()
+        def _search():
+            return service.files().list(
+                q=query,
+                pageSize=max_results,
+                fields="files(id, name, mimeType, modifiedTime, webViewLink)"
+            ).execute()
+
+        # Apply resilience: circuit breaker, rate limiting, retry
+        results = resilient_api_call(
+            _search,
+            circuit_breaker=_google_drive_cb,
+            rate_limiter=_google_drive_limiter,
+            service_name="Google Drive"
+        )
 
         files = results.get('files', [])
 
@@ -2158,6 +2748,12 @@ def gdrive_search_files(
             "files": files
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        logger.warning(f"Google Drive circuit breaker open: {e}")
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        logger.error(f"Google Drive retry exhausted: {e}")
+        return f"Failed after multiple retry attempts: {str(e)}"
     except HttpError as e:
         return f"Google Drive API Error: {e.resp.status} - {e.reason}"
     except Exception as e:
@@ -2171,6 +2767,8 @@ def gdrive_download_file(
 ) -> str:
     """Download a file from Google Drive.
 
+    Features retry logic, circuit breaker protection, and rate limiting.
+
     Args:
         file_id: Google Drive file ID
         output_path: Local path to save file
@@ -2181,8 +2779,16 @@ def gdrive_download_file(
 
         service = _get_google_drive_service()
 
-        # Get file metadata
-        file_metadata = service.files().get(fileId=file_id).execute()
+        # Get file metadata with resilience
+        def _get_metadata():
+            return service.files().get(fileId=file_id).execute()
+
+        file_metadata = resilient_api_call(
+            _get_metadata,
+            circuit_breaker=_google_drive_cb,
+            rate_limiter=_google_drive_limiter,
+            service_name="Google Drive"
+        )
 
         # Download file content
         request = service.files().get_media(fileId=file_id)
@@ -2190,11 +2796,18 @@ def gdrive_download_file(
         output = Path(output_path).expanduser()
         output.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output, 'wb') as f:
-            downloader = MediaIoBaseDownload(f, request)
-            done = False
-            while not done:
-                status, done = downloader.next_chunk()
+        def _download():
+            with open(output, 'wb') as f:
+                downloader = MediaIoBaseDownload(f, request)
+                done = False
+                while not done:
+                    status, done = downloader.next_chunk()
+
+        resilient_api_call(
+            _download,
+            circuit_breaker=_google_drive_cb,
+            service_name="Google Drive Download"
+        )
 
         return json.dumps({
             "success": True,
@@ -2203,6 +2816,10 @@ def gdrive_download_file(
             "output_path": str(output)
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except HttpError as e:
         return f"Google Drive API Error: {e.resp.status} - {e.reason}"
     except Exception as e:
@@ -2215,6 +2832,8 @@ def gdrive_read_document(
 ) -> str:
     """Read content from a Google Docs document.
 
+    Features retry logic, circuit breaker protection, and rate limiting.
+
     Args:
         file_id: Google Drive file ID of the document
     """
@@ -2224,16 +2843,29 @@ def gdrive_read_document(
 
         service = _get_google_drive_service()
 
-        # Export as plain text
-        request = service.files().export_media(
-            fileId=file_id,
-            mimeType='text/plain'
-        )
+        def _read_doc():
+            # Export as plain text
+            request = service.files().export_media(
+                fileId=file_id,
+                mimeType='text/plain'
+            )
+            return request.execute().decode('utf-8')
 
-        content = request.execute().decode('utf-8')
+        content = resilient_api_call(
+            _read_doc,
+            circuit_breaker=_google_drive_cb,
+            rate_limiter=_google_drive_limiter,
+            service_name="Google Drive",
+            operation_name="read_document",
+            cache_key=f"gdrive_doc_{file_id}"
+        )
 
         return content
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except HttpError as e:
         return f"Google Drive API Error: {e.resp.status} - {e.reason}"
     except Exception as e:
@@ -2250,6 +2882,8 @@ def gdrive_create_folder(
     parent_folder_id: str = None
 ) -> str:
     """Create a new folder in Google Drive.
+
+    Features retry logic, circuit breaker protection, and rate limiting.
 
     Args:
         folder_name: Name of the folder to create
@@ -2272,10 +2906,19 @@ def gdrive_create_folder(
         if parent_folder_id:
             folder_metadata['parents'] = [parent_folder_id]
 
-        folder = service.files().create(
-            body=folder_metadata,
-            fields='id, name, webViewLink'
-        ).execute()
+        def _create_folder():
+            return service.files().create(
+                body=folder_metadata,
+                fields='id, name, webViewLink'
+            ).execute()
+
+        folder = resilient_api_call(
+            _create_folder,
+            circuit_breaker=_google_drive_cb,
+            rate_limiter=_google_drive_limiter,
+            service_name="Google Drive",
+            operation_name="create_folder"
+        )
 
         return json.dumps({
             "success": True,
@@ -2284,6 +2927,10 @@ def gdrive_create_folder(
             "web_link": folder.get('webViewLink', '')
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except HttpError as e:
         return f"Google Drive API Error: {e.resp.status} - {e.reason}"
     except Exception as e:
@@ -2296,6 +2943,8 @@ def gdrive_move_file(
     destination_folder_id: str
 ) -> str:
     """Move a file to a different folder in Google Drive.
+
+    Features retry logic, circuit breaker protection, and rate limiting.
 
     Args:
         file_id: ID of the file to move
@@ -2310,17 +2959,26 @@ def gdrive_move_file(
 
         service = _get_google_drive_service()
 
-        # Get current parents
-        file = service.files().get(fileId=file_id, fields='parents, name').execute()
-        previous_parents = ",".join(file.get('parents', []))
+        def _move_file():
+            # Get current parents
+            file_info = service.files().get(fileId=file_id, fields='parents, name').execute()
+            previous_parents = ",".join(file_info.get('parents', []))
 
-        # Move the file
-        file = service.files().update(
-            fileId=file_id,
-            addParents=destination_folder_id,
-            removeParents=previous_parents,
-            fields='id, name, parents, webViewLink'
-        ).execute()
+            # Move the file
+            return service.files().update(
+                fileId=file_id,
+                addParents=destination_folder_id,
+                removeParents=previous_parents,
+                fields='id, name, parents, webViewLink'
+            ).execute()
+
+        file = resilient_api_call(
+            _move_file,
+            circuit_breaker=_google_drive_cb,
+            rate_limiter=_google_drive_limiter,
+            service_name="Google Drive",
+            operation_name="move_file"
+        )
 
         return json.dumps({
             "success": True,
@@ -2330,6 +2988,10 @@ def gdrive_move_file(
             "web_link": file.get('webViewLink', '')
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except HttpError as e:
         return f"Google Drive API Error: {e.resp.status} - {e.reason}"
     except Exception as e:
@@ -2342,6 +3004,8 @@ def gdrive_list_folder_contents(
     max_results: int = 100
 ) -> str:
     """List all files and folders in a specific folder (or root if not specified).
+
+    Features retry logic, circuit breaker protection, and rate limiting with caching.
 
     Args:
         folder_id: ID of the folder to list (lists root if not specified)
@@ -2362,12 +3026,22 @@ def gdrive_list_folder_contents(
         else:
             query = "'root' in parents and trashed=false"
 
-        results = service.files().list(
-            q=query,
-            pageSize=max_results,
-            fields="files(id, name, mimeType, modifiedTime, size, starred, webViewLink)",
-            orderBy="folder,name"  # Folders first, then alphabetical
-        ).execute()
+        def _list_contents():
+            return service.files().list(
+                q=query,
+                pageSize=max_results,
+                fields="files(id, name, mimeType, modifiedTime, size, starred, webViewLink)",
+                orderBy="folder,name"  # Folders first, then alphabetical
+            ).execute()
+
+        results = resilient_api_call(
+            _list_contents,
+            circuit_breaker=_google_drive_cb,
+            rate_limiter=_google_drive_limiter,
+            service_name="Google Drive",
+            operation_name="list_folder",
+            cache_key=f"gdrive_folder_{folder_id or 'root'}_{max_results}"
+        )
 
         files = results.get('files', [])
 
@@ -2385,6 +3059,10 @@ def gdrive_list_folder_contents(
             "files": regular_files
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except HttpError as e:
         return f"Google Drive API Error: {e.resp.status} - {e.reason}"
     except Exception as e:
@@ -2396,6 +3074,8 @@ def gdrive_trash_file(
     file_id: str
 ) -> str:
     """Move a file or folder to trash in Google Drive (does NOT permanently delete).
+
+    Features retry logic, circuit breaker protection, and rate limiting.
 
     Args:
         file_id: ID of the file/folder to move to trash
@@ -2411,14 +3091,25 @@ def gdrive_trash_file(
 
         service = _get_google_drive_service()
 
-        # Get file info first
-        file_info = service.files().get(fileId=file_id, fields='name, mimeType').execute()
+        def _trash_file():
+            # Get file info first
+            file_info = service.files().get(fileId=file_id, fields='name, mimeType').execute()
 
-        # Move to trash (does NOT permanently delete)
-        service.files().update(
-            fileId=file_id,
-            body={'trashed': True}
-        ).execute()
+            # Move to trash (does NOT permanently delete)
+            service.files().update(
+                fileId=file_id,
+                body={'trashed': True}
+            ).execute()
+
+            return file_info
+
+        file_info = resilient_api_call(
+            _trash_file,
+            circuit_breaker=_google_drive_cb,
+            rate_limiter=_google_drive_limiter,
+            service_name="Google Drive",
+            operation_name="trash_file"
+        )
 
         return json.dumps({
             "success": True,
@@ -2428,6 +3119,10 @@ def gdrive_trash_file(
             "note": "File can be restored from trash within 30 days"
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except HttpError as e:
         return f"Google Drive API Error: {e.resp.status} - {e.reason}"
     except Exception as e:
@@ -2440,6 +3135,8 @@ def gdrive_rename_file(
     new_name: str
 ) -> str:
     """Rename a file or folder in Google Drive.
+
+    Features retry logic, circuit breaker protection, and rate limiting.
 
     Args:
         file_id: ID of the file/folder to rename
@@ -2454,16 +3151,27 @@ def gdrive_rename_file(
 
         service = _get_google_drive_service()
 
-        # Get current info
-        file_info = service.files().get(fileId=file_id, fields='name').execute()
-        old_name = file_info['name']
+        def _rename_file():
+            # Get current info
+            file_info = service.files().get(fileId=file_id, fields='name').execute()
+            old_name = file_info['name']
 
-        # Rename
-        updated_file = service.files().update(
-            fileId=file_id,
-            body={'name': new_name},
-            fields='id, name, webViewLink'
-        ).execute()
+            # Rename
+            updated_file = service.files().update(
+                fileId=file_id,
+                body={'name': new_name},
+                fields='id, name, webViewLink'
+            ).execute()
+
+            return old_name, updated_file
+
+        old_name, updated_file = resilient_api_call(
+            _rename_file,
+            circuit_breaker=_google_drive_cb,
+            rate_limiter=_google_drive_limiter,
+            service_name="Google Drive",
+            operation_name="rename_file"
+        )
 
         return json.dumps({
             "success": True,
@@ -2473,6 +3181,10 @@ def gdrive_rename_file(
             "web_link": updated_file.get('webViewLink', '')
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except HttpError as e:
         return f"Google Drive API Error: {e.resp.status} - {e.reason}"
     except Exception as e:
@@ -2552,6 +3264,8 @@ def gdrive_get_folder_id_by_name(
 ) -> str:
     """Find a folder ID by searching for its name.
 
+    Features retry logic, circuit breaker protection, and rate limiting with caching.
+
     Args:
         folder_name: Name of the folder to find
         parent_folder_id: Optional parent folder to search within
@@ -2571,11 +3285,21 @@ def gdrive_get_folder_id_by_name(
         if parent_folder_id:
             query += f" and '{parent_folder_id}' in parents"
 
-        results = service.files().list(
-            q=query,
-            fields="files(id, name, parents, webViewLink)",
-            pageSize=10
-        ).execute()
+        def _search_folder():
+            return service.files().list(
+                q=query,
+                fields="files(id, name, parents, webViewLink)",
+                pageSize=10
+            ).execute()
+
+        results = resilient_api_call(
+            _search_folder,
+            circuit_breaker=_google_drive_cb,
+            rate_limiter=_google_drive_limiter,
+            service_name="Google Drive",
+            operation_name="get_folder_by_name",
+            cache_key=f"gdrive_folder_name_{folder_name}_{parent_folder_id or 'root'}"
+        )
 
         folders = results.get('files', [])
 
@@ -2585,6 +3309,10 @@ def gdrive_get_folder_id_by_name(
             "folders": folders
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except HttpError as e:
         return f"Google Drive API Error: {e.resp.status} - {e.reason}"
     except Exception as e:
@@ -2681,6 +3409,8 @@ def gdrive_upload_file(
 ) -> str:
     """Upload a file from local machine to Google Drive.
 
+    Features retry logic, circuit breaker protection, and rate limiting.
+
     Args:
         local_file_path: Path to the local file to upload
         destination_folder_id: Optional folder ID (uploads to root if not specified)
@@ -2718,11 +3448,20 @@ def gdrive_upload_file(
 
         media = MediaFileUpload(str(local_path), mimetype=mime_type, resumable=True)
 
-        file = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id, name, size, webViewLink, mimeType'
-        ).execute()
+        def _upload_file():
+            return service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields='id, name, size, webViewLink, mimeType'
+            ).execute()
+
+        file = resilient_api_call(
+            _upload_file,
+            circuit_breaker=_google_drive_cb,
+            rate_limiter=_google_drive_limiter,
+            service_name="Google Drive",
+            operation_name="upload_file"
+        )
 
         file_size_mb = int(file.get('size', 0)) / (1024 * 1024)
 
@@ -2736,6 +3475,10 @@ def gdrive_upload_file(
             "location": "Root" if not destination_folder_id else f"Folder {destination_folder_id}"
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except HttpError as e:
         return f"Google Drive API Error: {e.resp.status} - {e.reason}"
     except Exception as e:
@@ -2750,6 +3493,8 @@ def gdrive_share_file(
     email_address: str = None
 ) -> str:
     """Share a file or folder and get shareable link.
+
+    Features retry logic, circuit breaker protection, and rate limiting.
 
     Args:
         file_id: ID of the file/folder to share
@@ -2766,31 +3511,42 @@ def gdrive_share_file(
 
         service = _get_google_drive_service()
 
-        # Get file info
-        file_info = service.files().get(fileId=file_id, fields='name, mimeType').execute()
+        def _share_file():
+            # Get file info
+            file_info = service.files().get(fileId=file_id, fields='name, mimeType').execute()
 
-        # Create permission
-        permission_body = {
-            'type': permission_type,
-            'role': role
-        }
+            # Create permission
+            permission_body = {
+                'type': permission_type,
+                'role': role
+            }
 
-        if permission_type == "user" and email_address:
-            permission_body['emailAddress'] = email_address
-        elif permission_type == "anyone":
-            permission_body['type'] = 'anyone'
+            if permission_type == "user" and email_address:
+                permission_body['emailAddress'] = email_address
+            elif permission_type == "anyone":
+                permission_body['type'] = 'anyone'
 
-        permission = service.permissions().create(
-            fileId=file_id,
-            body=permission_body,
-            fields='id'
-        ).execute()
+            permission = service.permissions().create(
+                fileId=file_id,
+                body=permission_body,
+                fields='id'
+            ).execute()
 
-        # Get shareable link
-        file_with_link = service.files().get(
-            fileId=file_id,
-            fields='webViewLink, webContentLink'
-        ).execute()
+            # Get shareable link
+            file_with_link = service.files().get(
+                fileId=file_id,
+                fields='webViewLink, webContentLink'
+            ).execute()
+
+            return file_info, permission, file_with_link
+
+        file_info, permission, file_with_link = resilient_api_call(
+            _share_file,
+            circuit_breaker=_google_drive_cb,
+            rate_limiter=_google_drive_limiter,
+            service_name="Google Drive",
+            operation_name="share_file"
+        )
 
         return json.dumps({
             "success": True,
@@ -2804,6 +3560,10 @@ def gdrive_share_file(
             "shared_with": email_address if email_address else "Anyone with the link"
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except HttpError as e:
         return f"Google Drive API Error: {e.resp.status} - {e.reason}"
     except Exception as e:
@@ -2816,6 +3576,8 @@ def gdrive_get_file_metadata(
     include_permissions: bool = False
 ) -> str:
     """Get detailed metadata for a file or folder.
+
+    Features retry logic, circuit breaker protection, and rate limiting with caching.
 
     Args:
         file_id: ID of the file/folder
@@ -2835,7 +3597,17 @@ def gdrive_get_file_metadata(
         if include_permissions:
             fields += ", permissions"
 
-        file_info = service.files().get(fileId=file_id, fields=fields).execute()
+        def _get_metadata():
+            return service.files().get(fileId=file_id, fields=fields).execute()
+
+        file_info = resilient_api_call(
+            _get_metadata,
+            circuit_breaker=_google_drive_cb,
+            rate_limiter=_google_drive_limiter,
+            service_name="Google Drive",
+            operation_name="get_metadata",
+            cache_key=f"gdrive_metadata_{file_id}_{include_permissions}"
+        )
 
         # Format size
         if 'size' in file_info:
@@ -2866,6 +3638,10 @@ def gdrive_get_file_metadata(
             "metadata": file_info
         }, indent=2, default=str)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except HttpError as e:
         return f"Google Drive API Error: {e.resp.status} - {e.reason}"
     except Exception as e:
@@ -2879,6 +3655,8 @@ def gdrive_copy_file(
     destination_folder_id: str = None
 ) -> str:
     """Create a copy of a file in Google Drive.
+
+    Features retry logic, circuit breaker protection, and rate limiting.
 
     Args:
         file_id: ID of the file to copy
@@ -2894,24 +3672,35 @@ def gdrive_copy_file(
 
         service = _get_google_drive_service()
 
-        # Get original file info
-        original = service.files().get(fileId=file_id, fields='name, parents').execute()
+        def _copy_file():
+            # Get original file info
+            original = service.files().get(fileId=file_id, fields='name, parents').execute()
 
-        copy_metadata = {}
+            copy_metadata = {}
 
-        if new_name:
-            copy_metadata['name'] = new_name
-        else:
-            copy_metadata['name'] = f"Copy of {original['name']}"
+            if new_name:
+                copy_metadata['name'] = new_name
+            else:
+                copy_metadata['name'] = f"Copy of {original['name']}"
 
-        if destination_folder_id:
-            copy_metadata['parents'] = [destination_folder_id]
+            if destination_folder_id:
+                copy_metadata['parents'] = [destination_folder_id]
 
-        copied_file = service.files().copy(
-            fileId=file_id,
-            body=copy_metadata,
-            fields='id, name, webViewLink'
-        ).execute()
+            copied_file = service.files().copy(
+                fileId=file_id,
+                body=copy_metadata,
+                fields='id, name, webViewLink'
+            ).execute()
+
+            return original, copied_file
+
+        original, copied_file = resilient_api_call(
+            _copy_file,
+            circuit_breaker=_google_drive_cb,
+            rate_limiter=_google_drive_limiter,
+            service_name="Google Drive",
+            operation_name="copy_file"
+        )
 
         return json.dumps({
             "success": True,
@@ -2922,6 +3711,10 @@ def gdrive_copy_file(
             "web_link": copied_file.get('webViewLink', '')
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except HttpError as e:
         return f"Google Drive API Error: {e.resp.status} - {e.reason}"
     except Exception as e:
@@ -3064,6 +3857,8 @@ def _get_google_photos_picker_credentials():
 def gphotos_create_picker_session() -> str:
     """Create a new Google Photos Picker session.
 
+    Features retry logic, circuit breaker protection, and rate limiting.
+
     This initiates a photo selection session. The returned pickerUri should be
     opened in a browser for the user to select photos from their Google Photos library.
 
@@ -3088,15 +3883,23 @@ def gphotos_create_picker_session() -> str:
             "Content-Type": "application/json"
         }
 
-        # Create picker session
-        response = httpx.post(
-            "https://photospicker.googleapis.com/v1/sessions",
-            headers=headers,
-            json={}
-        )
-        response.raise_for_status()
+        def _create_session():
+            # Create picker session
+            response = httpx.post(
+                "https://photospicker.googleapis.com/v1/sessions",
+                headers=headers,
+                json={}
+            )
+            response.raise_for_status()
+            return response.json()
 
-        session_data = response.json()
+        session_data = resilient_api_call(
+            _create_session,
+            circuit_breaker=_google_photos_cb,
+            rate_limiter=_google_photos_limiter,
+            service_name="Google Photos",
+            operation_name="create_session"
+        )
 
         return json.dumps({
             "success": True,
@@ -3106,6 +3909,10 @@ def gphotos_create_picker_session() -> str:
             "instructions": "Open picker_uri in a browser. User will select photos from their Google Photos. Then call gphotos_check_session() to poll for completion."
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except httpx.HTTPStatusError as e:
         return f"HTTP Error {e.response.status_code}: {e.response.text}"
     except Exception as e:
@@ -3115,6 +3922,8 @@ def gphotos_create_picker_session() -> str:
 @mcp.tool()
 def gphotos_check_session(session_id: str) -> str:
     """Check the status of a Google Photos Picker session.
+
+    Features retry logic, circuit breaker protection, and rate limiting.
 
     Args:
         session_id: The session ID returned from gphotos_create_picker_session()
@@ -3137,13 +3946,21 @@ def gphotos_check_session(session_id: str) -> str:
             "Content-Type": "application/json"
         }
 
-        response = httpx.get(
-            f"https://photospicker.googleapis.com/v1/sessions/{session_id}",
-            headers=headers
-        )
-        response.raise_for_status()
+        def _check_session():
+            response = httpx.get(
+                f"https://photospicker.googleapis.com/v1/sessions/{session_id}",
+                headers=headers
+            )
+            response.raise_for_status()
+            return response.json()
 
-        session_data = response.json()
+        session_data = resilient_api_call(
+            _check_session,
+            circuit_breaker=_google_photos_cb,
+            rate_limiter=_google_photos_limiter,
+            service_name="Google Photos",
+            operation_name="check_session"
+        )
 
         return json.dumps({
             "success": True,
@@ -3153,6 +3970,10 @@ def gphotos_check_session(session_id: str) -> str:
             "expires_time": session_data.get("expireTime")
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except httpx.HTTPStatusError as e:
         return f"HTTP Error {e.response.status_code}: {e.response.text}"
     except Exception as e:
@@ -3297,6 +4118,8 @@ def gphotos_download_selected(base_url: str, output_path: str, mime_type: str = 
 def gphotos_delete_session(session_id: str) -> str:
     """Delete a Google Photos Picker session.
 
+    Features retry logic, circuit breaker protection, and rate limiting.
+
     Args:
         session_id: The session ID to delete
 
@@ -3315,17 +4138,31 @@ def gphotos_delete_session(session_id: str) -> str:
             "Content-Type": "application/json"
         }
 
-        response = httpx.delete(
-            f"https://photospicker.googleapis.com/v1/sessions/{session_id}",
-            headers=headers
+        def _delete_session():
+            response = httpx.delete(
+                f"https://photospicker.googleapis.com/v1/sessions/{session_id}",
+                headers=headers
+            )
+            response.raise_for_status()
+            return True
+
+        resilient_api_call(
+            _delete_session,
+            circuit_breaker=_google_photos_cb,
+            rate_limiter=_google_photos_limiter,
+            service_name="Google Photos",
+            operation_name="delete_session"
         )
-        response.raise_for_status()
 
         return json.dumps({
             "success": True,
             "message": f"Session {session_id} deleted successfully"
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except httpx.HTTPStatusError as e:
         return f"HTTP Error {e.response.status_code}: {e.response.text}"
     except Exception as e:
@@ -3347,6 +4184,8 @@ def pexels_search_photos(
     color: str = None
 ) -> str:
     """Search for free stock photos on Pexels.
+
+    Features retry logic, circuit breaker protection, and rate limiting with caching.
 
     Args:
         query: Search query (e.g., "campaign event", "political rally", "community")
@@ -3389,11 +4228,21 @@ def pexels_search_photos(
         if color:
             params["color"] = color
 
-        # Make API request
-        response = httpx.get(url, headers=headers, params=params, timeout=30)
-        response.raise_for_status()
+        def _search_photos():
+            # Make API request
+            response = httpx.get(url, headers=headers, params=params, timeout=30)
+            response.raise_for_status()
+            return response.json()
 
-        data = response.json()
+        data = resilient_api_call(
+            _search_photos,
+            circuit_breaker=_pexels_cb,
+            rate_limiter=_pexels_limiter,
+            service_name="Pexels",
+            operation_name="search_photos",
+            cache_key=f"pexels_search_{query}_{page}_{per_page}_{orientation}_{size}_{color}"
+        )
+
         photos = data.get("photos", [])
 
         # Format results
@@ -3426,6 +4275,10 @@ def pexels_search_photos(
             "photos": results
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except Exception as e:
         return f"Error searching Pexels: {str(e)}"
 
@@ -3433,6 +4286,8 @@ def pexels_search_photos(
 @mcp.tool()
 def pexels_get_photo(photo_id: int) -> str:
     """Get details of a specific photo by ID.
+
+    Features retry logic, circuit breaker protection, and rate limiting with caching.
 
     Args:
         photo_id: The Pexels photo ID
@@ -3450,10 +4305,19 @@ def pexels_get_photo(photo_id: int) -> str:
         url = f"https://api.pexels.com/v1/photos/{photo_id}"
         headers = {"Authorization": api_key}
 
-        response = httpx.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
+        def _get_photo():
+            response = httpx.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            return response.json()
 
-        photo = response.json()
+        photo = resilient_api_call(
+            _get_photo,
+            circuit_breaker=_pexels_cb,
+            rate_limiter=_pexels_limiter,
+            service_name="Pexels",
+            operation_name="get_photo",
+            cache_key=f"pexels_photo_{photo_id}"
+        )
 
         return json.dumps({
             "success": True,
@@ -3468,6 +4332,10 @@ def pexels_get_photo(photo_id: int) -> str:
             "alt": photo.get("alt", "")
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except Exception as e:
         return f"Error getting photo: {str(e)}"
 
@@ -3475,6 +4343,8 @@ def pexels_get_photo(photo_id: int) -> str:
 @mcp.tool()
 def pexels_download_photo(photo_id: int, output_path: str, size: str = "large") -> str:
     """Download a photo from Pexels.
+
+    Features retry logic, circuit breaker protection, and rate limiting.
 
     Args:
         photo_id: The Pexels photo ID
@@ -3495,10 +4365,18 @@ def pexels_download_photo(photo_id: int, output_path: str, size: str = "large") 
         url = f"https://api.pexels.com/v1/photos/{photo_id}"
         headers = {"Authorization": api_key}
 
-        response = httpx.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
+        def _get_photo_details():
+            response = httpx.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            return response.json()
 
-        photo = response.json()
+        photo = resilient_api_call(
+            _get_photo_details,
+            circuit_breaker=_pexels_cb,
+            rate_limiter=_pexels_limiter,
+            service_name="Pexels",
+            operation_name="download_photo_metadata"
+        )
 
         # Get download URL for requested size
         src = photo.get("src", {})
@@ -3507,17 +4385,26 @@ def pexels_download_photo(photo_id: int, output_path: str, size: str = "large") 
         if not download_url:
             return f"Error: Size '{size}' not available. Available sizes: {list(src.keys())}"
 
-        # Download the photo
-        photo_response = httpx.get(download_url, timeout=60)
-        photo_response.raise_for_status()
+        def _download_photo():
+            # Download the photo
+            photo_response = httpx.get(download_url, timeout=60)
+            photo_response.raise_for_status()
+            return photo_response.content
+
+        photo_content = resilient_api_call(
+            _download_photo,
+            circuit_breaker=_pexels_cb,
+            service_name="Pexels",
+            operation_name="download_photo_content"
+        )
 
         # Save to file
         output_file = Path(output_path).expanduser()
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        output_file.write_bytes(photo_response.content)
+        output_file.write_bytes(photo_content)
 
-        file_size_mb = len(photo_response.content) / (1024 * 1024)
+        file_size_mb = len(photo_content) / (1024 * 1024)
 
         return json.dumps({
             "success": True,
@@ -3529,6 +4416,10 @@ def pexels_download_photo(photo_id: int, output_path: str, size: str = "large") 
             "dimensions": f"{photo.get('width')}x{photo.get('height')}"
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except Exception as e:
         return f"Error downloading photo: {str(e)}"
 
@@ -3536,6 +4427,8 @@ def pexels_download_photo(photo_id: int, output_path: str, size: str = "large") 
 @mcp.tool()
 def pexels_curated_photos(per_page: int = 15, page: int = 1) -> str:
     """Get curated photos from Pexels (trending/popular photos).
+
+    Features retry logic, circuit breaker protection, and rate limiting with caching.
 
     Args:
         per_page: Number of results per page (max 80, default 15)
@@ -3559,10 +4452,20 @@ def pexels_curated_photos(per_page: int = 15, page: int = 1) -> str:
             "page": page
         }
 
-        response = httpx.get(url, headers=headers, params=params, timeout=30)
-        response.raise_for_status()
+        def _get_curated():
+            response = httpx.get(url, headers=headers, params=params, timeout=30)
+            response.raise_for_status()
+            return response.json()
 
-        data = response.json()
+        data = resilient_api_call(
+            _get_curated,
+            circuit_breaker=_pexels_cb,
+            rate_limiter=_pexels_limiter,
+            service_name="Pexels",
+            operation_name="curated_photos",
+            cache_key=f"pexels_curated_{page}_{per_page}"
+        )
+
         photos = data.get("photos", [])
 
         results = []
@@ -3587,6 +4490,431 @@ def pexels_curated_photos(per_page: int = 15, page: int = 1) -> str:
             "photos": results
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except Exception as e:
         return f"Error getting curated photos: {str(e)}"
+
+
+# ============================================================================
+# HEALTH CHECK AND MONITORING TOOLS
+# ============================================================================
+
+@mcp.tool()
+def system_health_check() -> str:
+    """Perform comprehensive system health check.
+
+    Checks various system components and validates configuration
+    to ensure the system is operating correctly.
+
+    Returns:
+        JSON string with health check results including:
+        - Overall system health status
+        - Individual component checks
+        - Warnings and recommendations
+    """
+    try:
+        health_results = {
+            "timestamp": datetime.now().isoformat(),
+            "overall_status": "healthy",
+            "checks": {}
+        }
+
+        warnings = []
+        errors = []
+
+        # Check 1: Disk space
+        try:
+            disk_usage = psutil.disk_usage("/")
+            disk_percent = disk_usage.percent
+            health_results["checks"]["disk_space"] = {
+                "status": "healthy" if disk_percent < 85 else "warning" if disk_percent < 95 else "critical",
+                "usage_percent": disk_percent,
+                "free_gb": round(disk_usage.free / (1024**3), 2)
+            }
+            if disk_percent >= 85:
+                warnings.append(f"Disk usage is at {disk_percent}%")
+        except Exception as e:
+            health_results["checks"]["disk_space"] = {"status": "error", "message": str(e)}
+            errors.append(f"Disk check failed: {e}")
+
+        # Check 2: Memory usage
+        try:
+            memory = psutil.virtual_memory()
+            mem_percent = memory.percent
+            health_results["checks"]["memory"] = {
+                "status": "healthy" if mem_percent < 80 else "warning" if mem_percent < 95 else "critical",
+                "usage_percent": mem_percent,
+                "available_gb": round(memory.available / (1024**3), 2)
+            }
+            if mem_percent >= 80:
+                warnings.append(f"Memory usage is at {mem_percent}%")
+        except Exception as e:
+            health_results["checks"]["memory"] = {"status": "error", "message": str(e)}
+            errors.append(f"Memory check failed: {e}")
+
+        # Check 3: CPU load
+        try:
+            cpu_percent = psutil.cpu_percent(interval=0.5)
+            health_results["checks"]["cpu"] = {
+                "status": "healthy" if cpu_percent < 70 else "warning" if cpu_percent < 90 else "critical",
+                "usage_percent": cpu_percent,
+                "cpu_count": psutil.cpu_count()
+            }
+            if cpu_percent >= 70:
+                warnings.append(f"CPU usage is at {cpu_percent}%")
+        except Exception as e:
+            health_results["checks"]["cpu"] = {"status": "error", "message": str(e)}
+            errors.append(f"CPU check failed: {e}")
+
+        # Check 4: Skippy libraries availability
+        health_results["checks"]["skippy_libraries"] = {
+            "status": "healthy" if SKIPPY_LIBS_AVAILABLE else "warning",
+            "available": SKIPPY_LIBS_AVAILABLE,
+            "resilience_available": SKIPPY_RESILIENCE_AVAILABLE if 'SKIPPY_RESILIENCE_AVAILABLE' in globals() else False
+        }
+        if not SKIPPY_LIBS_AVAILABLE:
+            warnings.append("Skippy validation libraries not available - some security features disabled")
+
+        # Check 5: Configuration validation
+        if SKIPPY_LIBS_AVAILABLE and 'SKIPPY_RESILIENCE_AVAILABLE' in globals() and SKIPPY_RESILIENCE_AVAILABLE:
+            try:
+                config = SkippyConfig.from_env()
+                validator = ConfigValidator(config)
+                is_valid = validator.validate()
+                health_results["checks"]["configuration"] = {
+                    "status": "healthy" if is_valid else "warning",
+                    "valid": is_valid,
+                    "errors": validator.errors[:5],
+                    "warnings": validator.warnings[:5]
+                }
+                if not is_valid:
+                    errors.extend(validator.errors[:3])
+                warnings.extend(validator.warnings[:3])
+            except Exception as e:
+                health_results["checks"]["configuration"] = {"status": "error", "message": str(e)}
+        else:
+            health_results["checks"]["configuration"] = {"status": "skipped", "reason": "Resilience modules not available"}
+
+        # Check 6: Log directory writable
+        try:
+            log_dir = Path(os.getenv("SKIPPY_BASE_PATH", "/home/dave/skippy")) / "logs"
+            if log_dir.exists():
+                test_file = log_dir / ".health_check_test"
+                test_file.write_text("test")
+                test_file.unlink()
+                health_results["checks"]["log_directory"] = {"status": "healthy", "path": str(log_dir), "writable": True}
+            else:
+                health_results["checks"]["log_directory"] = {"status": "warning", "path": str(log_dir), "writable": False}
+                warnings.append(f"Log directory does not exist: {log_dir}")
+        except Exception as e:
+            health_results["checks"]["log_directory"] = {"status": "error", "message": str(e)}
+            errors.append(f"Log directory check failed: {e}")
+
+        # Check 7: Circuit breaker status (if available)
+        if 'SKIPPY_RESILIENCE_AVAILABLE' in globals() and SKIPPY_RESILIENCE_AVAILABLE:
+            try:
+                cb_states = get_all_circuit_breaker_states()
+                open_breakers = [name for name, state in cb_states.items() if state.get("state") == "open"]
+                health_results["checks"]["circuit_breakers"] = {
+                    "status": "healthy" if not open_breakers else "warning",
+                    "total": len(cb_states),
+                    "open": open_breakers
+                }
+                if open_breakers:
+                    warnings.append(f"Circuit breakers OPEN: {', '.join(open_breakers)}")
+            except Exception as e:
+                health_results["checks"]["circuit_breakers"] = {"status": "skipped", "message": str(e)}
+
+        # Determine overall status
+        if errors:
+            health_results["overall_status"] = "critical"
+        elif warnings:
+            health_results["overall_status"] = "degraded"
+        else:
+            health_results["overall_status"] = "healthy"
+
+        health_results["warnings"] = warnings
+        health_results["errors"] = errors
+        health_results["summary"] = f"System is {health_results['overall_status']} with {len(errors)} errors and {len(warnings)} warnings"
+
+        return json.dumps(health_results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return json.dumps({
+            "timestamp": datetime.now().isoformat(),
+            "overall_status": "error",
+            "error": str(e)
+        }, indent=2)
+
+
+@mcp.tool()
+def get_system_metrics() -> str:
+    """Get current system performance metrics.
+
+    Returns detailed metrics about system resource usage,
+    process information, and service status.
+
+    Returns:
+        JSON string with comprehensive system metrics
+    """
+    try:
+        metrics = {
+            "timestamp": datetime.now().isoformat(),
+            "uptime_seconds": time.time() - psutil.boot_time(),
+        }
+
+        # CPU metrics
+        cpu_times = psutil.cpu_times()
+        metrics["cpu"] = {
+            "percent": psutil.cpu_percent(interval=0.1),
+            "count_physical": psutil.cpu_count(logical=False),
+            "count_logical": psutil.cpu_count(logical=True),
+            "user_time": cpu_times.user,
+            "system_time": cpu_times.system,
+            "idle_time": cpu_times.idle
+        }
+
+        # Memory metrics
+        mem = psutil.virtual_memory()
+        swap = psutil.swap_memory()
+        metrics["memory"] = {
+            "total_gb": round(mem.total / (1024**3), 2),
+            "available_gb": round(mem.available / (1024**3), 2),
+            "used_gb": round(mem.used / (1024**3), 2),
+            "percent": mem.percent,
+            "swap_total_gb": round(swap.total / (1024**3), 2),
+            "swap_used_gb": round(swap.used / (1024**3), 2),
+            "swap_percent": swap.percent
+        }
+
+        # Disk metrics
+        disk = psutil.disk_usage("/")
+        metrics["disk"] = {
+            "total_gb": round(disk.total / (1024**3), 2),
+            "used_gb": round(disk.used / (1024**3), 2),
+            "free_gb": round(disk.free / (1024**3), 2),
+            "percent": disk.percent
+        }
+
+        # Network metrics
+        net_io = psutil.net_io_counters()
+        metrics["network"] = {
+            "bytes_sent_mb": round(net_io.bytes_sent / (1024**2), 2),
+            "bytes_recv_mb": round(net_io.bytes_recv / (1024**2), 2),
+            "packets_sent": net_io.packets_sent,
+            "packets_recv": net_io.packets_recv,
+            "errors_in": net_io.errin,
+            "errors_out": net_io.errout
+        }
+
+        # Process count
+        metrics["processes"] = {
+            "total": len(list(psutil.process_iter())),
+            "running": len([p for p in psutil.process_iter(['status']) if p.info['status'] == 'running'])
+        }
+
+        # Server-specific metrics
+        metrics["server"] = {
+            "skippy_libs_available": SKIPPY_LIBS_AVAILABLE,
+            "resilience_available": SKIPPY_RESILIENCE_AVAILABLE if 'SKIPPY_RESILIENCE_AVAILABLE' in globals() else False,
+            "python_version": sys.version.split()[0]
+        }
+
+        return json.dumps(metrics, indent=2)
+
+    except Exception as e:
+        logger.error(f"Failed to get system metrics: {e}")
+        return f"Error getting system metrics: {str(e)}"
+
+
+@mcp.tool()
+def validate_skippy_configuration() -> str:
+    """Validate the current Skippy configuration.
+
+    Checks all configuration settings for correctness, security issues,
+    and potential problems.
+
+    Returns:
+        JSON string with validation results including errors and warnings
+    """
+    try:
+        if not SKIPPY_LIBS_AVAILABLE or not ('SKIPPY_RESILIENCE_AVAILABLE' in globals() and SKIPPY_RESILIENCE_AVAILABLE):
+            return json.dumps({
+                "success": False,
+                "error": "Resilience modules not available for configuration validation"
+            }, indent=2)
+
+        # Validate configuration
+        config = SkippyConfig.from_env()
+        validator = ConfigValidator(config)
+        is_valid = validator.validate()
+
+        # Validate environment variables
+        env_validation = validate_environment_variables()
+
+        result = {
+            "timestamp": datetime.now().isoformat(),
+            "configuration_valid": is_valid,
+            "environment_valid": env_validation["valid"],
+            "configuration": {
+                "errors": validator.errors,
+                "warnings": validator.warnings,
+                "settings": config.to_dict()
+            },
+            "environment": env_validation,
+            "recommendations": []
+        }
+
+        # Add recommendations based on issues found
+        if not is_valid:
+            result["recommendations"].append("Fix configuration errors before deploying to production")
+        if validator.warnings:
+            result["recommendations"].append("Review configuration warnings for potential security issues")
+        if not env_validation["valid"]:
+            result["recommendations"].append("Set required environment variables")
+
+        return json.dumps(result, indent=2)
+
+    except Exception as e:
+        logger.error(f"Configuration validation failed: {e}")
+        return json.dumps({
+            "success": False,
+            "error": str(e)
+        }, indent=2)
+
+
+@mcp.tool()
+def get_circuit_breaker_status() -> str:
+    """Get status of all circuit breakers.
+
+    Circuit breakers protect the system from cascading failures by
+    stopping requests to failing services.
+
+    Returns:
+        JSON string with circuit breaker states
+    """
+    try:
+        if not ('SKIPPY_RESILIENCE_AVAILABLE' in globals() and SKIPPY_RESILIENCE_AVAILABLE):
+            return json.dumps({
+                "available": False,
+                "message": "Circuit breaker module not available"
+            }, indent=2)
+
+        states = get_all_circuit_breaker_states()
+
+        summary = {
+            "total": len(states),
+            "closed": sum(1 for s in states.values() if s.get("state") == "closed"),
+            "open": sum(1 for s in states.values() if s.get("state") == "open"),
+            "half_open": sum(1 for s in states.values() if s.get("state") == "half_open")
+        }
+
+        return json.dumps({
+            "timestamp": datetime.now().isoformat(),
+            "summary": summary,
+            "circuit_breakers": states
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Failed to get circuit breaker status: {e}")
+        return f"Error: {str(e)}"
+
+
+@mcp.tool()
+def get_resilience_dashboard() -> str:
+    """Get comprehensive resilience and monitoring dashboard.
+
+    Provides a unified view of circuit breaker states, rate limiter usage,
+    service health checks, and recommendations.
+
+    Returns:
+        JSON string with full resilience dashboard data
+    """
+    try:
+        dashboard = {
+            "timestamp": datetime.now().isoformat(),
+            "version": "2.5.0",
+            "resilience_available": SKIPPY_RESILIENCE_AVAILABLE if 'SKIPPY_RESILIENCE_AVAILABLE' in globals() else False
+        }
+
+        if not dashboard["resilience_available"]:
+            dashboard["status"] = "limited"
+            dashboard["message"] = "Resilience modules not available"
+            return json.dumps(dashboard, indent=2)
+
+        # Circuit breaker status
+        cb_states = get_all_circuit_breaker_states()
+        open_circuits = [name for name, state in cb_states.items() if state.get("state") == "open"]
+        dashboard["circuit_breakers"] = {
+            "total": len(cb_states),
+            "healthy": sum(1 for s in cb_states.values() if s.get("state") == "closed"),
+            "open": open_circuits
+        }
+
+        # Rate limiter status
+        dashboard["rate_limiters"] = {
+            "google_drive": {"remaining": _google_drive_limiter.get_remaining_calls() if _google_drive_limiter else "N/A"},
+            "google_photos": {"remaining": _google_photos_limiter.get_remaining_calls() if _google_photos_limiter else "N/A"},
+            "github": {"remaining": _github_limiter.get_remaining_calls() if _github_limiter else "N/A"},
+            "pexels": {"remaining": _pexels_limiter.get_remaining_calls() if _pexels_limiter else "N/A"}
+        }
+
+        # Service health
+        if _health_checker:
+            health = _health_checker.get_summary()
+            dashboard["service_health"] = {
+                "overall_healthy": health["overall_healthy"],
+                "healthy_count": health["healthy_count"],
+                "unhealthy_count": health["unhealthy_count"]
+            }
+
+        # Recommendations
+        recommendations = []
+        if open_circuits:
+            recommendations.append(f"Circuit breakers OPEN: {', '.join(open_circuits)}")
+        if dashboard.get("service_health", {}).get("unhealthy_count", 0) > 0:
+            recommendations.append(f"{dashboard['service_health']['unhealthy_count']} service(s) unhealthy")
+
+        dashboard["recommendations"] = recommendations
+        dashboard["status"] = "healthy" if not recommendations else "needs_attention"
+
+        return json.dumps(dashboard, indent=2)
+
+    except Exception as e:
+        logger.error(f"Failed to generate dashboard: {e}")
+        return json.dumps({"status": "error", "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def reset_circuit_breaker(service_name: str) -> str:
+    """Manually reset a circuit breaker to closed state.
+
+    Args:
+        service_name: Name of the circuit breaker (e.g., "google-drive-api")
+
+    Returns:
+        Status message
+    """
+    try:
+        if not SKIPPY_RESILIENCE_AVAILABLE:
+            return "Error: Resilience modules not available"
+
+        cb = get_circuit_breaker(service_name)
+        old_state = cb.state.value
+        cb.reset()
+
+        logger.info(f"Circuit breaker '{service_name}' reset from {old_state} to CLOSED")
+        return json.dumps({
+            "success": True,
+            "service": service_name,
+            "old_state": old_state,
+            "new_state": "closed"
+        }, indent=2)
+
+    except Exception as e:
+        return f"Error: {str(e)}"
 
