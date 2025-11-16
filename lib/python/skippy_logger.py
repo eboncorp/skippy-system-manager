@@ -84,7 +84,10 @@ class SkippyLogger:
         logger.setLevel(self.log_level)
 
         # Remove existing handlers to avoid duplicates
-        logger.handlers.clear()
+        # Close file handles before clearing to prevent resource warnings
+        for handler in logger.handlers[:]:
+            handler.close()
+            logger.removeHandler(handler)
 
         # Create formatters
         detailed_formatter = logging.Formatter(
