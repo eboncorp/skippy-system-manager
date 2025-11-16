@@ -64,9 +64,12 @@ Protocols are standardized procedures that ensure consistency, quality, and repr
    - When verification happens
    - Manual verification checklist
 
-6. **[Error Recovery Protocol](error_recovery_protocol.md)** ⭐⭐
+6. **[Error Recovery Protocol](error_recovery_protocol.md)** ⭐⭐ **UPDATED v2.0**
    - How errors are handled
    - Automatic retry logic
+   - **NEW: Circuit breaker pattern**
+   - **NEW: Exponential backoff with jitter**
+   - **NEW: Graceful degradation**
    - When to stop vs continue
 
 7. **[Context Preservation Protocol](context_preservation_protocol.md)** ⭐⭐
@@ -121,6 +124,50 @@ Protocols are standardized procedures that ensure consistency, quality, and repr
     - GA4 event naming standards
     - Privacy compliance
     - Implementation guidelines
+
+### 🛡️ System Reliability Protocols (NEW - Critical)
+
+22. **[Health Check Protocol](health_check_protocol.md)** ⭐⭐⭐ **NEW**
+    - Automated system health monitoring
+    - Service availability checks
+    - Resource usage alerts
+    - WordPress-specific health metrics
+
+23. **[API Key Lifecycle Protocol](api_key_lifecycle_protocol.md)** ⭐⭐⭐ **NEW**
+    - Complete key inventory management
+    - Rotation schedules and procedures
+    - Emergency compromise response
+    - Secure storage best practices
+
+24. **[Incident Response Protocol](incident_response_protocol.md)** ⭐⭐⭐ **NEW**
+    - Severity classification (SEV-1 through SEV-4)
+    - 7-phase response procedure
+    - Communication templates
+    - Post-mortem analysis
+
+25. **[Dependency Audit Protocol](dependency_audit_protocol.md)** ⭐⭐ **NEW**
+    - Weekly vulnerability scanning
+    - Version pinning enforcement
+    - Upgrade procedures
+    - Supply chain security
+
+26. **[Data Retention Protocol](data_retention_protocol.md)** ⭐⭐ **NEW**
+    - Retention schedules by data type
+    - GDPR compliance procedures
+    - Automated cleanup scripts
+    - Secure deletion methods
+
+27. **[Performance Baseline Protocol](performance_baseline_protocol.md)** ⭐⭐ **NEW**
+    - System resource baselines
+    - WordPress performance metrics
+    - Trend analysis and reporting
+    - Optimization validation
+
+28. **[Work Files Quick Reference](work_files_quick_reference.md)** ⭐⭐⭐ **NEW**
+    - Single-page reference card
+    - 7-step mandatory process summary
+    - Emergency rollback commands
+    - Pre-flight checklist
 
 ### Operations Protocols
 
@@ -210,6 +257,15 @@ These protocols define regular maintenance and operations:
 - Secret Rotation
 - Deployment Verification
 - Documentation Consolidation
+
+### 🛡️ System Reliability (Critical)
+These protocols ensure system stability and security:
+- Health Check (automated monitoring)
+- API Key Lifecycle (credential management)
+- Incident Response (outage handling)
+- Dependency Audit (vulnerability scanning)
+- Data Retention (compliance and cleanup)
+- Performance Baseline (metrics and trends)
 
 ### 📋 Campaign-Specific
 These protocols are specific to campaign website management:
@@ -338,15 +394,26 @@ All protocols are version-controlled with the repository. Changes to protocols:
 
 ## Protocol Statistics
 
-**Total Protocols:** 27
-**WordPress-Specific:** 3 (NEW)
-**Everyday Use:** 10
-**Development:** 6 (4 NEW)
+**Total Protocols:** 34
+**WordPress-Specific:** 3
+**Everyday Use:** 10 (1 updated with circuit breaker)
+**Development:** 6
 **Operations:** 8
+**System Reliability:** 7 (**NEW** - Critical protocols added)
 **Status:** All active
 
 **Created:** 2025-11-06
-**Last Updated:** 2025-11-08 (Major Update - WordPress Enhancement)
+**Last Updated:** 2025-11-16 (Major Update - System Reliability Enhancement)
+
+### Recent Additions (2025-11-16)
+- Health Check Protocol - Automated monitoring
+- API Key Lifecycle Protocol - Credential management
+- Incident Response Protocol - Outage handling
+- Dependency Audit Protocol - Vulnerability scanning
+- Data Retention Protocol - Compliance and cleanup
+- Performance Baseline Protocol - Metrics tracking
+- Work Files Quick Reference - Simplified reference card
+- Error Recovery Protocol v2.0 - Circuit breaker, exponential backoff
 
 ---
 
