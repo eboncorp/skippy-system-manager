@@ -170,3 +170,116 @@ rundaverun_local_logs/
 venv/
 env/
 *.venv/
+
+# ============================================
+# HOME DIRECTORY PERSONAL FILES
+# ============================================
+# These are personal files, not part of skippy repo
+
+# Large media directories
+android/
+dcim/
+media_server/
+Music/
+Pictures/
+videos/
+voice_recorder/
+
+# System/app directories
+snap/
+.cache/
+.config/
+.local/
+.gnupg/
+.npm/
+.pki/
+.steam/
+.thunderbird/
+
+# Document directories (personal, not skippy)
+Documents/
+Downloads/
+Dropbox/
+Desktop/
+scanned_documents/
+scans/
+ein_documents/
+document_screenshots/
+
+# Trash
+.Trash/
+.Trash-*/
+
+# Shell config
+.bash_history
+.bash_logout
+.bashrc
+.bashrc.*
+.profile
+.history
+.lesshst
+.wget-hsts
+.sudo_as_admin_successful
+
+# Application state
+.steampath
+.steampid
+.npmrc
+.cups/
+.dotnet/
+.hplip/
+.epsonscan2/
+
+# Blockchain/crypto
+.chainlink*/
+.ebon*/
+.ebonhawk*/
+.nexus/
+
+# Other home directory items
+opt/
+usr/
+debian/
+projects/
+reorganization_backup/
+skippy_git_backup_*/
+
+# System manager state
+.advanced-system-manager/
+.unified-system-manager/
+.plcc-helper/
+.tidytux/
+.home-server/
+
+# Utility tools - separate repo
+skippy-tools/
+
+# ============================================
+# CLAUDE CODE STATE FILES
+# ============================================
+# These are local state, not versioned
+.claude.json
+.claude/CLAUDE.md
+.claude/commands/
+.claude/debug/
+.claude/file-history/
+.claude/history.jsonl
+.claude/hooks/
+.claude/plugins/
+.claude/projects/
+.claude/settings.json
+.claude/settings.local.json
+.claude/shell-snapshots/
+.claude/statsig/
+.claude/todos/
+htmlcov/
+.pytest_cache/
+
+# ============================================
+# OTHER UNTRACKED DIRECTORIES
+# ============================================
+.android_secure/
+.npm-global/
+google-cloud-sdk/
+backups/
+google_drive/
