@@ -189,6 +189,194 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================================
+# RESILIENCE INFRASTRUCTURE
+# ============================================================================
+
+# Initialize circuit breakers, rate limiters, and health checker
+if SKIPPY_RESILIENCE_AVAILABLE:
+    # Circuit breakers for external services
+    _google_drive_cb = get_circuit_breaker("google-drive-api", CircuitBreakerConfig(
+        failure_threshold=5,
+        success_threshold=3,
+        timeout=120.0
+    ))
+    _google_photos_cb = get_circuit_breaker("google-photos-api", CircuitBreakerConfig(
+        failure_threshold=5,
+        success_threshold=3,
+        timeout=120.0
+    ))
+    _github_cb = get_circuit_breaker("github-api", CircuitBreakerConfig(
+        failure_threshold=5,
+        success_threshold=3,
+        timeout=120.0
+    ))
+    _pexels_cb = get_circuit_breaker("pexels-api", CircuitBreakerConfig(
+        failure_threshold=3,
+        success_threshold=2,
+        timeout=60.0
+    ))
+
+    # Rate limiters (requests per minute)
+    _google_drive_limiter = RateLimiter(max_calls=60, period=60.0)  # 60 req/min
+    _google_photos_limiter = RateLimiter(max_calls=30, period=60.0)  # 30 req/min
+    _github_limiter = RateLimiter(max_calls=30, period=60.0)  # 30 req/min
+    _pexels_limiter = RateLimiter(max_calls=200, period=3600.0)  # 200 req/hour
+
+    # Global health checker
+    _health_checker = HealthChecker()
+
+    # Alert callback for circuit breaker state changes
+    def _on_circuit_breaker_alert(service_name: str, old_state: str, new_state: str):
+        """Log circuit breaker state changes as alerts."""
+        if new_state == "open":
+            logger.critical(
+                f"ALERT: Circuit breaker '{service_name}' OPENED - Service unavailable, "
+                f"failing fast to prevent cascading failures"
+            )
+        elif new_state == "half_open":
+            logger.warning(
+                f"Circuit breaker '{service_name}' testing recovery (HALF_OPEN)"
+            )
+        elif new_state == "closed" and old_state != "closed":
+            logger.info(
+                f"Circuit breaker '{service_name}' recovered and CLOSED - Service restored"
+            )
+
+    # Register health checks
+    @_health_checker.register("google_drive")
+    def _check_google_drive_health():
+        if not build:
+            return False, "Google API client not installed"
+        cb_state = _google_drive_cb.get_state()
+        if cb_state["state"] == "open":
+            return False, f"Circuit breaker OPEN (failures: {cb_state['failure_count']})"
+        return True, f"OK (state: {cb_state['state']}, remaining calls: {_google_drive_limiter.get_remaining_calls()})"
+
+    @_health_checker.register("google_photos")
+    def _check_google_photos_health():
+        if not build:
+            return False, "Google API client not installed"
+        cb_state = _google_photos_cb.get_state()
+        if cb_state["state"] == "open":
+            return False, f"Circuit breaker OPEN (failures: {cb_state['failure_count']})"
+        return True, f"OK (state: {cb_state['state']}, remaining calls: {_google_photos_limiter.get_remaining_calls()})"
+
+    @_health_checker.register("github")
+    def _check_github_health():
+        if not Github:
+            return False, "PyGithub not installed"
+        cb_state = _github_cb.get_state()
+        if cb_state["state"] == "open":
+            return False, f"Circuit breaker OPEN (failures: {cb_state['failure_count']})"
+        return True, f"OK (state: {cb_state['state']}, remaining calls: {_github_limiter.get_remaining_calls()})"
+
+    @_health_checker.register("pexels")
+    def _check_pexels_health():
+        if not os.getenv("PEXELS_API_KEY"):
+            return False, "PEXELS_API_KEY not set"
+        cb_state = _pexels_cb.get_state()
+        if cb_state["state"] == "open":
+            return False, f"Circuit breaker OPEN (failures: {cb_state['failure_count']})"
+        return True, f"OK (state: {cb_state['state']}, remaining calls: {_pexels_limiter.get_remaining_calls()})"
+
+    logger.info("Resilience infrastructure initialized: Circuit breakers, rate limiters, and health checks ready")
+else:
+    logger.warning("Resilience modules not available - running without circuit breakers and rate limiting")
+    _google_drive_cb = None
+    _google_photos_cb = None
+    _github_cb = None
+    _pexels_cb = None
+    _google_drive_limiter = None
+    _google_photos_limiter = None
+    _github_limiter = None
+    _pexels_limiter = None
+    _health_checker = None
+
+
+def resilient_api_call(
+    func,
+    *args,
+    circuit_breaker=None,
+    rate_limiter=None,
+    max_retries=3,
+    retry_delay=1.0,
+    service_name="api",
+    **kwargs
+):
+    """
+    Execute an API call with circuit breaker, rate limiting, and retry logic.
+
+    Args:
+        func: Function to call
+        circuit_breaker: CircuitBreaker instance (optional)
+        rate_limiter: RateLimiter instance (optional)
+        max_retries: Maximum retry attempts (default 3)
+        retry_delay: Base delay between retries in seconds (default 1.0)
+        service_name: Name of the service for logging
+
+    Returns:
+        Result of the function call
+
+    Raises:
+        CircuitBreakerOpenError: If circuit breaker is open
+        RetryError: If all retries exhausted
+    """
+    # Apply rate limiting
+    if rate_limiter and SKIPPY_RESILIENCE_AVAILABLE:
+        rate_limiter._wait_if_needed()
+
+    # Check circuit breaker
+    if circuit_breaker and SKIPPY_RESILIENCE_AVAILABLE:
+        if not circuit_breaker._can_execute():
+            raise CircuitBreakerOpenError(
+                f"Circuit breaker for '{service_name}' is OPEN. Service unavailable."
+            )
+
+    # Execute with retry logic
+    last_exception = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            result = func(*args, **kwargs)
+
+            # Record success with circuit breaker
+            if circuit_breaker and SKIPPY_RESILIENCE_AVAILABLE:
+                circuit_breaker._on_success()
+
+            return result
+
+        except (ConnectionError, TimeoutError, OSError) as e:
+            last_exception = e
+            if circuit_breaker and SKIPPY_RESILIENCE_AVAILABLE:
+                circuit_breaker._on_failure()
+
+            if attempt < max_retries:
+                delay = retry_delay * (2 ** (attempt - 1))  # Exponential backoff
+                logger.warning(
+                    f"{service_name} call failed (attempt {attempt}/{max_retries}): {e}. "
+                    f"Retrying in {delay:.1f}s..."
+                )
+                time.sleep(delay)
+            else:
+                logger.error(f"{service_name} call failed after {max_retries} attempts: {e}")
+
+        except Exception as e:
+            # Non-retryable error
+            if circuit_breaker and SKIPPY_RESILIENCE_AVAILABLE:
+                circuit_breaker._on_failure()
+            raise
+
+    # All retries exhausted
+    if SKIPPY_RESILIENCE_AVAILABLE:
+        raise RetryError(
+            f"Max retry attempts ({max_retries}) exceeded for {service_name}",
+            attempts=max_retries,
+            last_exception=last_exception
+        )
+    else:
+        raise last_exception
+
+
+# ============================================================================
 # FILE OPERATIONS TOOLS
 # ============================================================================
 
@@ -1771,6 +1959,8 @@ def github_create_pr(
 ) -> str:
     """Create a pull request on GitHub.
 
+    Features retry logic, circuit breaker protection, and rate limiting.
+
     Args:
         repo_name: Repository name in format "owner/repo" (e.g., "eboncorp/NexusController")
         title: PR title
@@ -1787,13 +1977,22 @@ def github_create_pr(
             return "Error: GITHUB_TOKEN not set in environment"
 
         g = Github(github_token)
-        repo = g.get_repo(repo_name)
 
-        pr = repo.create_pull(
-            title=title,
-            body=body,
-            head=head_branch,
-            base=base_branch
+        def _create_pr():
+            repo = g.get_repo(repo_name)
+            return repo.create_pull(
+                title=title,
+                body=body,
+                head=head_branch,
+                base=base_branch
+            )
+
+        # Apply resilience: circuit breaker, rate limiting, retry
+        pr = resilient_api_call(
+            _create_pr,
+            circuit_breaker=_github_cb,
+            rate_limiter=_github_limiter,
+            service_name="GitHub"
         )
 
         return json.dumps({
@@ -1804,6 +2003,10 @@ def github_create_pr(
             "created_at": pr.created_at.isoformat()
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except GithubException as e:
         return f"GitHub API Error: {e.status} - {e.data.get('message', str(e))}"
     except Exception as e:
@@ -2173,6 +2376,8 @@ def gdrive_search_files(
 ) -> str:
     """Search for files in Google Drive.
 
+    Features retry logic, circuit breaker protection, and rate limiting.
+
     Args:
         query: Search query (supports Google Drive query syntax)
         max_results: Maximum number of results (default: 10)
@@ -2188,11 +2393,20 @@ def gdrive_search_files(
 
         service = _get_google_drive_service()
 
-        results = service.files().list(
-            q=query,
-            pageSize=max_results,
-            fields="files(id, name, mimeType, modifiedTime, webViewLink)"
-        ).execute()
+        def _search():
+            return service.files().list(
+                q=query,
+                pageSize=max_results,
+                fields="files(id, name, mimeType, modifiedTime, webViewLink)"
+            ).execute()
+
+        # Apply resilience: circuit breaker, rate limiting, retry
+        results = resilient_api_call(
+            _search,
+            circuit_breaker=_google_drive_cb,
+            rate_limiter=_google_drive_limiter,
+            service_name="Google Drive"
+        )
 
         files = results.get('files', [])
 
@@ -2202,6 +2416,12 @@ def gdrive_search_files(
             "files": files
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        logger.warning(f"Google Drive circuit breaker open: {e}")
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        logger.error(f"Google Drive retry exhausted: {e}")
+        return f"Failed after multiple retry attempts: {str(e)}"
     except HttpError as e:
         return f"Google Drive API Error: {e.resp.status} - {e.reason}"
     except Exception as e:
@@ -2215,6 +2435,8 @@ def gdrive_download_file(
 ) -> str:
     """Download a file from Google Drive.
 
+    Features retry logic, circuit breaker protection, and rate limiting.
+
     Args:
         file_id: Google Drive file ID
         output_path: Local path to save file
@@ -2225,8 +2447,16 @@ def gdrive_download_file(
 
         service = _get_google_drive_service()
 
-        # Get file metadata
-        file_metadata = service.files().get(fileId=file_id).execute()
+        # Get file metadata with resilience
+        def _get_metadata():
+            return service.files().get(fileId=file_id).execute()
+
+        file_metadata = resilient_api_call(
+            _get_metadata,
+            circuit_breaker=_google_drive_cb,
+            rate_limiter=_google_drive_limiter,
+            service_name="Google Drive"
+        )
 
         # Download file content
         request = service.files().get_media(fileId=file_id)
@@ -2234,11 +2464,18 @@ def gdrive_download_file(
         output = Path(output_path).expanduser()
         output.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output, 'wb') as f:
-            downloader = MediaIoBaseDownload(f, request)
-            done = False
-            while not done:
-                status, done = downloader.next_chunk()
+        def _download():
+            with open(output, 'wb') as f:
+                downloader = MediaIoBaseDownload(f, request)
+                done = False
+                while not done:
+                    status, done = downloader.next_chunk()
+
+        resilient_api_call(
+            _download,
+            circuit_breaker=_google_drive_cb,
+            service_name="Google Drive Download"
+        )
 
         return json.dumps({
             "success": True,
@@ -2247,6 +2484,10 @@ def gdrive_download_file(
             "output_path": str(output)
         }, indent=2)
 
+    except CircuitBreakerOpenError as e:
+        return f"Service temporarily unavailable: {str(e)}. Please try again later."
+    except RetryError as e:
+        return f"Failed after multiple retry attempts: {str(e)}"
     except HttpError as e:
         return f"Google Drive API Error: {e.resp.status} - {e.reason}"
     except Exception as e:
@@ -3958,5 +4199,100 @@ def get_circuit_breaker_status() -> str:
 
     except Exception as e:
         logger.error(f"Failed to get circuit breaker status: {e}")
+        return f"Error: {str(e)}"
+
+
+@mcp.tool()
+def get_resilience_dashboard() -> str:
+    """Get comprehensive resilience and monitoring dashboard.
+
+    Provides a unified view of circuit breaker states, rate limiter usage,
+    service health checks, and recommendations.
+
+    Returns:
+        JSON string with full resilience dashboard data
+    """
+    try:
+        dashboard = {
+            "timestamp": datetime.now().isoformat(),
+            "version": "2.5.0",
+            "resilience_available": SKIPPY_RESILIENCE_AVAILABLE if 'SKIPPY_RESILIENCE_AVAILABLE' in globals() else False
+        }
+
+        if not dashboard["resilience_available"]:
+            dashboard["status"] = "limited"
+            dashboard["message"] = "Resilience modules not available"
+            return json.dumps(dashboard, indent=2)
+
+        # Circuit breaker status
+        cb_states = get_all_circuit_breaker_states()
+        open_circuits = [name for name, state in cb_states.items() if state.get("state") == "open"]
+        dashboard["circuit_breakers"] = {
+            "total": len(cb_states),
+            "healthy": sum(1 for s in cb_states.values() if s.get("state") == "closed"),
+            "open": open_circuits
+        }
+
+        # Rate limiter status
+        dashboard["rate_limiters"] = {
+            "google_drive": {"remaining": _google_drive_limiter.get_remaining_calls() if _google_drive_limiter else "N/A"},
+            "google_photos": {"remaining": _google_photos_limiter.get_remaining_calls() if _google_photos_limiter else "N/A"},
+            "github": {"remaining": _github_limiter.get_remaining_calls() if _github_limiter else "N/A"},
+            "pexels": {"remaining": _pexels_limiter.get_remaining_calls() if _pexels_limiter else "N/A"}
+        }
+
+        # Service health
+        if _health_checker:
+            health = _health_checker.get_summary()
+            dashboard["service_health"] = {
+                "overall_healthy": health["overall_healthy"],
+                "healthy_count": health["healthy_count"],
+                "unhealthy_count": health["unhealthy_count"]
+            }
+
+        # Recommendations
+        recommendations = []
+        if open_circuits:
+            recommendations.append(f"Circuit breakers OPEN: {', '.join(open_circuits)}")
+        if dashboard.get("service_health", {}).get("unhealthy_count", 0) > 0:
+            recommendations.append(f"{dashboard['service_health']['unhealthy_count']} service(s) unhealthy")
+
+        dashboard["recommendations"] = recommendations
+        dashboard["status"] = "healthy" if not recommendations else "needs_attention"
+
+        return json.dumps(dashboard, indent=2)
+
+    except Exception as e:
+        logger.error(f"Failed to generate dashboard: {e}")
+        return json.dumps({"status": "error", "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def reset_circuit_breaker(service_name: str) -> str:
+    """Manually reset a circuit breaker to closed state.
+
+    Args:
+        service_name: Name of the circuit breaker (e.g., "google-drive-api")
+
+    Returns:
+        Status message
+    """
+    try:
+        if not SKIPPY_RESILIENCE_AVAILABLE:
+            return "Error: Resilience modules not available"
+
+        cb = get_circuit_breaker(service_name)
+        old_state = cb.state.value
+        cb.reset()
+
+        logger.info(f"Circuit breaker '{service_name}' reset from {old_state} to CLOSED")
+        return json.dumps({
+            "success": True,
+            "service": service_name,
+            "old_state": old_state,
+            "new_state": "closed"
+        }, indent=2)
+
+    except Exception as e:
         return f"Error: {str(e)}"
 
