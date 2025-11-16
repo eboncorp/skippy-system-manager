@@ -29,3 +29,9 @@ certifi>=2025.11.0      # Updated for current CA certificates
 
 # Optional but recommended
 python-dotenv>=1.0.0  # For .env file loading
+
+# Robustness and Resilience (v2.5.0)
+# Note: These are pure Python implementations - no external dependencies required
+# - skippy_resilience.py: Retry logic, circuit breaker, rate limiting
+# - skippy_config.py: Configuration validation and schema enforcement
+# - skippy_performance.py: Performance monitoring and metrics
