@@ -1,0 +1,20 @@
+[Unit]
+Description=Ebonhawk System Maintenance Agent
+After=network.target
+
+[Service]
+Type=simple
+User=dave
+WorkingDirectory=/home/dave
+ExecStart=/usr/bin/python3 /home/dave/Scripts/ebonhawk_maintenance_agent.py --daemon
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+# Resource limits
+CPUQuota=10%
+MemoryLimit=512M
+
+[Install]
+WantedBy=multi-user.target

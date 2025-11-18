@@ -1,0 +1,104 @@
+# Exclude patterns for Google Drive backup
+# One pattern per line, supports wildcards
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.~*
+\#*\#
+
+# Cache directories
+.cache/
+**/cache/
+**/Cache/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Build artifacts
+*.o
+*.so
+*.a
+*.la
+*.lo
+*.exe
+*.dll
+build/
+dist/
+*.egg-info/
+node_modules/
+vendor/
+
+# Log files (keep recent ones)
+*.log.gz
+*.log.[0-9]*
+
+# Media files (optional - remove if you want to backup)
+# *.mp4
+# *.avi
+# *.mkv
+# *.mov
+
+# Large archives (optional - remove if you want to backup)
+# *.iso
+# *.img
+# *.vmdk
+
+# System directories
+.steam/
+.wine/
+.PlayOnLinux/
+.local/share/Trash/
+.local/share/Steam/
+.mozilla/firefox/*/Cache/
+.config/google-chrome/*/Cache/
+.config/chromium/*/Cache/
+snap/
+
+# Version control (git is enough, no need for full .git)
+**/.git/objects/
+**/.git/lfs/
+.svn/
+.hg/
+
+# Virtual environments
+venv/
+virtualenv/
+.env/
+.venv/
+
+# IDE directories
+.idea/
+.vscode/
+*.iml
+.project
+.classpath
+
+# Thumbnails
+.thumbnails/
+Thumbs.db
+.DS_Store
+
+# Lock files
+*.lock
+.lock-wscript
+
+# Package managers
+.npm/
+.cargo/
+.rustup/
+
+# Backup files (avoid recursive backups)
+*.bak
+*.backup
+*.old
+.backup/
+backup/
+
+# Large data files (customize as needed)
+# *.sql
+# *.sqlite
+# *.db
