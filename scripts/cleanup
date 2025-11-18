@@ -1,0 +1,14 @@
+#!/bin/bash
+# TidyTux Quick Launcher
+
+if [ -n "${DISPLAY:-}" ] && command -v tidytux-gui &>/dev/null; then
+    echo "🖥️  Starting TidyTux GUI..."
+    exec tidytux-gui
+elif command -v tidytux &>/dev/null; then
+    echo "💻 Starting TidyTux CLI..."
+    exec tidytux "$@"
+else
+    echo "❌ TidyTux not found in PATH"
+    echo "Make sure /home/dave/.local/bin is in your PATH"
+    exit 1
+fi

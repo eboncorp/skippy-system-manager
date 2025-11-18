@@ -283,3 +283,48 @@ htmlcov/
 google-cloud-sdk/
 backups/
 google_drive/
+
+# ============================================
+# ADDITIONAL LOCAL FILES (Nov 2025)
+# ============================================
+# Config backups
+.config_backup_*/
+
+# Coverage reports
+.coverage
+coverage/
+
+# Personal git config
+.gitconfig
+
+# Python virtual environments
+.venvs/
+
+# Development binaries
+bin/claude-ebon
+bin/test-claude-stability
+
+# Log directories
+log/
+*.log
+
+# System volume info (Windows)
+system_volume_information/
+
+# Personal docs/templates
+vehicle_maintenance_prompt_template.md
+wifi_troubleshooting_guide.md
+rundaverun-local.pdf
+
+# Conversations (keep only committed ones)
+conversations/*.txt
+conversations/*.pdf
+
+# Uploaded reference docs (tracked in claude-code-config repo instead)
+claude/uploads/*.md
+
+# EXCEPTIONS: Files that SHOULD be tracked
+# (override previous patterns)
+!scripts/backup_excludes.txt
+!scripts/ebonhawk-maintenance.service
+!scripts/readme.md
