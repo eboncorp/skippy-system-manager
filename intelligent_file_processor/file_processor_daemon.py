@@ -21,6 +21,25 @@ from intelligent_classifier import IntelligentClassifier
 from smart_renamer import SmartRenamer
 from file_organizer import FileOrganizer
 
+# Phase 2 imports (optional - graceful degradation)
+try:
+    from ocr_engine import OCREngine
+    OCR_AVAILABLE = True
+except ImportError:
+    OCR_AVAILABLE = False
+
+try:
+    from database import Database
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+
+try:
+    from ai_classifier import AIClassifier
+    AI_AVAILABLE = True
+except ImportError:
+    AI_AVAILABLE = False
+
 
 class FileProcessorDaemon:
     """Main daemon that coordinates all components"""
@@ -39,8 +58,29 @@ class FileProcessorDaemon:
         self.config = ConfigLoader(config_path)
         self.logger.info("Configuration loaded successfully")
 
-        # Initialize components
-        self.analyzer = ContentAnalyzer(self.logger)
+        # Initialize Phase 2 components (optional)
+        self.ocr_engine = None
+        self.database = None
+        self.ai_classifier = None
+
+        if OCR_AVAILABLE:
+            max_ocr_size = self.config.get('performance.max_ocr_size_mb', 50)
+            self.ocr_engine = OCREngine(self.logger, max_file_size_mb=max_ocr_size)
+            if self.ocr_engine.is_available():
+                self.logger.info("OCR engine initialized")
+
+        if DB_AVAILABLE:
+            db_path = self.config.get('logging.database', '/home/dave/skippy/logs/file_processor.db')
+            self.database = Database(db_path, self.logger)
+            self.logger.info(f"Database initialized: {db_path}")
+
+        if AI_AVAILABLE and self.config.is_ai_enabled():
+            self.ai_classifier = AIClassifier(self.logger, enabled=True)
+            if self.ai_classifier.is_available():
+                self.logger.info("AI classification enabled")
+
+        # Initialize core components
+        self.analyzer = ContentAnalyzer(self.logger, ocr_engine=self.ocr_engine)
         self.classifier = IntelligentClassifier(
             self.logger,
             min_confidence=self.config.get_min_confidence()
@@ -91,12 +131,29 @@ class FileProcessorDaemon:
             # Step 2: Classify
             self.logger.info(f"[2/5] Classifying...")
             category, confidence, class_meta = self.classifier.classify(analysis)
+
+            # Try AI classification if available and enabled
+            if self.ai_classifier and self.ai_classifier.is_available():
+                self.logger.info(f"  Rule-based: {category} ({confidence}%)")
+                self.logger.info(f"  Trying AI classification...")
+
+                ai_category, ai_confidence, ai_meta = self.ai_classifier.classify(
+                    analysis,
+                    rule_based_result=(category, confidence, class_meta)
+                )
+
+                # Use AI result if confidence is higher
+                if ai_category and ai_confidence and ai_confidence > confidence:
+                    self.logger.info(f"  Using AI result ({ai_confidence}% > {confidence}%)")
+                    category = ai_category
+                    confidence = ai_confidence
+                    class_meta = ai_meta
+
             subcategory = self.classifier.suggest_subcategory(category, analysis, class_meta)
 
-            self.logger.info(f"  Category: {category}")
+            self.logger.info(f"  Final: {category} ({confidence}%)")
             if subcategory:
                 self.logger.info(f"  Subcategory: {subcategory}")
-            self.logger.info(f"  Confidence: {confidence}%")
 
             # Step 3: Check if should quarantine
             if self.classifier.should_quarantine(confidence):
@@ -139,12 +196,39 @@ class FileProcessorDaemon:
                 self.logger.info(f"[5/5] ✅ Success!")
                 self.logger.info(f"  Destination: {result['destination']}")
 
+                # Log to database if available
+                if self.database:
+                    try:
+                        file_id = self.database.log_processed_file(
+                            file_path,
+                            result,
+                            analysis,
+                            {
+                                'category': category,
+                                'subcategory': subcategory,
+                                'confidence': confidence,
+                                'method': class_meta.get('method'),
+                                'patterns': class_meta.get('patterns', [])
+                            }
+                        )
+                        self.logger.debug(f"  Logged to database (ID: {file_id})")
+                    except Exception as e:
+                        self.logger.error(f"Database logging error: {e}")
+
                 self._notify(
                     f"✅ Organized: {Path(file_path).name}",
                     f"→ {new_filename}\n{category}/{subcategory}\n{confidence}% confidence"
                 )
             else:
                 self.logger.error(f"❌ Failed to organize: {result.get('error')}")
+
+                # Log error to database
+                if self.database:
+                    try:
+                        self.database.log_error(file_path, result.get('error', 'Unknown error'))
+                    except Exception as e:
+                        self.logger.error(f"Database error logging failed: {e}")
+
                 self._notify(
                     f"❌ Error organizing: {Path(file_path).name}",
                     f"Error: {result.get('error')}"
@@ -191,7 +275,10 @@ class FileProcessorDaemon:
         for folder in self.config.get_watch_folders():
             self.logger.info(f"  - {folder['path']}")
 
-        self.logger.info(f"AI Classification: {'Enabled' if self.config.is_ai_enabled() else 'Disabled'}")
+        # Phase 2 features status
+        self.logger.info(f"OCR: {'Enabled' if self.ocr_engine and self.ocr_engine.is_available() else 'Disabled'}")
+        self.logger.info(f"AI Classification: {'Enabled' if self.ai_classifier and self.ai_classifier.is_available() else 'Disabled'}")
+        self.logger.info(f"Database Logging: {'Enabled' if self.database else 'Disabled'}")
         self.logger.info(f"Min Confidence: {self.config.get_min_confidence()}%")
         self.logger.info(f"Create Backups: {'Yes' if self.config.should_create_backup() else 'No'}")
 
