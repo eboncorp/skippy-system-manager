@@ -102,7 +102,9 @@
       "Bash(git -C /home/dave/skippy diff .claude/settings.local.json)",
       "Bash(git -C /home/dave/skippy add .claude/settings.local.json)",
       "Bash(git -C /home/dave/skippy commit -m \"chore: Update Claude Code auto-approvals\")",
-      "Bash(git -C /home/dave/skippy push)"
+      "Bash(git -C /home/dave/skippy push)",
+      "Bash(git -C /home/dave/skippy status --short)",
+      "Bash(git -C /home/dave/skippy commit -m \"chore: Update Claude Code auto-approvals (final)\")"
     ],
     "deny": [],
     "ask": []
