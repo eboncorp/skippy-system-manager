@@ -92,7 +92,12 @@
       "Bash(fi)",
       "Bash(echo:*)",
       "Bash(/home/dave/skippy/Downloads/policy_public_safety_test.txt)",
-      "Bash(ln:*)"
+      "Bash(ln:*)",
+      "Bash(git -C /home/dave/skippy log --oneline -5)",
+      "Bash(skippy-files status:*)",
+      "Bash(skippy-files stats:*)",
+      "Bash(pip install:*)",
+      "Bash(pip3 install:*)"
     ],
     "deny": [],
     "ask": []

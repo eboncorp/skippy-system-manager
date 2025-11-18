@@ -37,7 +37,7 @@ processing:
   quarantine_period: 30  # seconds
 
   # Enable AI classification via MCP
-  use_ai_classification: false  # Set to true to enable Claude integration
+  use_ai_classification: true  # Set to true to enable Claude integration
 
   # Confidence threshold (0-100)
   min_confidence: 75
