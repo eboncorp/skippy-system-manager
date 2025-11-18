@@ -91,7 +91,8 @@
       "Bash(else echo \"No watcher PID file found\")",
       "Bash(fi)",
       "Bash(echo:*)",
-      "Bash(/home/dave/skippy/Downloads/policy_public_safety_test.txt)"
+      "Bash(/home/dave/skippy/Downloads/policy_public_safety_test.txt)",
+      "Bash(ln:*)"
     ],
     "deny": [],
     "ask": []

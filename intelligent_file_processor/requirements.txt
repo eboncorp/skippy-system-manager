@@ -14,5 +14,8 @@ pytesseract>=0.3.10      # OCR text extraction from images
 pdf2image>=1.16.0        # Convert PDF to images for OCR
 anthropic>=0.7.0         # Claude API for AI classification
 
+# Phase 4 - Web Dashboard (Optional)
+flask>=3.0.0             # Web framework for dashboard
+
 # Note: OCR also requires system packages:
 #   sudo apt install tesseract-ocr tesseract-ocr-eng poppler-utils
