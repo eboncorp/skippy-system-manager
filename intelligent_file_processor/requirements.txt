@@ -1,0 +1,15 @@
+# Intelligent File Processor Requirements
+# Version: 1.0.0 MVP
+
+# Core dependencies
+watchdog>=3.0.0          # File system monitoring
+PyYAML>=6.0.0            # Configuration parsing
+
+# Content analysis
+PyPDF2>=3.0.0            # PDF text extraction
+Pillow>=10.0.0           # Image processing and EXIF data
+
+# Future (not required for MVP)
+# pytesseract>=0.3.10    # OCR (Phase 2)
+# pdfplumber>=0.10.0     # Advanced PDF parsing (Phase 2)
+# anthropic>=0.7.0       # Claude API for AI classification (Phase 2)
