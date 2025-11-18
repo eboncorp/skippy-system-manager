@@ -17,14 +17,16 @@ from datetime import datetime
 class ContentAnalyzer:
     """Analyzes file content and extracts metadata"""
 
-    def __init__(self, logger: logging.Logger):
+    def __init__(self, logger: logging.Logger, ocr_engine=None):
         """
         Initialize content analyzer
 
         Args:
             logger: Logger instance
+            ocr_engine: Optional OCR engine instance
         """
         self.logger = logger
+        self.ocr_engine = ocr_engine
 
     def analyze(self, file_path: str) -> Dict[str, Any]:
         """
@@ -67,6 +69,10 @@ class ContentAnalyzer:
         except Exception as e:
             self.logger.error(f"Error analyzing {file_path}: {e}")
             result['error'] = str(e)
+
+        # Apply OCR if available and useful
+        if self.ocr_engine and self.ocr_engine.is_available():
+            result = self.ocr_engine.enhance_analysis(file_path, result)
 
         return result
 
