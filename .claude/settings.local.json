@@ -89,7 +89,9 @@
       "Bash(if [ -f /tmp/downloads_watcher.pid ])",
       "Bash(then cat /tmp/downloads_watcher.pid)",
       "Bash(else echo \"No watcher PID file found\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(echo:*)",
+      "Bash(/home/dave/skippy/Downloads/policy_public_safety_test.txt)"
     ],
     "deny": [],
     "ask": []
