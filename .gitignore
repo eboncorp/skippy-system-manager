@@ -1,337 +1,38 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
+# Skippy System Manager - Git Ignore Rules
 
-# OS files
-.DS_Store
-Thumbs.db
-desktop.ini
+# Runtime data directories
+.skippy/history.db
+.skippy/analytics/*.json
+.skippy/maintenance/*.log
 
-# IDE
-.idea/
+# Test results
+development/tests/results/
+
+# Work sessions (preserve locally, don't commit)
+work/
+
+# Temporary files
+*.tmp
 *.swp
-*.swo
-# Note: .vscode/ is tracked for project-specific settings
+*~
 
 # Logs
 *.log
 
-# Temp files
-*.tmp
-.~*
-
-# Large binary files
-*.AppImage
-*.dmg
-*.deb
-*.rpm
-*.exe
-*.msi
-*.iso
-*.tar.gz
-*.zip
-*.qbo
-*.odt
-
-# Application downloads
-claude/downloads/apps/
-claude/downloads/software/
-claude/downloads/archives/
-
-# ============================================
-# SECURITY: Credentials & Sensitive Data
-# ============================================
-# API Keys and Tokens
-*api*key*
-*apikey*
-*.key
-*.pem
-*.p12
-*.pfx
-*token*
-*secret*
-*credential*
-*password*
-*.env
-.env.*
-
-# Specific credential directories
-google_drive/Claude/
-github/*.odt
-credentials/
-secrets/
-.secrets/
-
-# SSH keys
-id_rsa
-id_dsa
-id_ecdsa
-id_ed25519
-*.ppk
-
-# Cloud provider credentials
-.aws/
-.azure/
-.gcp/
-gcloud/
-
-# Database credentials
-*.sql
-database.yml
-database.ini
-
-# Configuration files with potential secrets
-config.local.*
-*.local.conf
-*-local.json
-
-# Backup files that might contain credentials
-*.bak
-*.backup
-*.old
-*~
-
-# Certificate files
-*.crt
-*.cer
-*.der
-
-# Anthropic specific
-.anthropic/
-anthropic_api_key*
-claude_key*
-
-# GitHub tokens
-github_token*
-gh_token*
-.github_token
-
-# OAuth tokens
-oauth*
-.oauth*
-mcp-servers/general-server/.env
-
-# ============================================
-# WORK & SESSION FILES
-# ============================================
-# Work session directories (preserved locally, not tracked)
-work/
-
-# Temporary session files
-tmp/
-temp/
-.temp/
-
-# ============================================
-# CONVERSATIONS & UPLOADS
-# ============================================
-# Conversation logs (tracked selectively)
-conversations/*.md
-!conversations/README.md
-
-# Claude uploads/downloads
-claude/downloads/**/*.pdf
-claude/downloads/**/*.docx
-claude/downloads/**/*.xlsx
-claude/uploads/**/*.pdf
-claude/uploads/**/
-
-# ============================================
-# SCRIPTS & BINARIES
-# ============================================
-# Development binaries (not versioned)
-bin/protocol-dashboard
-bin/session-recovery
-bin/wp-update
-
-# ============================================
-# SUBMODULES
-# ============================================
-# Modified submodule content
-app-to-deploy/NexusController/
-
-# ============================================
-# LOCAL WORDPRESS DEVELOPMENT
-# ============================================
-# Local by Flywheel sites
-Local Sites/
-rundaverun_local_site/
-
-# WordPress backups (kept in campaign/, not in general backups/)
-backups/wordpress/
-
-# WordPress logs
-rundaverun_local_logs/
-
-# Virtual environments
-.venv/
-venv/
-env/
-*.venv/
-
-# ============================================
-# HOME DIRECTORY PERSONAL FILES
-# ============================================
-# These are personal files, not part of skippy repo
-
-# Business and personal documents (not public)
+# Private/sensitive (already in root .gitignore but restate here)
 business/
 personal/
+.env
+.env.*
+credentials/
+*.key
+*.pem
 
-# Large media directories
-android/
-dcim/
-media_server/
-Music/
-Pictures/
-videos/
-voice_recorder/
+# OS files
+.DS_Store
+Thumbs.db
 
-# System/app directories
-snap/
-.cache/
-.config/
-.local/
-.gnupg/
-.npm/
-.pki/
-.steam/
-.thunderbird/
-
-# Document directories (personal, not skippy)
-Documents/
-Downloads/
-Dropbox/
-Desktop/
-scanned_documents/
-scans/
-ein_documents/
-document_screenshots/
-
-# Trash
-.Trash/
-.Trash-*/
-
-# Shell config
-.bash_history
-.bash_logout
-.bashrc
-.bashrc.*
-.profile
-.history
-.lesshst
-.wget-hsts
-.sudo_as_admin_successful
-
-# Application state
-.steampath
-.steampid
-.npmrc
-.cups/
-.dotnet/
-.hplip/
-.epsonscan2/
-
-# Blockchain/crypto
-.chainlink*/
-.ebon*/
-.ebonhawk*/
-.nexus/
-
-# Other home directory items
-opt/
-usr/
-debian/
-projects/
-reorganization_backup/
-skippy_git_backup_*/
-
-# System manager state
-.advanced-system-manager/
-.unified-system-manager/
-.plcc-helper/
-.tidytux/
-.home-server/
-
-# Utility tools - separate repo
-skippy-tools/
-
-# ============================================
-# CLAUDE CODE STATE FILES
-# ============================================
-# These are local state, not versioned
-.claude.json
-.claude/CLAUDE.md
-.claude/debug/
-.claude/file-history/
-.claude/history.jsonl
-.claude/plugins/
-.claude/projects/
-.claude/settings.local.json
-.claude/settings.local.json*
-.claude/settings.local.json.backup*
-.claude/backups/
-.claude/shell-snapshots/
-.claude/statsig/
-.claude/todos/
-htmlcov/
-.pytest_cache/
-
-# Note: .claude/commands/ and .claude/hooks/ ARE tracked (team-shared)
-# Note: .claude/settings.json IS tracked (project permissions)
-
-# ============================================
-# OTHER UNTRACKED DIRECTORIES
-# ============================================
-.android_secure/
-.npm-global/
-google-cloud-sdk/
-backups/
-google_drive/
-
-# ============================================
-# ADDITIONAL LOCAL FILES (Nov 2025)
-# ============================================
-# Config backups
-.config_backup_*/
-
-# Coverage reports
-.coverage
-coverage/
-
-# Personal git config
-.gitconfig
-
-# Python virtual environments
-.venvs/
-
-# Development binaries
-bin/claude-ebon
-bin/test-claude-stability
-
-# Log directories
-log/
-*.log
-
-# System volume info (Windows)
-system_volume_information/
-
-# Personal docs/templates
-vehicle_maintenance_prompt_template.md
-wifi_troubleshooting_guide.md
-rundaverun-local.pdf
-
-# Conversations (keep only committed ones)
-conversations/*.txt
-conversations/*.pdf
-
-# Uploaded reference docs (tracked in claude-code-config repo instead)
-claude/uploads/*.md
-
-# EXCEPTIONS: Files that SHOULD be tracked
-# (override previous patterns)
-!scripts/backup_excludes.txt
-!scripts/ebonhawk-maintenance.service
-!scripts/readme.md
+# IDE
+.vscode/
+.idea/
+*.iml
