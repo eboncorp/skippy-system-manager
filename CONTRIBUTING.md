@@ -1,699 +1,409 @@
-# Contributing to Skippy System Manager
+# Contributing to Skippy
 
-Thank you for your interest in contributing to Skippy System Manager! This document provides guidelines and instructions for contributing to the project.
-
-## Table of Contents
-
-1. [Getting Started](#getting-started)
-2. [Development Environment Setup](#development-environment-setup)
-3. [Project Structure](#project-structure)
-4. [Coding Standards](#coding-standards)
-5. [Testing Requirements](#testing-requirements)
-6. [Git Workflow](#git-workflow)
-7. [Pull Request Process](#pull-request-process)
-8. [Documentation](#documentation)
-9. [Security](#security)
-10. [Getting Help](#getting-help)
+Guidelines for maintaining and extending the Skippy system.
 
 ---
 
-## Getting Started
+## Before Creating New Scripts
 
-### Prerequisites
+**CRITICAL:** Always check if similar functionality exists:
 
-- **OS**: Linux (Ubuntu/Debian recommended)
-- **Python**: 3.8 or higher
-- **Bash**: 4.0 or higher
-- **Git**: 2.0 or higher
-- **Node.js**: 14+ (optional, for some scripts)
+```bash
+# Search existing scripts
+skippy-script search "keyword"
 
-### First Contribution Checklist
+# Check script categories
+ls development/scripts/
 
-- [ ] Read this contributing guide
-- [ ] Review the [Code of Conduct](#code-of-conduct)
-- [ ] Check [existing issues](https://github.com/eboncorp/skippy-system-manager/issues)
-- [ ] Set up development environment
-- [ ] Run tests to ensure everything works
-- [ ] Make your changes
-- [ ] Write/update tests
-- [ ] Update documentation
-- [ ] Submit pull request
+# Review script details
+skippy-script info script_name.sh
+```
+
+With 179+ scripts, duplication is the biggest risk. If similar functionality exists, extend that script rather than creating a new one.
 
 ---
 
-## Development Environment Setup
+## File Naming Standards
 
-### 1. Fork and Clone
+**All files must follow:**
+- Lowercase with underscores (no capitals, no spaces)
+- Format: `{purpose}_{specific_task}_v{version}.{ext}`
+- Semantic versioning (v1.0.0, v1.1.0, v2.0.0)
 
-```bash
-# Fork the repository on GitHub, then:
-git clone https://github.com/YOUR_USERNAME/skippy-system-manager.git
-cd skippy-system-manager
-```
-
-### 2. Install Dependencies
-
-```bash
-# Python dependencies
-pip install -r requirements.txt
-pip install -r requirements-test.txt
-
-# System dependencies (Ubuntu/Debian)
-sudo apt-get update
-sudo apt-get install -y jq curl gpg shellcheck
-```
-
-### 3. Configure Environment
-
-```bash
-# Copy configuration template
-cp config.env.example config.env
-
-# Edit config.env with your settings
-# See config.env.example for details
-nano config.env
-
-# Set proper permissions
-chmod 600 config.env
-
-# Validate configuration
-source config.env
-bash scripts/utility/validate_config.sh
-```
-
-### 4. Verify Setup
-
-```bash
-# Run tests to verify everything works
-pytest
-
-# Check code quality
-pylint lib/python/
-flake8 lib/python/
-
-# Run shellcheck on scripts
-shellcheck scripts/**/*.sh
-```
+**Examples:**
+- ✅ `wordpress_backup_v1.0.0.sh`
+- ✅ `audit_skills_v1.0.0.py`
+- ❌ `WordPress-Backup.sh`
+- ❌ `audit_skills.py` (missing version)
 
 ---
 
-## Project Structure
+## Script Header Template
 
-```
-skippy-system-manager/
-├── .github/workflows/     # CI/CD configuration
-├── mcp-servers/           # MCP server implementation
-├── scripts/               # Automation scripts (19 categories)
-├── lib/python/            # Shared Python libraries
-├── tests/                 # Test suite
-├── documentation/         # Project documentation
-├── conversations/         # Session logs
-├── config.env.example     # Configuration template
-├── SCRIPT_STATUS.md       # Script status tracking
-├── PROJECT_ARCHITECTURE.md # Architecture documentation
-└── CONTRIBUTING.md        # This file
-```
-
-For detailed architecture, see [PROJECT_ARCHITECTURE.md](PROJECT_ARCHITECTURE.md).
-
----
-
-## Coding Standards
-
-### Python Code
-
-#### Style Guide
-
-- **PEP 8**: Follow PEP 8 style guide
-- **Line Length**: Maximum 100 characters
-- **Indentation**: 4 spaces (no tabs)
-- **Imports**: Organize imports (stdlib, third-party, local)
-- **Type Hints**: Use type hints for function signatures (Python 3.8+)
-
-#### Example
-
-```python
-#!/usr/bin/env python3
-"""
-Module description.
-
-Version: 1.0.0
-"""
-
-from typing import Optional, List
-import os
-from pathlib import Path
-
-from lib.python.skippy_logger import get_logger
-from lib.python.skippy_validator import validate_path
-
-
-logger = get_logger(__name__)
-
-
-def process_files(
-    directory: Path,
-    pattern: str = "*.txt",
-    recursive: bool = False,
-) -> List[Path]:
-    """
-    Process files in a directory.
-
-    Args:
-        directory: Directory to search
-        pattern: File pattern to match
-        recursive: Whether to search recursively
-
-    Returns:
-        List of matching file paths
-
-    Raises:
-        ValidationError: If directory is invalid
-    """
-    # Validate input
-    validated_dir = validate_path(directory, must_exist=True)
-
-    # Implementation
-    if recursive:
-        files = list(validated_dir.rglob(pattern))
-    else:
-        files = list(validated_dir.glob(pattern))
-
-    logger.info(f"Found {len(files)} files matching {pattern}")
-    return files
-```
-
-#### Linting
-
-```bash
-# Run pylint
-pylint lib/python/your_module.py
-
-# Run flake8
-flake8 lib/python/your_module.py
-
-# Auto-format with black (optional)
-black lib/python/your_module.py
-```
-
-### Shell Scripts
-
-#### Style Guide
-
-- **SheBang**: Use `#!/bin/bash`
-- **Set Options**: `set -euo pipefail` at the top
-- **Indentation**: 2 spaces
-- **Variables**: Use `${variable}` instead of `$variable`
-- **Functions**: Document with comments
-- **Error Handling**: Check return codes
-
-#### Example
+All scripts must include this header:
 
 ```bash
 #!/bin/bash
-# Script Name: example_script_v1.0.0.sh
-# Version: 1.0.0
-# Purpose: Example script demonstrating coding standards
-# Usage: ./example_script_v1.0.0.sh [options]
-
-set -euo pipefail
-
-# Constants
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly LOG_FILE="/var/log/skippy/example.log"
-
-# Functions
-log_info() {
-    local message="$1"
-    echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - ${message}" | tee -a "${LOG_FILE}"
-}
-
-log_error() {
-    local message="$1"
-    echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - ${message}" >&2 | tee -a "${LOG_FILE}"
-}
-
-# Main
-main() {
-    log_info "Script started"
-
-    # Your code here
-
-    log_info "Script completed successfully"
-}
-
-# Run main function
-main "$@"
+# Script Name v1.0.0
+# Brief description of what this script does
+#
+# Usage:
+#   script_name [options] arguments
+#
+# Examples:
+#   script_name --option value
+#
+# Dependencies:
+#   - wp-cli
+#   - python3
+#
+# Author: Dave Biggers Campaign
+# Created: YYYY-MM-DD
+# Last Modified: YYYY-MM-DD
 ```
 
-#### Linting
+---
+
+## Creating New Tools
+
+### 1. Use the Script Manager
 
 ```bash
-# Run shellcheck
-shellcheck scripts/your_script.sh
+skippy-script create
+# Follow prompts for category, name, description
 ```
 
-### Naming Conventions
+### 2. Make Executable
 
-#### Files
+```bash
+chmod +x /path/to/script.sh
+```
 
-- Scripts: `script_name_v1.0.0.ext`
-- Python modules: `module_name.py` (lowercase with underscores)
-- Test files: `test_module_name.py`
+### 3. Add to bin/ if it's a CLI tool
 
-#### Variables
+```bash
+# Tools in bin/ are available globally
+cp script.sh /home/dave/skippy/bin/tool-name
+```
 
-- Python: `snake_case` for variables and functions
-- Python: `PascalCase` for classes
-- Python: `UPPER_CASE` for constants
-- Bash: `lowercase_with_underscores` for variables
-- Bash: `UPPERCASE` for constants
+### 4. Create Tests
+
+```bash
+# Add test to appropriate category
+cat > development/tests/automation/test_new_tool.sh
+```
+
+### 5. Generate Documentation
+
+```bash
+generate-docs
+```
+
+### 6. Log Decision
+
+```bash
+log-decision
+# Explain why this tool was needed
+```
 
 ---
 
 ## Testing Requirements
 
-### Running Tests
+### All new code must:
 
+1. **Pass ShellCheck** (shell scripts)
 ```bash
-# Run all tests
-pytest
-
-# Run specific test category
-pytest -m unit
-pytest -m integration
-
-# Run with coverage
-pytest --cov
+shellcheck script.sh
 ```
 
-### Writing Tests
-
-#### Unit Tests
-
-```python
-import pytest
-from your_module import your_function
-
-
-@pytest.mark.unit
-class TestYourFunction:
-    """Test your_function behavior."""
-
-    def test_normal_case(self):
-        """Test normal operation."""
-        result = your_function("input")
-        assert result == "expected_output"
-
-    def test_edge_case(self):
-        """Test edge case."""
-        result = your_function("")
-        assert result == ""
-
-    def test_error_case(self):
-        """Test error handling."""
-        with pytest.raises(ValueError):
-            your_function(None)
-```
-
-#### Integration Tests
-
-```python
-@pytest.mark.integration
-def test_database_integration():
-    """Test database operations."""
-    # Setup
-    db = setup_test_database()
-
-    # Test
-    result = query_database(db, "SELECT * FROM test")
-
-    # Assert
-    assert len(result) > 0
-
-    # Cleanup
-    cleanup_test_database(db)
-```
-
-### Test Coverage
-
-- **Minimum**: 60% overall coverage
-- **New Code**: 80% coverage for new features
-- **Critical Components**: 90% coverage for MCP server, security, backups
-
----
-
-## Git Workflow
-
-### Branching Strategy
-
-```
-main
- ├── develop
- ├── feature/feature-name
- ├── bugfix/bug-description
- ├── hotfix/critical-fix
- └── release/v1.2.0
-```
-
-### Creating a Feature Branch
-
+2. **Pass Pylint** (Python scripts)
 ```bash
-# Update main branch
-git checkout main
-git pull origin main
-
-# Create feature branch
-git checkout -b feature/your-feature-name
-
-# Make your changes
-# ...
-
-# Commit changes
-git add .
-git commit -m "feat: add new feature description"
-
-# Push to your fork
-git push origin feature/your-feature-name
+pylint script.py
 ```
 
-### Commit Message Format
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-<type>(<scope>): <description>
-
-[optional body]
-
-[optional footer]
-```
-
-#### Types
-
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, no logic change)
-- `refactor`: Code refactoring
-- `test`: Adding or updating tests
-- `chore`: Maintenance tasks
-
-#### Examples
-
+3. **Have unit tests**
 ```bash
-# Feature
-git commit -m "feat: add input validation library"
+# Add test to development/tests/
+bash development/tests/run_tests.sh
+```
 
-# Bug fix
-git commit -m "fix: resolve path traversal vulnerability in file operations"
+4. **Pass pre-commit hooks**
+```bash
+# Hooks auto-run on commit
+git commit
+```
 
-# Documentation
-git commit -m "docs: update contributing guide with testing requirements"
-
-# Refactor
-git commit -m "refactor: consolidate duplicate code in MCP server"
+5. **Pass GitHub Actions**
+```bash
+# Auto-runs on push
+git push
 ```
 
 ---
 
 ## Pull Request Process
 
-### Before Submitting
+1. **Create feature branch**
+```bash
+git checkout -b feature/description
+```
 
-1. **Update your branch** with latest main:
-   ```bash
-   git checkout main
-   git pull origin main
-   git checkout your-branch
-   git rebase main
-   ```
+2. **Make changes following standards**
 
-2. **Run all tests**:
-   ```bash
-   pytest
-   pylint lib/python/
-   flake8 lib/python/
-   shellcheck scripts/**/*.sh
-   ```
+3. **Test locally**
+```bash
+bash development/tests/run_tests.sh
+health-dashboard
+```
 
-3. **Update documentation**:
-   - Add/update docstrings
-   - Update README if needed
-   - Update SCRIPT_STATUS.md if adding scripts
-   - Log conversation in conversations/
+4. **Generate documentation**
+```bash
+generate-docs
+generate-changelog
+```
 
-4. **Ensure code quality**:
-   - No linting errors
-   - Code coverage meets requirements
-   - All tests pass
+5. **Commit with semantic message**
+```bash
+git commit -m "feat: Add new feature"
+# or
+git commit -m "fix: Resolve bug"
+# or
+git commit -m "chore: Update docs"
+```
 
-### Submitting Pull Request
+6. **Push and create PR**
+```bash
+git push origin feature/description
+gh pr create
+```
 
-1. **Push to your fork**:
-   ```bash
-   git push origin your-branch
-   ```
-
-2. **Create pull request** on GitHub
-
-3. **Fill out PR template**:
-   - Description of changes
-   - Related issues (e.g., "Fixes #123")
-   - Testing performed
-   - Screenshots (if UI changes)
-
-4. **Wait for review**:
-   - Address reviewer feedback
-   - Make requested changes
-   - Push updates to same branch
-
-### PR Review Criteria
-
-- [ ] Code follows project style guidelines
-- [ ] All tests pass
-- [ ] Code coverage meets requirements
-- [ ] Documentation is updated
-- [ ] No security vulnerabilities introduced
-- [ ] Commit messages follow conventional format
-- [ ] Changes are backward compatible (or documented)
+7. **GitHub Actions will auto-test**
 
 ---
 
-## Documentation
+## Commit Message Convention
 
-### Required Documentation
+**Format:** `type: description`
 
-1. **Code Documentation**:
-   - Docstrings for all functions/classes
-   - Inline comments for complex logic
-   - Type hints for function signatures
+**Types:**
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `chore:` - Maintenance (docs, deps, config)
+- `refactor:` - Code restructuring
+- `test:` - Add/update tests
+- `docs:` - Documentation only
 
-2. **Script Documentation**:
-   - Header comment with version, purpose, usage
-   - Function documentation
-   - Example usage
-
-3. **User Documentation**:
-   - Update README if needed
-   - Add/update protocol documents
-   - Update SCRIPT_STATUS.md
-
-### Documentation Style
-
-```python
-def function_name(param1: str, param2: int = 0) -> bool:
-    """
-    Short description (one line).
-
-    Longer description explaining what the function does,
-    any important details, and how it should be used.
-
-    Args:
-        param1: Description of param1
-        param2: Description of param2 (default: 0)
-
-    Returns:
-        Description of return value
-
-    Raises:
-        ValueError: When param1 is invalid
-        FileNotFoundError: When file doesn't exist
-
-    Example:
-        >>> function_name("test", 5)
-        True
-    """
-    # Implementation
-    pass
+**Examples:**
+```
+feat: Add WordPress backup automation
+fix: Resolve credential scan false positive
+chore: Update dependencies to latest versions
+test: Add integration tests for runbook generator
+docs: Update README with new tool examples
 ```
 
 ---
 
-## Security
+## Code Quality Standards
 
-### Security Guidelines
+### Shell Scripts
 
-1. **Never commit secrets**:
-   - No passwords, API keys, tokens in code
-   - Use `.env` files (gitignored)
-   - Use environment variables
+- Use ShellCheck and fix all warnings
+- Quote all variables: `"$VAR"`
+- Use `set -e` for error handling
+- Include error messages
+- Validate inputs
+- Provide help text
 
-2. **Input validation**:
-   - Always validate user input
-   - Use `lib/python/skippy_validator.py`
-   - Prevent injection attacks
+### Python Scripts
 
-3. **Safe file operations**:
-   - Validate file paths
-   - Prevent directory traversal
-   - Check file permissions
+- Follow PEP 8
+- Use type hints
+- Include docstrings
+- Handle exceptions
+- Validate inputs
+- Use pathlib for file operations
 
-4. **Secure defaults**:
-   - Fail securely
-   - Minimal permissions
-   - Principle of least privilege
+### All Code
 
-### Reporting Security Issues
-
-**Do not open public issues for security vulnerabilities.**
-
-Instead, email security concerns to: [security@example.com]
-
-Include:
-- Description of vulnerability
-- Steps to reproduce
-- Potential impact
-- Suggested fix (if any)
+- No hardcoded credentials
+- No hardcoded paths (use variables)
+- Comprehensive error handling
+- Clear variable names
+- Comments for complex logic
+- Version numbers in headers
 
 ---
 
-## Code Review Process
+## Security Requirements
 
-### As an Author
+### Never Commit:
 
-1. **Self-review** your code before submitting
-2. **Test thoroughly** - don't rely on reviewers to find bugs
-3. **Provide context** in PR description
-4. **Respond promptly** to feedback
-5. **Be open** to suggestions and criticism
+- API keys, tokens, passwords
+- `.env` files
+- Private keys (`.pem`, `.key`)
+- Credentials files
+- Personal/business documents
 
-### As a Reviewer
+### Always:
 
-1. **Be constructive** and respectful
-2. **Focus on code**, not the person
-3. **Explain reasoning** for requested changes
-4. **Approve** when ready, or request changes clearly
-5. **Follow up** if changes requested
+- Use `.gitignore`
+- Run credential scans (pre-commit does this)
+- Store secrets in environment variables
+- Use read-only permissions where possible
+
+---
+
+## Documentation Standards
+
+### All tools must have:
+
+1. **Header with metadata**
+2. **Usage examples**
+3. **Dependency list**
+4. **Error handling examples**
+
+### Generate docs after changes:
+
+```bash
+generate-docs
+```
+
+### Create runbooks for workflows:
+
+```bash
+generate-runbook "workflow name"
+```
+
+---
+
+## Maintenance Schedule
+
+### Daily (Automated)
+
+- Work file cleanup (30 day retention)
+- Analytics updates
+- Health checks
+
+### Weekly (Manual)
+
+- Review usage analytics
+- Update documentation
+- Review open issues
+
+### Monthly (Manual)
+
+- Optimize based on analytics
+- Archive old sessions
+- Update dependencies
+
+---
+
+## Performance Guidelines
+
+### Profile new scripts:
+
+```bash
+profile-script new_script.sh
+```
+
+### Optimization targets:
+
+- Scripts < 5 seconds for common operations
+- No unnecessary file reads
+- Cache when appropriate
+- Parallel operations where possible
+
+---
+
+## Architecture Decisions
+
+### Document all major decisions:
+
+```bash
+log-decision
+
+# Creates ADR (Architecture Decision Record)
+# Explains: What, Why, Alternatives, Consequences
+```
+
+### Review existing ADRs:
+
+```bash
+ls ~/.skippy/adr/
+```
+
+---
+
+## Environment Profiles
+
+### When to create new profile:
+
+- New workflow type (currently: wordpress, script-dev, campaign)
+- Different tool sets needed
+- Specific environment variables required
+
+### Profile template:
+
+```bash
+# ~/.skippy/profiles/new-profile.env
+
+# Description of this profile
+export PRIMARY_PATH="/path/to/project"
+export TOOL_PATH="/path/to/tools"
+
+# Aliases
+alias shortcut="long command"
+
+# Functions
+function_name() {
+    # function body
+}
+```
+
+---
+
+## Release Process
+
+1. **Update version numbers**
+2. **Generate changelog**
+```bash
+generate-changelog
+```
+
+3. **Test everything**
+```bash
+bash development/tests/run_tests.sh
+health-dashboard
+```
+
+4. **Create git tag**
+```bash
+git tag -a v2.1.0 -m "Release 2.1.0"
+git push --tags
+```
+
+5. **Update README**
+6. **Document release notes**
 
 ---
 
 ## Getting Help
 
-### Resources
+**Before asking:**
+1. Check `health-dashboard`
+2. Review runbooks: `ls documentation/runbooks/`
+3. Search conversations: `ls documentation/conversations/`
+4. Check tool help: `tool-name --help`
 
-- **Documentation**: Check `documentation/` directory
-- **Architecture**: See `PROJECT_ARCHITECTURE.md`
-- **Script Status**: See `SCRIPT_STATUS.md`
-- **Issues**: Search existing issues on GitHub
-- **Conversations**: Review `conversations/` for examples
-
-### Asking Questions
-
-1. **Check existing documentation** first
-2. **Search closed issues** for similar questions
-3. **Open a new issue** with:
-   - Clear, descriptive title
-   - What you're trying to do
-   - What you've tried
-   - Relevant code/logs
-   - System information
-
-### Communication Channels
-
-- **GitHub Issues**: Bug reports, feature requests
-- **GitHub Discussions**: Questions, ideas, general discussion
-- **Pull Requests**: Code review, implementation discussion
+**When reporting issues:**
+- Include error messages
+- Include steps to reproduce
+- Include environment (which profile)
+- Include health-dashboard output
 
 ---
 
-## Code of Conduct
-
-### Our Pledge
-
-We pledge to make participation in our project a harassment-free experience for everyone, regardless of age, body size, disability, ethnicity, gender identity, level of experience, nationality, personal appearance, race, religion, or sexual identity.
-
-### Our Standards
-
-**Positive behavior**:
-- Using welcoming and inclusive language
-- Being respectful of differing viewpoints
-- Gracefully accepting constructive criticism
-- Focusing on what's best for the community
-- Showing empathy towards others
-
-**Unacceptable behavior**:
-- Trolling, insulting/derogatory comments, personal attacks
-- Public or private harassment
-- Publishing others' private information
-- Other conduct which could reasonably be considered inappropriate
-
-### Enforcement
-
-Project maintainers are responsible for clarifying standards and will take appropriate corrective action in response to unacceptable behavior.
-
----
-
-## License
-
-By contributing to Skippy System Manager, you agree that your contributions will be licensed under the same license as the project.
-
----
-
-## Acknowledgments
-
-Thank you to all contributors who help make Skippy System Manager better!
-
-### Contributors
-
-- List of contributors (automatically generated)
-
----
-
-## Quick Reference
-
-### Common Commands
-
-```bash
-# Setup
-git clone <repo>
-pip install -r requirements.txt requirements-test.txt
-cp config.env.example config.env
-
-# Development
-git checkout -b feature/my-feature
-# ... make changes ...
-git commit -m "feat: description"
-git push origin feature/my-feature
-
-# Testing
-pytest                    # All tests
-pytest -m unit           # Unit tests only
-pytest --cov             # With coverage
-pylint lib/python/       # Python linting
-flake8 lib/python/       # Python style
-shellcheck scripts/**/*.sh  # Shell linting
-
-# Pull Request
-# Create PR on GitHub
-# Address review feedback
-# Merge when approved
-```
-
----
-
-**Questions?** Open an issue or check existing documentation.
-
-**Ready to contribute?** Pick an issue and get started!
-
-Thank you for contributing to Skippy System Manager! 🚀
+**Last Updated:** 2025-11-19  
+**Maintainer:** Dave Biggers Campaign Tech Team
