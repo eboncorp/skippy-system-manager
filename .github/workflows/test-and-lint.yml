@@ -1,0 +1,92 @@
+name: Test and Lint
+
+on:
+  pull_request:
+    branches: [master, main]
+  push:
+    branches: [master, main]
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run ShellCheck
+        run: |
+          # Install shellcheck
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+          # Check all shell scripts
+          find . -name "*.sh" -type f | while read script; do
+            echo "Checking: $script"
+            shellcheck "$script" || exit 1
+          done
+
+  python-lint:
+    name: Python Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pylint
+
+      - name: Run pylint
+        run: |
+          find . -name "*.py" -type f | while read script; do
+            echo "Linting: $script"
+            pylint --score=no "$script" || exit 1
+          done
+
+  test-suite:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run tests
+        run: |
+          if [[ -f development/tests/run_tests.sh ]]; then
+            bash development/tests/run_tests.sh
+          else
+            echo "No tests found"
+          fi
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Credential scan
+        run: |
+          # Search for potential credentials
+          if git diff HEAD~1 | grep -iE '(api_key|api-key|apikey|password|secret|token|auth).*=.*["\047][a-zA-Z0-9]{20,}'; then
+            echo "❌ Potential credentials detected in commit"
+            exit 1
+          else
+            echo "✅ No credentials detected"
+          fi
+
+      - name: Check for sensitive files
+        run: |
+          # Check for .env files, keys, etc
+          SENSITIVE_FILES=$(find . -name ".env*" -o -name "*.pem" -o -name "*.key" -o -name "*credentials*" 2>/dev/null || true)
+
+          if [[ -n "$SENSITIVE_FILES" ]]; then
+            echo "⚠️  Sensitive files found:"
+            echo "$SENSITIVE_FILES"
+            echo "Ensure these are in .gitignore"
+          else
+            echo "✅ No sensitive files found"
+          fi

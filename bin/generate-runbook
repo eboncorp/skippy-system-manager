@@ -1,0 +1,236 @@
+#!/usr/bin/env python3
+"""
+Runbook Generator v1.0.0
+Generate operational runbooks from skills, scripts, and sessions
+"""
+
+import sys
+import re
+from pathlib import Path
+from datetime import datetime
+from typing import List, Dict
+
+def search_skills(topic: str) -> List[Dict]:
+    """Search skills for topic."""
+    skills_path = Path.home() / '.claude' / 'skills'
+    matching_skills = []
+
+    if not skills_path.exists():
+        return matching_skills
+
+    for skill_dir in skills_path.iterdir():
+        if not skill_dir.is_dir():
+            continue
+
+        skill_file = skill_dir / 'SKILL.md'
+        if not skill_file.exists():
+            continue
+
+        content = skill_file.read_text()
+        if topic.lower() in content.lower():
+            # Extract name and description
+            lines = content.split('\n')
+            name = skill_dir.name
+            description = ""
+
+            for line in lines[:20]:
+                if line.startswith('description:'):
+                    description = line.split(':', 1)[1].strip()
+                    break
+
+            matching_skills.append({
+                'name': name,
+                'description': description,
+                'path': str(skill_file)
+            })
+
+    return matching_skills
+
+def search_scripts(topic: str) -> List[Dict]:
+    """Search scripts for topic."""
+    scripts_path = Path.home() / 'skippy' / 'development' / 'scripts'
+    matching_scripts = []
+
+    if not scripts_path.exists():
+        return matching_scripts
+
+    for script in scripts_path.rglob('*.sh'):
+        content = script.read_text()
+        if topic.lower() in content.lower() or topic.lower() in script.name.lower():
+            # Extract description
+            description = ""
+            for line in content.split('\n')[:30]:
+                if 'Description:' in line:
+                    description = line.split(':', 1)[1].strip().lstrip('# ')
+                    break
+
+            matching_scripts.append({
+                'name': script.name,
+                'category': script.parent.name,
+                'description': description,
+                'path': str(script)
+            })
+
+    return matching_scripts
+
+def search_conversations(topic: str) -> List[Dict]:
+    """Search conversation history for topic."""
+    docs_path = Path.home() / 'skippy' / 'documentation' / 'conversations'
+    matching_docs = []
+
+    if not docs_path.exists():
+        return matching_docs
+
+    for doc in docs_path.glob('*.md'):
+        content = doc.read_text()
+        if topic.lower() in content.lower():
+            # Get first paragraph as summary
+            lines = [l for l in content.split('\n') if l.strip()]
+            summary = lines[0] if lines else ""
+
+            matching_docs.append({
+                'name': doc.stem,
+                'summary': summary,
+                'path': str(doc)
+            })
+
+    return matching_docs[:5]  # Limit to 5 most relevant
+
+def generate_runbook(topic: str, output_path: str):
+    """Generate complete runbook."""
+    print(f"Generating runbook for: {topic}")
+    print(f"Output: {output_path}")
+    print("")
+
+    # Search all sources
+    skills = search_skills(topic)
+    scripts = search_scripts(topic)
+    conversations = search_conversations(topic)
+
+    # Generate runbook
+    with open(output_path, 'w') as f:
+        f.write(f"# {topic.title()} Operational Runbook\n\n")
+        f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
+        f.write(f"**Topic:** {topic}\n\n")
+        f.write("---\n\n")
+
+        # Table of Contents
+        f.write("## Table of Contents\n\n")
+        toc_num = 1
+
+        if skills:
+            f.write(f"{toc_num}. Related Skills ({len(skills)})\n")
+            toc_num += 1
+        if scripts:
+            f.write(f"{toc_num}. Automation Scripts ({len(scripts)})\n")
+            toc_num += 1
+        if conversations:
+            f.write(f"{toc_num}. Historical Context ({len(conversations)})\n")
+            toc_num += 1
+
+        f.write(f"{toc_num}. Quick Reference\n")
+        f.write("\n---\n\n")
+
+        # Skills section
+        if skills:
+            f.write("## 1. Related Skills\n\n")
+            for skill in skills:
+                f.write(f"### {skill['name']}\n\n")
+                f.write(f"**Description:** {skill['description']}\n\n")
+                f.write(f"**Location:** `{skill['path']}`\n\n")
+                f.write("**Usage:** Automatically invoked by Claude Code when relevant\n\n")
+                f.write("---\n\n")
+
+        # Scripts section
+        if scripts:
+            section_num = 2 if skills else 1
+            f.write(f"## {section_num}. Automation Scripts\n\n")
+
+            for script in scripts:
+                f.write(f"### {script['name']}\n\n")
+                f.write(f"**Category:** {script['category']}\n\n")
+
+                if script['description']:
+                    f.write(f"**Description:** {script['description']}\n\n")
+
+                f.write(f"**Location:** `{script['path']}`\n\n")
+                f.write(f"**Usage:**\n```bash\n{script['path']}\n```\n\n")
+                f.write("---\n\n")
+
+        # Conversations section
+        if conversations:
+            section_num = len([x for x in [skills, scripts] if x]) + 1
+            f.write(f"## {section_num}. Historical Context\n\n")
+            f.write("Previous sessions and documentation related to this topic:\n\n")
+
+            for conv in conversations:
+                f.write(f"### {conv['name']}\n\n")
+                f.write(f"{conv['summary']}\n\n")
+                f.write(f"**Location:** `{conv['path']}`\n\n")
+
+        # Quick Reference
+        final_section = len([x for x in [skills, scripts, conversations] if x]) + 1
+        f.write(f"## {final_section}. Quick Reference\n\n")
+
+        if skills:
+            f.write("**Skills:**\n")
+            for skill in skills[:5]:
+                f.write(f"- {skill['name']}\n")
+            f.write("\n")
+
+        if scripts:
+            f.write("**Scripts:**\n")
+            for script in scripts[:5]:
+                f.write(f"- `{script['name']}` ({script['category']})\n")
+            f.write("\n")
+
+        f.write("**Search Commands:**\n")
+        f.write(f"```bash\n")
+        f.write(f"# Find related scripts\n")
+        f.write(f"skippy-script search {topic}\n\n")
+        f.write(f"# Find in documentation\n")
+        f.write(f"grep -r '{topic}' ~/skippy/documentation/\n")
+        f.write(f"```\n\n")
+
+        f.write("---\n\n")
+        f.write(f"**Runbook generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
+        f.write(f"**Generator:** generate-runbook v1.0.0\n")
+
+    # Summary
+    print(f"✅ Runbook generated: {output_path}")
+    print("")
+    print("Summary:")
+    print(f"  Skills found: {len(skills)}")
+    print(f"  Scripts found: {len(scripts)}")
+    print(f"  Conversations found: {len(conversations)}")
+
+def main():
+    """Main execution."""
+    if len(sys.argv) < 2:
+        print("Runbook Generator v1.0.0")
+        print("")
+        print("Usage:")
+        print("  generate-runbook <topic> [output_file]")
+        print("")
+        print("Examples:")
+        print("  generate-runbook 'wordpress deployment'")
+        print("  generate-runbook 'security scanning' ~/docs/security_runbook.md")
+        print("")
+        sys.exit(1)
+
+    topic = sys.argv[1]
+
+    if len(sys.argv) > 2:
+        output_path = sys.argv[2]
+    else:
+        # Default output path
+        safe_topic = topic.lower().replace(' ', '_')
+        output_path = str(Path.home() / 'skippy' / 'documentation' / 'runbooks' / f"{safe_topic}_runbook.md")
+
+    # Ensure output directory exists
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+
+    generate_runbook(topic, output_path)
+
+if __name__ == '__main__':
+    main()
