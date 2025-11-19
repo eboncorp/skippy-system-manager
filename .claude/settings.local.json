@@ -191,7 +191,10 @@
       "Bash(git -C /home/dave/skippy show HEAD:documentation/conversations/claude_code_complete_setup_session_2025-11-19_065208.md)",
       "Bash(timeout 120 git:*)",
       "Bash(git -C /home/dave/skippy stash pop:*)",
-      "Bash(git -C /home/dave/skippy commit -m \"chore: Update Claude Code auto-approvals after GitHub cleanup\n\nAdded permissions from GitHub cleanup session.\nRemoved API key security issue from history.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\")"
+      "Bash(git -C /home/dave/skippy commit -m \"chore: Update Claude Code auto-approvals after GitHub cleanup\n\nAdded permissions from GitHub cleanup session.\nRemoved API key security issue from history.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\")",
+      "Bash(git -C /home/dave/skippy ls-files)",
+      "Bash(git -C /home/dave/skippy commit -m \"chore: Remove business and personal directories from repository\n\n- Added business/ and personal/ to .gitignore\n- Removed 2 files that were accidentally committed\n- These directories contain private documents not suitable for GitHub\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\")",
+      "Bash(git -C /home/dave/skippy commit -m \"chore: Update Claude Code auto-approvals\n\nAdded permissions from business/personal cleanup session.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\")"
     ],
     "deny": [],
     "ask": []
