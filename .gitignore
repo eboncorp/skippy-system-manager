@@ -176,6 +176,10 @@ env/
 # ============================================
 # These are personal files, not part of skippy repo
 
+# Business and personal documents (not public)
+business/
+personal/
+
 # Large media directories
 android/
 dcim/
