@@ -1,3 +1,9 @@
+---
+description: Generate comprehensive session summary with file changes, verification results, and rollback instructions
+argument-hint: "[optional: session_directory_path]"
+allowed-tools: ["Bash", "Read", "Write", "Glob"]
+---
+
 # Session Summary Generator
 
 Automatically create comprehensive README.md documentation for work sessions.
