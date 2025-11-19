@@ -1,0 +1,144 @@
+{
+  "name": "script-dev-restrictive",
+  "description": "Restrictive permissions for safe script development",
+  "version": "1.0.0",
+  "created": "2025-11-19",
+  "use_case": "Script development, code review, automation creation",
+
+  "auto_approve": {
+    "description": "Minimal auto-approval for safety",
+    "tools": [
+      "Read",
+      "Grep",
+      "Glob"
+    ],
+    "bash_commands": [
+      "cat",
+      "ls",
+      "pwd",
+      "find",
+      "grep",
+      "wc",
+      "head",
+      "tail",
+      "stat",
+      "date",
+      "git status",
+      "git diff",
+      "git log"
+    ],
+    "file_patterns": [
+      "*.sh",
+      "*.py",
+      "*.js",
+      "*/scripts/*",
+      "*/development/*",
+      "README.md",
+      "*.md"
+    ]
+  },
+
+  "require_approval": {
+    "description": "Most operations require explicit approval",
+    "tools": [
+      "Edit",
+      "Write",
+      "Bash"
+    ],
+    "bash_commands": [
+      "chmod *",
+      "git add *",
+      "git commit *",
+      "python3 *",
+      "bash *",
+      "./scripts/*"
+    ],
+    "conditions": {
+      "Edit": "Always requires approval",
+      "Write": "Always requires approval",
+      "Bash": "Requires approval unless read-only command",
+      "script_execution": "Must be in development/scripts directory"
+    }
+  },
+
+  "blocked": {
+    "description": "Dangerous operations always blocked",
+    "tools": [],
+    "bash_commands": [
+      "rm -rf *",
+      "sudo *",
+      "curl * | bash",
+      "wget * | sh",
+      "chmod 777 *",
+      "chown * *",
+      "git push --force",
+      "git reset --hard",
+      "systemctl *",
+      "service *",
+      "kill *",
+      "killall *"
+    ],
+    "file_patterns": [
+      ".env",
+      ".env.*",
+      "credentials.json",
+      "*.key",
+      "*.pem",
+      "/etc/*",
+      "/usr/*",
+      "/bin/*",
+      "/sbin/*",
+      "business/*",
+      "personal/*"
+    ]
+  },
+
+  "enforcement_hooks": {
+    "description": "Active enforcement hooks for this profile",
+    "enabled": [
+      "pre_sensitive_file_protection.sh"
+    ],
+    "disabled": [
+      "pre_wordpress_update_protection.sh",
+      "pre_fact_check_enforcement.sh"
+    ]
+  },
+
+  "context_loading": {
+    "auto_load_workflows": true,
+    "workflows_directory": ".claude/workflows",
+    "auto_load_on_session_start": [
+      "script_development_workflow.md"
+    ]
+  },
+
+  "script_requirements": {
+    "check_existing_scripts": true,
+    "scripts_directory": "/home/dave/skippy/development/scripts",
+    "require_version_numbering": true,
+    "require_header_documentation": true,
+    "file_naming_standard": "lowercase_underscores"
+  },
+
+  "testing": {
+    "require_tests_before_commit": false,
+    "test_directory": "tests/",
+    "run_linters": true,
+    "linters": ["shellcheck", "pylint", "eslint"]
+  },
+
+  "code_review": {
+    "use_readonly_skill": true,
+    "skill_name": "code-reviewer",
+    "review_before_commit": true,
+    "block_on_critical_issues": true
+  },
+
+  "notes": [
+    "This profile prioritizes safety over speed",
+    "Most operations require explicit user approval",
+    "Script execution is restricted to development directories",
+    "System-level operations are blocked",
+    "Automatic code review before commits recommended"
+  ]
+}
