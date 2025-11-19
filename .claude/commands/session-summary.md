@@ -89,6 +89,45 @@ else
 fi
 ```
 
+### 4b. Extract WordPress-Specific Context (NEW)
+```bash
+# For WordPress sessions, extract additional context
+if echo "$SESSION_DIR" | grep -q "wordpress"; then
+
+  # Extract page/post IDs from filenames
+  PAGE_IDS=$(ls *_{before,final,after}.* 2>/dev/null | grep -oP '(page|post|policy)_\K\d+' | sort -u)
+
+  # Find related fact-check records
+  for PAGE_ID in $PAGE_IDS; do
+    FACT_CHECK=$(find ~/.claude/content-vault/fact-checks/ -name "${PAGE_ID}_*.fact-checked" 2>/dev/null | head -1)
+    if [ -n "$FACT_CHECK" ]; then
+      FACT_CHECK_TIME=$(stat -c %y "$FACT_CHECK" | cut -d' ' -f1,2 | cut -d'.' -f1)
+      FACT_COUNT=$(jq -r '.facts_verified | length' "$FACT_CHECK" 2>/dev/null || echo "unknown")
+      echo "Fact-check for page ${PAGE_ID}: ${FACT_COUNT} facts verified at ${FACT_CHECK_TIME}"
+    fi
+  done
+
+  # Find related approval records
+  for PAGE_ID in $PAGE_IDS; do
+    APPROVAL=$(find ~/.claude/content-vault/approvals/ -name "${PAGE_ID}_*.approved" 2>/dev/null | head -1)
+    if [ -n "$APPROVAL" ]; then
+      APPROVER=$(jq -r '.approver' "$APPROVAL" 2>/dev/null || echo "unknown")
+      APPROVAL_TIME=$(jq -r '.timestamp' "$APPROVAL" 2>/dev/null || echo "unknown")
+      APPROVAL_NOTES=$(jq -r '.notes' "$APPROVAL" 2>/dev/null || echo "")
+      echo "Approval for page ${PAGE_ID}: by ${APPROVER} at ${APPROVAL_TIME}"
+      [ -n "$APPROVAL_NOTES" ] && echo "  Notes: ${APPROVAL_NOTES}"
+    fi
+  done
+
+  # Find audit trail records
+  AUDIT_MONTH=$(date +%Y-%m)
+  for PAGE_ID in $PAGE_IDS; do
+    AUDIT_RECORDS=$(find ~/.claude/content-vault/audit-log/${AUDIT_MONTH}/ -name "${PAGE_ID}_*.audit" 2>/dev/null | wc -l)
+    [ $AUDIT_RECORDS -gt 0 ] && echo "Audit trail: ${AUDIT_RECORDS} record(s) for page ${PAGE_ID}"
+  done
+fi
+```
+
 ### 5. Generate Comprehensive README
 ```bash
 cat > "$SESSION_DIR/README.md" <<EOF
