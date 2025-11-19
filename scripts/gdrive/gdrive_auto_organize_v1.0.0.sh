@@ -8,8 +8,8 @@
 # Usage: ./gdrive_auto_organize_v1.0.0.sh [--dry-run]
 #
 # Cron: Add to crontab for automatic organization
-#   Daily at 3 AM:    0 3 * * * /home/dave/skippy/scripts/gdrive/gdrive_auto_organize_v1.0.0.sh
-#   Weekly on Sunday: 0 3 * * 0 /home/dave/skippy/scripts/gdrive/gdrive_auto_organize_v1.0.0.sh
+#   Daily at 3 AM:    0 3 * * * /home/dave/skippy/development/scripts/scripts/gdrive/gdrive_auto_organize_v1.0.0.sh
+#   Weekly on Sunday: 0 3 * * 0 /home/dave/skippy/development/scripts/scripts/gdrive/gdrive_auto_organize_v1.0.0.sh
 #
 
 set -euo pipefail

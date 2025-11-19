@@ -25,7 +25,7 @@ case "$OPERATION" in
 
         if [ "$LATEST_VALIDATION" -eq 0 ]; then
             echo "❌ BLOCKED: Pre-deployment validator not run in last hour"
-            echo "Required: Run /home/dave/skippy/scripts/wordpress/pre_deployment_validator_v1.0.0.sh"
+            echo "Required: Run /home/dave/skippy/development/scripts/scripts/wordpress/pre_deployment_validator_v1.0.0.sh"
             log "BLOCKED wordpress-deploy: No recent validation report"
             exit 1
         fi
