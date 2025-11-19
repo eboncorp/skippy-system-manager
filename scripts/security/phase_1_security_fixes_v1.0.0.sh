@@ -340,7 +340,7 @@ push_to_github() {
 run_security_scan() {
     log_info "Running git security scanner..."
 
-    local scanner="/home/dave/skippy/scripts/utility/git_security_scanner_v1.0.0.sh"
+    local scanner="/home/dave/skippy/development/scripts/scripts/utility/git_security_scanner_v1.0.0.sh"
 
     if [ -f "$scanner" ]; then
         if "$scanner" "$PWD"; then

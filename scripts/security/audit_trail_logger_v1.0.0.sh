@@ -32,7 +32,7 @@ echo "[$TIMESTAMP] [$USER@$HOSTNAME] [$ACTION] $DETAILS" >> "$AUDIT_LOG"
 case "$ACTION" in
     "SECURITY_VIOLATION"|"UNAUTHORIZED_ACCESS"|"CREDENTIAL_EXPOSURE")
         # Send alert (implement actual alerting in critical_alerter)
-        /home/dave/skippy/scripts/monitoring/critical_alerter_v1.0.0.sh "$ACTION" "$DETAILS" 2>/dev/null || true
+        /home/dave/skippy/development/scripts/scripts/monitoring/critical_alerter_v1.0.0.sh "$ACTION" "$DETAILS" 2>/dev/null || true
         ;;
 esac
 

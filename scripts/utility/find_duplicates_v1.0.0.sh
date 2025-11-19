@@ -4,7 +4,7 @@
 # Purpose: Find duplicate files in system by content (MD5 hash)
 # Version: 1.0.0
 # Created: 2025-10-28
-# Location: /home/dave/skippy/scripts/utility/
+# Location: /home/dave/skippy/development/scripts/scripts/utility/
 ################################################################################
 
 set -euo pipefail

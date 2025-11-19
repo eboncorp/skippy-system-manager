@@ -955,7 +955,7 @@ echo "\`\`\`" >> "$REPORT_FILE"
 # Color contrast (basic check - looks for color CSS)
 echo "\`\`\`" >> "$REPORT_FILE"
 echo "Color contrast: Manual testing recommended" >> "$REPORT_FILE"
-echo "Use: /home/dave/skippy/scripts/wordpress/wordpress_color_contrast_checker_v1.2.0.sh" >> "$REPORT_FILE"
+echo "Use: /home/dave/skippy/development/scripts/scripts/wordpress/wordpress_color_contrast_checker_v1.2.0.sh" >> "$REPORT_FILE"
 echo "\`\`\`" >> "$REPORT_FILE"
 
 cat >> "$REPORT_FILE" << EOF

@@ -198,7 +198,7 @@ git checkout <commit> QUICK_FACTS_SHEET.md
 
 When fact sheet is updated:
 1. Commit changes here
-2. Run fact checker: `/home/dave/skippy/scripts/monitoring/automated_fact_checker_v1.0.0.sh`
+2. Run fact checker: `/home/dave/skippy/development/scripts/scripts/monitoring/automated_fact_checker_v1.0.0.sh`
 3. Fix any violations found in WordPress content
 4. Document updates in session notes
 

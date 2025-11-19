@@ -393,13 +393,13 @@ setup_cron() {
 # Added by dev_environment_setup v1.0.0
 
 # Work files cleanup - 3:30 AM daily
-30 3 * * * /home/dave/skippy/scripts/cleanup_work_files.sh >/dev/null 2>&1
+30 3 * * * /home/dave/skippy/development/scripts/scripts/cleanup_work_files.sh >/dev/null 2>&1
 
 # Security scan - 2 AM Sundays
-0 2 * * 0 /home/dave/skippy/scripts/security/vulnerability_scanner_v1.0.0.sh >/dev/null 2>&1
+0 2 * * 0 /home/dave/skippy/development/scripts/scripts/security/vulnerability_scanner_v1.0.0.sh >/dev/null 2>&1
 
 # Backup verification - 4 AM on 1st of month
-0 4 1 * * /home/dave/skippy/scripts/backup/backup_verification_test_v1.0.0.sh >/dev/null 2>&1
+0 4 1 * * /home/dave/skippy/development/scripts/scripts/backup/backup_verification_test_v1.0.0.sh >/dev/null 2>&1
 
 CRON
 ) | crontab -
