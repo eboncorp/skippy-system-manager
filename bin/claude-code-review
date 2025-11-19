@@ -1,0 +1,45 @@
+#!/bin/bash
+# Claude Code Reviewer - Headless automation
+# Version: v1.0.0
+# Created: 2025-11-19
+
+set -euo pipefail
+
+# Usage
+if [ $# -eq 0 ]; then
+    echo "Usage: claude-code-review <file_path>"
+    echo ""
+    echo "Examples:"
+    echo "  claude-code-review script.sh"
+    echo "  claude-code-review policy-manager.php"
+    echo ""
+    exit 1
+fi
+
+FILE="$1"
+
+if [ ! -f "$FILE" ]; then
+    echo "Error: File '$FILE' not found"
+    exit 1
+fi
+
+# Run Claude Code in headless mode for code review
+claude --print --append-system-prompt "You are a code quality expert. Review for: security vulnerabilities, performance issues, maintainability concerns, WordPress best practices, and test coverage gaps. Provide specific, actionable feedback with severity ratings (CRITICAL/HIGH/MEDIUM/LOW)." <<EOF
+**Review this code file:**
+File: $FILE
+
+\`\`\`
+$(cat "$FILE")
+\`\`\`
+
+**Provide structured feedback:**
+1. Security Issues (if any)
+2. Performance Concerns (if any)
+3. Maintainability Suggestions
+4. Best Practice Violations (if any)
+5. Test Coverage Recommendations
+
+Format each finding as:
+[SEVERITY] Issue description
+→ Recommendation with code example
+EOF

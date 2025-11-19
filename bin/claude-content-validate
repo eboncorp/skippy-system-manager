@@ -1,0 +1,57 @@
+#!/bin/bash
+# Claude Content Validator - Headless automation
+# Version: v1.0.0
+# Created: 2025-11-19
+
+set -euo pipefail
+
+# Usage
+if [ $# -eq 0 ]; then
+    echo "Usage: claude-content-validate <file_or_post_id>"
+    echo ""
+    echo "Examples:"
+    echo "  claude-content-validate 105"
+    echo "  claude-content-validate page_content.html"
+    echo ""
+    exit 1
+fi
+
+WP_PATH="/home/dave/skippy/websites/rundaverun/local_site/app/public"
+
+# Get content (WordPress post ID or file)
+if [[ "$1" =~ ^[0-9]+$ ]]; then
+    echo "Fetching WordPress post $1..."
+    CONTENT=$(wp --path="$WP_PATH" post get "$1" --field=post_content 2>/dev/null || echo "ERROR: Could not fetch post $1")
+    SOURCE="WordPress Post ID: $1"
+else
+    if [ -f "$1" ]; then
+        CONTENT=$(cat "$1")
+        SOURCE="File: $1"
+    else
+        CONTENT="$1"
+        SOURCE="Direct text"
+    fi
+fi
+
+# Run Claude Code for comprehensive content validation
+claude --print --append-system-prompt "You are a campaign content validator. Check for: factual accuracy, brand consistency, tone appropriateness, HTML validity, accessibility (WCAG), and FEC compliance. Provide severity-rated feedback." <<EOF
+**Validate this campaign content:**
+Source: $SOURCE
+
+Content:
+$CONTENT
+
+**Validation checklist:**
+1. ✓ Factual Accuracy (check against QUICK_FACTS_SHEET.md)
+2. ✓ Brand Consistency (tone, messaging, values alignment)
+3. ✓ Audience Appropriateness (reading level, inclusivity)
+4. ✓ Technical Quality (HTML, links, images)
+5. ✓ Legal Compliance (FEC disclaimers, privacy)
+
+**Provide structured output:**
+- CRITICAL Issues (must fix before publication)
+- WARNINGS (recommended fixes)
+- SUGGESTIONS (nice to have)
+
+Include specific corrections for any issues found.
+EOF

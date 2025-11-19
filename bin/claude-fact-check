@@ -1,0 +1,45 @@
+#!/bin/bash
+# Claude Code Fact-Checker - Headless automation
+# Version: v1.0.0
+# Created: 2025-11-19
+
+set -euo pipefail
+
+# Configuration
+FACTS_FILE="/home/dave/rundaverun/campaign/GODADDY_DEPLOYMENT_2025-10-13/1_WORDPRESS_PLUGIN/dave-biggers-policy-manager/assets/markdown-files/QUICK_FACTS_SHEET.md"
+
+# Usage
+if [ $# -eq 0 ]; then
+    echo "Usage: claude-fact-check <content_file_or_text>"
+    echo ""
+    echo "Examples:"
+    echo "  claude-fact-check 'Total budget is \$81M'"
+    echo "  claude-fact-check page_content.html"
+    echo ""
+    exit 1
+fi
+
+# Get content (file or direct text)
+if [ -f "$1" ]; then
+    CONTENT=$(cat "$1")
+else
+    CONTENT="$1"
+fi
+
+# Run Claude Code in headless mode for fact-checking
+claude --print --append-system-prompt "You are a fact-checker for campaign content. Compare the provided content against QUICK_FACTS_SHEET.md. Flag any numerical discrepancies with specific corrections. Format output as: ✅ CORRECT or ❌ ERROR: [issue] → [correction]" <<EOF
+**Content to fact-check:**
+$CONTENT
+
+**Reference facts from authoritative source:**
+$(cat "$FACTS_FILE" 2>/dev/null || echo "ERROR: QUICK_FACTS_SHEET.md not found at $FACTS_FILE")
+
+**Known correct values:**
+- Total Budget: \$81M (NOT \$110.5M)
+- Public Safety Budget: \$77.4M
+- Wellness Center ROI: \$2-3 per \$1 spent (NOT \$1.80)
+- JCPS Reading Proficiency: 34-35% (NOT 44%)
+- JCPS Math Proficiency: 27-28% (NOT 41%)
+
+Report any discrepancies found with specific line numbers and corrections.
+EOF
