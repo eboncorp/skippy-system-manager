@@ -264,20 +264,23 @@ skippy-tools/
 # These are local state, not versioned
 .claude.json
 .claude/CLAUDE.md
-.claude/commands/
 .claude/debug/
 .claude/file-history/
 .claude/history.jsonl
-.claude/hooks/
 .claude/plugins/
 .claude/projects/
-.claude/settings.json
 .claude/settings.local.json
+.claude/settings.local.json*
+.claude/settings.local.json.backup*
+.claude/backups/
 .claude/shell-snapshots/
 .claude/statsig/
 .claude/todos/
 htmlcov/
 .pytest_cache/
+
+# Note: .claude/commands/ and .claude/hooks/ ARE tracked (team-shared)
+# Note: .claude/settings.json IS tracked (project permissions)
 
 # ============================================
 # OTHER UNTRACKED DIRECTORIES
