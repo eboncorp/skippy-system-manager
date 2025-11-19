@@ -1,0 +1,68 @@
+#!/bin/bash
+# Script Performance Profiler v1.0.0
+
+SCRIPT="$1"
+PROFILE_DIR="$HOME/.skippy/profiles/performance"
+mkdir -p "$PROFILE_DIR"
+
+if [[ ! -f "$SCRIPT" ]]; then
+    echo "Usage: profile-script <script_path>"
+    exit 1
+fi
+
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+PROFILE_FILE="$PROFILE_DIR/$(basename $SCRIPT)_$TIMESTAMP.profile"
+
+echo "═══ Profiling: $(basename $SCRIPT) ═══"
+echo ""
+
+# Run with time tracking
+START=$(date +%s.%N)
+/usr/bin/time -v bash "$SCRIPT" 2> "$PROFILE_FILE.time" || true
+END=$(date +%s.%N)
+
+DURATION=$(echo "$END - $START" | bc)
+
+# Extract metrics
+if [[ -f "$PROFILE_FILE.time" ]]; then
+    MAX_MEMORY=$(grep "Maximum resident set size" "$PROFILE_FILE.time" | awk '{print $6}')
+    CPU_PERCENT=$(grep "Percent of CPU" "$PROFILE_FILE.time" | awk '{print $7}')
+else
+    MAX_MEMORY="N/A"
+    CPU_PERCENT="N/A"
+fi
+
+# Save results
+cat > "$PROFILE_FILE" <<EOF
+Script: $SCRIPT
+Timestamp: $(date)
+Duration: ${DURATION}s
+Max Memory: ${MAX_MEMORY}KB
+CPU: ${CPU_PERCENT}
+EOF
+
+echo "Duration: ${DURATION}s"
+echo "Max Memory: ${MAX_MEMORY}KB"
+echo "CPU Usage: ${CPU_PERCENT}"
+echo ""
+echo "Profile saved: $PROFILE_FILE"
+
+# Compare to previous runs
+PREV_RUNS=$(ls -1 "$PROFILE_DIR"/$(basename $SCRIPT)_*.profile 2>/dev/null | wc -l)
+if [[ $PREV_RUNS -gt 1 ]]; then
+    echo ""
+    echo "═══ Performance Trend ═══"
+    echo "Previous runs: $((PREV_RUNS - 1))"
+
+    AVG_DURATION=$(grep "Duration:" "$PROFILE_DIR"/$(basename $SCRIPT)_*.profile | \
+        awk '{print $2}' | sed 's/s//' | \
+        awk '{sum+=$1} END {if(NR>0) print sum/NR; else print 0}')
+
+    if (( $(echo "$DURATION > $AVG_DURATION" | bc -l 2>/dev/null || echo 0) )); then
+        DIFF=$(echo "scale=2; (($DURATION - $AVG_DURATION) / $AVG_DURATION) * 100" | bc 2>/dev/null || echo "0")
+        echo "⚠️  ${DIFF}% slower than average"
+    else
+        DIFF=$(echo "scale=2; (($AVG_DURATION - $DURATION) / $AVG_DURATION) * 100" | bc 2>/dev/null || echo "0")
+        echo "✅ ${DIFF}% faster than average"
+    fi
+fi

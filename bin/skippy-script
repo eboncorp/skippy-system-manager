@@ -1,0 +1,406 @@
+#!/bin/bash
+# Skippy Script Manager v1.0.0
+# Unified interface for managing 179+ scripts
+
+SCRIPT_BASE="/home/dave/skippy/development/scripts"
+TEMPLATE_DIR="/home/dave/skippy/development/templates"
+
+show_help() {
+    cat <<EOF
+Skippy Script Manager v1.0.0
+
+Usage:
+  skippy-script search <keyword>   - Search scripts by keyword
+  skippy-script info <name>        - Show script details
+  skippy-script list [category]    - List scripts (by category)
+  skippy-script recent [n]         - Show recently modified scripts
+  skippy-script stats              - Show statistics
+  skippy-script create             - Create new script (interactive)
+  skippy-script categories         - List all categories
+  skippy-script run <name> [args]  - Execute a script
+  skippy-script path <name>        - Show script path
+
+Examples:
+  skippy-script search backup
+  skippy-script info wordpress_backup_v1.0.0.sh
+  skippy-script list wordpress
+  skippy-script recent 10
+  skippy-script create
+
+EOF
+}
+
+search_scripts() {
+    KEYWORD="$1"
+    if [[ -z "$KEYWORD" ]]; then
+        echo "Usage: skippy-script search <keyword>"
+        return 1
+    fi
+
+    echo "═══ Searching scripts for: $KEYWORD ═══"
+    echo ""
+
+    FOUND=0
+    find "$SCRIPT_BASE" -type f \( -name "*.sh" -o -name "*.py" \) | while read script; do
+        # Search in filename and content
+        if basename "$script" | grep -qi "$KEYWORD" || grep -qi "$KEYWORD" "$script" 2>/dev/null; then
+            FOUND=$((FOUND + 1))
+            NAME=$(basename "$script")
+            CATEGORY=$(basename $(dirname "$script"))
+            DESCRIPTION=$(head -20 "$script" | grep -i "Description:" | cut -d: -f2- | sed 's/^[# ]*//')
+
+            echo "[$CATEGORY] $NAME"
+            if [[ -n "$DESCRIPTION" ]]; then
+                echo "  $DESCRIPTION"
+            fi
+            echo ""
+        fi
+    done
+
+    if [[ $FOUND -eq 0 ]]; then
+        echo "No scripts found matching: $KEYWORD"
+    fi
+}
+
+show_info() {
+    NAME="$1"
+    if [[ -z "$NAME" ]]; then
+        echo "Usage: skippy-script info <script_name>"
+        return 1
+    fi
+
+    # Find the script
+    SCRIPT_PATH=$(find "$SCRIPT_BASE" -name "$NAME" -type f | head -1)
+
+    if [[ -z "$SCRIPT_PATH" ]]; then
+        echo "Script not found: $NAME"
+        return 1
+    fi
+
+    echo "═══ Script Information ═══"
+    echo ""
+    echo "Name: $(basename "$SCRIPT_PATH")"
+    echo "Category: $(basename $(dirname "$SCRIPT_PATH"))"
+    echo "Path: $SCRIPT_PATH"
+    echo ""
+
+    # Extract header information
+    echo "Documentation:"
+    head -30 "$SCRIPT_PATH" | grep -E "^#" | sed 's/^# */  /'
+    echo ""
+
+    # File stats
+    SIZE=$(du -h "$SCRIPT_PATH" | awk '{print $1}')
+    MODIFIED=$(stat -c%y "$SCRIPT_PATH" 2>/dev/null | cut -d'.' -f1)
+    LINES=$(wc -l < "$SCRIPT_PATH")
+
+    echo "Stats:"
+    echo "  Size: $SIZE"
+    echo "  Lines: $LINES"
+    echo "  Modified: $MODIFIED"
+    echo ""
+
+    # Recent usage (if available)
+    if [[ -f ~/.bash_history ]]; then
+        USAGE_COUNT=$(grep -c "$(basename $SCRIPT_PATH)" ~/.bash_history 2>/dev/null || echo 0)
+        echo "Recent Usage:"
+        echo "  Found in history: $USAGE_COUNT times"
+    fi
+}
+
+list_scripts() {
+    CATEGORY="$1"
+
+    echo "═══ Script Listing ═══"
+    echo ""
+
+    if [[ -n "$CATEGORY" ]]; then
+        # List specific category
+        CAT_PATH="$SCRIPT_BASE/$CATEGORY"
+        if [[ ! -d "$CAT_PATH" ]]; then
+            echo "Category not found: $CATEGORY"
+            return 1
+        fi
+
+        echo "Category: $CATEGORY"
+        echo ""
+
+        find "$CAT_PATH" -maxdepth 1 -type f \( -name "*.sh" -o -name "*.py" \) | sort | while read script; do
+            echo "  $(basename $script)"
+        done
+    else
+        # List all categories with counts
+        for category in "$SCRIPT_BASE"/*/; do
+            if [[ -d "$category" ]]; then
+                CAT_NAME=$(basename "$category")
+                COUNT=$(find "$category" -maxdepth 1 -type f \( -name "*.sh" -o -name "*.py" \) | wc -l)
+                echo "$CAT_NAME: $COUNT scripts"
+            fi
+        done
+    fi
+    echo ""
+}
+
+show_recent() {
+    LIMIT="${1:-10}"
+
+    echo "═══ Recently Modified Scripts (Last $LIMIT) ═══"
+    echo ""
+
+    find "$SCRIPT_BASE" -type f \( -name "*.sh" -o -name "*.py" \) -printf '%T@ %p\n' | \
+        sort -rn | \
+        head -$LIMIT | \
+        while read timestamp path; do
+            NAME=$(basename "$path")
+            CATEGORY=$(basename $(dirname "$path"))
+            DATE=$(date -d @${timestamp%.*} '+%Y-%m-%d %H:%M' 2>/dev/null)
+            echo "[$DATE] [$CATEGORY] $NAME"
+        done
+    echo ""
+}
+
+show_stats() {
+    echo "═══ Skippy Script Statistics ═══"
+    echo ""
+
+    TOTAL_SCRIPTS=$(find "$SCRIPT_BASE" -type f \( -name "*.sh" -o -name "*.py" \) | wc -l)
+    BASH_SCRIPTS=$(find "$SCRIPT_BASE" -type f -name "*.sh" | wc -l)
+    PYTHON_SCRIPTS=$(find "$SCRIPT_BASE" -type f -name "*.py" | wc -l)
+
+    echo "Total Scripts: $TOTAL_SCRIPTS"
+    echo ""
+    echo "By Language:"
+    echo "  Bash: $BASH_SCRIPTS"
+    echo "  Python: $PYTHON_SCRIPTS"
+    echo ""
+
+    echo "By Category:"
+    for category in "$SCRIPT_BASE"/*/; do
+        if [[ -d "$category" ]]; then
+            CAT_NAME=$(basename "$category")
+            COUNT=$(find "$category" -maxdepth 1 -type f \( -name "*.sh" -o -name "*.py" \) | wc -l)
+            echo "  $CAT_NAME: $COUNT"
+        fi
+    done
+    echo ""
+
+    # Total size
+    TOTAL_SIZE=$(du -sh "$SCRIPT_BASE" 2>/dev/null | awk '{print $1}')
+    echo "Total Size: $TOTAL_SIZE"
+    echo ""
+
+    # Average lines
+    TOTAL_LINES=$(find "$SCRIPT_BASE" -type f \( -name "*.sh" -o -name "*.py" \) -exec wc -l {} + | tail -1 | awk '{print $1}')
+    AVG_LINES=$((TOTAL_LINES / TOTAL_SCRIPTS))
+    echo "Average Lines/Script: $AVG_LINES"
+}
+
+create_script() {
+    echo "═══ Script Creation Wizard ═══"
+    echo ""
+
+    # Get script details
+    read -p "Script name (e.g., backup_wordpress_v1.0.0): " NAME
+    read -p "Category (automation/monitoring/security/wordpress/etc): " CATEGORY
+    read -p "Language (bash/python): " LANG
+    read -p "Description: " DESC
+
+    # Validate
+    if [[ -z "$NAME" ]] || [[ -z "$CATEGORY" ]] || [[ -z "$LANG" ]]; then
+        echo "❌ Name, category, and language are required"
+        return 1
+    fi
+
+    # Check if category exists
+    CAT_PATH="$SCRIPT_BASE/$CATEGORY"
+    if [[ ! -d "$CAT_PATH" ]]; then
+        read -p "Category '$CATEGORY' doesn't exist. Create it? (y/n): " CREATE_CAT
+        if [[ "$CREATE_CAT" == "y" ]]; then
+            mkdir -p "$CAT_PATH"
+            echo "✅ Created category: $CATEGORY"
+        else
+            return 1
+        fi
+    fi
+
+    # Create script from template
+    NEW_SCRIPT="$CAT_PATH/$NAME"
+
+    if [[ -f "$NEW_SCRIPT" ]]; then
+        echo "❌ Script already exists: $NEW_SCRIPT"
+        return 1
+    fi
+
+    # Generate template
+    if [[ "$LANG" == "bash" ]]; then
+        cat > "$NEW_SCRIPT" <<EOF
+#!/bin/bash
+# $NAME
+# Description: $DESC
+# Version: 1.0.0
+# Created: $(date +%Y-%m-%d)
+
+set -euo pipefail
+
+# Configuration
+# Add your configuration here
+
+# Functions
+main() {
+    echo "Running: $NAME"
+    # Add your logic here
+}
+
+# Main execution
+if [[ "\${BASH_SOURCE[0]}" == "\${0}" ]]; then
+    main "\$@"
+fi
+EOF
+    elif [[ "$LANG" == "python" ]]; then
+        cat > "$NEW_SCRIPT" <<EOF
+#!/usr/bin/env python3
+"""
+$NAME
+Description: $DESC
+Version: 1.0.0
+Created: $(date +%Y-%m-%d)
+"""
+
+import sys
+from pathlib import Path
+
+def main():
+    """Main execution function."""
+    print(f"Running: $NAME")
+    # Add your logic here
+
+if __name__ == "__main__":
+    main()
+EOF
+    fi
+
+    chmod +x "$NEW_SCRIPT"
+
+    echo ""
+    echo "✅ Created: $NEW_SCRIPT"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Edit the script: \${EDITOR:-nano} $NEW_SCRIPT"
+    echo "  2. Test it: bash $NEW_SCRIPT"
+    echo "  3. Commit it: git add $NEW_SCRIPT"
+    echo ""
+
+    # Offer to open in editor
+    read -p "Open in editor now? (y/n): " OPEN_EDITOR
+    if [[ "$OPEN_EDITOR" == "y" ]]; then
+        ${EDITOR:-nano} "$NEW_SCRIPT"
+    fi
+}
+
+list_categories() {
+    echo "═══ Script Categories ═══"
+    echo ""
+
+    for category in "$SCRIPT_BASE"/*/; do
+        if [[ -d "$category" ]]; then
+            CAT_NAME=$(basename "$category")
+            COUNT=$(find "$category" -maxdepth 1 -type f \( -name "*.sh" -o -name "*.py" \) | wc -l)
+            echo "$CAT_NAME ($COUNT scripts)"
+
+            # Show first 3 scripts as examples
+            find "$category" -maxdepth 1 -type f \( -name "*.sh" -o -name "*.py" \) | head -3 | while read script; do
+                echo "  - $(basename $script)"
+            done
+            echo ""
+        fi
+    done
+}
+
+run_script() {
+    NAME="$1"
+    shift
+
+    if [[ -z "$NAME" ]]; then
+        echo "Usage: skippy-script run <script_name> [args]"
+        return 1
+    fi
+
+    # Find the script
+    SCRIPT_PATH=$(find "$SCRIPT_BASE" -name "$NAME" -type f | head -1)
+
+    if [[ -z "$SCRIPT_PATH" ]]; then
+        echo "Script not found: $NAME"
+        return 1
+    fi
+
+    echo "Running: $(basename $SCRIPT_PATH)"
+    echo "Path: $SCRIPT_PATH"
+    echo ""
+
+    # Determine how to run it
+    if [[ "$SCRIPT_PATH" == *.sh ]]; then
+        bash "$SCRIPT_PATH" "$@"
+    elif [[ "$SCRIPT_PATH" == *.py ]]; then
+        python3 "$SCRIPT_PATH" "$@"
+    else
+        "$SCRIPT_PATH" "$@"
+    fi
+}
+
+get_path() {
+    NAME="$1"
+    if [[ -z "$NAME" ]]; then
+        echo "Usage: skippy-script path <script_name>"
+        return 1
+    fi
+
+    SCRIPT_PATH=$(find "$SCRIPT_BASE" -name "$NAME" -type f | head -1)
+
+    if [[ -z "$SCRIPT_PATH" ]]; then
+        echo "Script not found: $NAME"
+        return 1
+    fi
+
+    echo "$SCRIPT_PATH"
+}
+
+# Main command router
+case "$1" in
+    search)
+        search_scripts "$2"
+        ;;
+    info)
+        show_info "$2"
+        ;;
+    list)
+        list_scripts "$2"
+        ;;
+    recent)
+        show_recent "$2"
+        ;;
+    stats)
+        show_stats
+        ;;
+    create)
+        create_script
+        ;;
+    categories)
+        list_categories
+        ;;
+    run)
+        shift
+        run_script "$@"
+        ;;
+    path)
+        get_path "$2"
+        ;;
+    help|--help|-h|"")
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac
