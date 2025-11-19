@@ -1,0 +1,76 @@
+#!/bin/bash
+# Scheduled Maintenance Automation v1.0.0
+# Automated system cleanup and optimization
+
+MAINT_LOG="$HOME/.skippy/logs/maintenance.log"
+mkdir -p "$(dirname $MAINT_LOG)"
+
+echo "═══════════════════════════════════════════════════"
+echo "  Skippy Maintenance: $(date)"
+echo "═══════════════════════════════════════════════════"
+echo ""
+
+# Log to file
+exec > >(tee -a "$MAINT_LOG")
+exec 2>&1
+
+# 1. Clean up old work files (>30 days)
+echo "1. Cleaning old work files (>30 days)..."
+WORK_CLEANED=0
+find ~/skippy/work -type f -mtime +30 2>/dev/null | while read file; do
+    ARCHIVE_DIR="$HOME/.skippy/archive/work/$(date +%Y-%m)"
+    mkdir -p "$ARCHIVE_DIR"
+    WORK_CLEANED=$((WORK_CLEANED + 1))
+    gzip -c "$file" > "$ARCHIVE_DIR/$(basename $file).gz" && rm "$file"
+done
+echo "   Archived: $WORK_CLEANED files"
+
+# 2. Clean up old backups (>90 days)
+echo "2. Cleaning old backups (>90 days)..."
+BACKUPS_REMOVED=$(find ~/.claude/auto-backups -type f -mtime +90 -delete -print 2>/dev/null | wc -l)
+echo "   Removed: $BACKUPS_REMOVED backups"
+
+# 3. Optimize git repositories
+echo "3. Optimizing git repositories..."
+GIT_REPOS=0
+find ~/skippy -name ".git" -type d 2>/dev/null | while read gitdir; do
+    REPO=$(dirname "$gitdir")
+    GIT_REPOS=$((GIT_REPOS + 1))
+    git -C "$REPO" gc --auto --quiet
+done
+echo "   Optimized: $GIT_REPOS repositories"
+
+# 4. Vacuum SQLite databases
+echo "4. Vacuuming databases..."
+DBS_VACUUMED=0
+for db in ~/.skippy/*.db ~/.claude/*.db; do
+    if [[ -f "$db" ]]; then
+        DBS_VACUUMED=$((DBS_VACUUMED + 1))
+        sqlite3 "$db" "VACUUM;" 2>/dev/null || true
+    fi
+done
+echo "   Vacuumed: $DBS_VACUUMED databases"
+
+# 5. Clean temporary files
+echo "5. Cleaning temporary files..."
+TEMP_REMOVED=$(find /tmp -user $USER -type f -mtime +7 -delete -print 2>/dev/null | wc -l)
+echo "   Removed: $TEMP_REMOVED temp files"
+
+# 6. Check disk usage
+echo "6. Disk usage check..."
+DISK_USAGE=$(df -h ~ | tail -1 | awk '{print $5}')
+DISK_AVAIL=$(df -h ~ | tail -1 | awk '{print $4}')
+echo "   Usage: $DISK_USAGE, Available: $DISK_AVAIL"
+
+# 7. Summary
+echo ""
+echo "═══ Maintenance Summary ═══"
+echo "Work files archived: $WORK_CLEANED"
+echo "Old backups removed: $BACKUPS_REMOVED"
+echo "Git repos optimized: $GIT_REPOS"
+echo "Databases vacuumed: $DBS_VACUUMED"
+echo "Temp files removed: $TEMP_REMOVED"
+echo "Disk space: $DISK_AVAIL available ($DISK_USAGE used)"
+echo ""
+echo "Status: ✅ Complete"
+echo "Log: $MAINT_LOG"

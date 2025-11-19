@@ -1,0 +1,186 @@
+#!/bin/bash
+# System Health Dashboard v1.0.0
+# At-a-glance status of entire skippy ecosystem
+
+clear
+echo "╔═══════════════════════════════════════════════════╗"
+echo "║         Skippy System Health Dashboard            ║"
+echo "╚═══════════════════════════════════════════════════╝"
+echo ""
+echo "Last Updated: $(date)"
+echo ""
+
+# System resources
+echo "═══ System Resources ═══"
+DISK_USAGE=$(df -h ~ | tail -1 | awk '{print $5}')
+DISK_AVAIL=$(df -h ~ | tail -1 | awk '{print $4}')
+MEM_USED=$(free -h 2>/dev/null | grep Mem | awk '{print $3}')
+MEM_TOTAL=$(free -h 2>/dev/null | grep Mem | awk '{print $2}')
+LOAD=$(uptime | awk -F'load average:' '{print $2}' | awk '{print $1}')
+
+echo "Disk: $DISK_USAGE used, $DISK_AVAIL available"
+if [[ -n "$MEM_USED" ]]; then
+    echo "Memory: $MEM_USED / $MEM_TOTAL"
+fi
+echo "Load: $LOAD"
+echo ""
+
+# Git status
+echo "═══ Git Repository ═══"
+cd /home/dave/skippy || exit
+UNCOMMITTED=$(git status --short 2>/dev/null | wc -l)
+UNPUSHED=$(git log origin/master..master --oneline 2>/dev/null | wc -l)
+BRANCH=$(git branch --show-current 2>/dev/null)
+
+echo "Branch: $BRANCH"
+echo "Uncommitted changes: $UNCOMMITTED"
+echo "Unpushed commits: $UNPUSHED"
+
+if [[ $UNCOMMITTED -gt 10 ]]; then
+    echo "⚠️  Consider committing changes"
+fi
+if [[ $UNPUSHED -gt 5 ]]; then
+    echo "⚠️  Consider pushing commits"
+fi
+echo ""
+
+# MCP Server status
+echo "═══ MCP Server ═══"
+if command -v claude > /dev/null 2>&1; then
+    MCP_STATUS=$(claude mcp list 2>&1 | grep -E "general-server" | head -1)
+    if [[ -n "$MCP_STATUS" ]]; then
+        echo "$MCP_STATUS"
+    else
+        echo "⚠️  MCP server status unknown"
+    fi
+else
+    echo "⊘  Claude CLI not available"
+fi
+echo ""
+
+# Recent errors (last 24 hours)
+echo "═══ Recent Errors (Last 24h) ═══"
+ERROR_COUNT=0
+if [[ -d ~/.claude/logs ]]; then
+    ERROR_COUNT=$(find ~/.claude/logs -name "*.log" -mtime -1 -exec grep -i "error" {} \; 2>/dev/null | wc -l)
+fi
+
+if [[ $ERROR_COUNT -eq 0 ]]; then
+    echo "✅ No recent errors"
+else
+    echo "⚠️  $ERROR_COUNT errors found"
+    find ~/.claude/logs -name "*.log" -mtime -1 -exec grep -i "error" {} \; 2>/dev/null | tail -3
+fi
+echo ""
+
+# Work sessions
+echo "═══ Recent Work ═══"
+SESSIONS_7D=0
+SESSIONS_TODAY=0
+
+if [[ -d ~/skippy/work ]]; then
+    SESSIONS_7D=$(find ~/skippy/work -name "README.md" -mtime -7 2>/dev/null | wc -l)
+    SESSIONS_TODAY=$(find ~/skippy/work -name "README.md" -mtime 0 2>/dev/null | wc -l)
+fi
+
+echo "Sessions (last 7 days): $SESSIONS_7D"
+echo "Sessions (today): $SESSIONS_TODAY"
+
+if [[ $SESSIONS_TODAY -gt 0 ]]; then
+    echo ""
+    echo "Today's sessions:"
+    find ~/skippy/work -name "README.md" -mtime 0 2>/dev/null | \
+        xargs -I{} dirname {} | \
+        xargs -I{} basename {} | \
+        sed 's/^/  - /'
+fi
+echo ""
+
+# Backup status
+echo "═══ Backup Status ═══"
+if [[ -d ~/.claude/auto-backups ]]; then
+    LATEST_BACKUP=$(find ~/.claude/auto-backups -type f 2>/dev/null | head -1)
+    if [[ -n "$LATEST_BACKUP" ]]; then
+        BACKUP_TIME=$(stat -c%y "$LATEST_BACKUP" 2>/dev/null | cut -d' ' -f1,2 | cut -d'.' -f1)
+        echo "Latest backup: $BACKUP_TIME"
+        BACKUP_COUNT=$(find ~/.claude/auto-backups -type f -mtime -1 2>/dev/null | wc -l)
+        echo "Backups (last 24h): $BACKUP_COUNT"
+    else
+        echo "⚠️  No backups found"
+    fi
+else
+    echo "⊘  Backup directory not found"
+fi
+echo ""
+
+# Storage breakdown
+echo "═══ Storage Breakdown ═══"
+if [[ -d ~/skippy/work ]]; then
+    WORK_SIZE=$(du -sh ~/skippy/work 2>/dev/null | awk '{print $1}')
+    echo "Work files: $WORK_SIZE"
+fi
+if [[ -d ~/.claude/auto-backups ]]; then
+    BACKUP_SIZE=$(du -sh ~/.claude/auto-backups 2>/dev/null | awk '{print $1}')
+    echo "Backups: $BACKUP_SIZE"
+fi
+if [[ -d ~/skippy/development/scripts ]]; then
+    SCRIPT_SIZE=$(du -sh ~/skippy/development/scripts 2>/dev/null | awk '{print $1}')
+    echo "Scripts: $SCRIPT_SIZE"
+fi
+echo ""
+
+# Skills status
+echo "═══ Skills Status ═══"
+if [[ -d ~/.claude/skills ]]; then
+    SKILL_COUNT=$(find ~/.claude/skills -name "SKILL.md" 2>/dev/null | wc -l)
+    echo "Total skills: $SKILL_COUNT"
+
+    INVALID_SKILLS=$(find ~/.claude/skills -name "SKILL.md" -exec grep -L "^---$" {} \; 2>/dev/null | wc -l)
+    if [[ $INVALID_SKILLS -gt 0 ]]; then
+        echo "⚠️  Invalid skills: $INVALID_SKILLS (missing frontmatter)"
+    else
+        echo "✅ All skills valid"
+    fi
+else
+    echo "⊘  Skills directory not found"
+fi
+echo ""
+
+# Recommendations
+echo "═══ Recommendations ═══"
+RECOMMENDATIONS=0
+
+DISK_NUM=$(echo "$DISK_USAGE" | sed 's/%//')
+if [[ $DISK_NUM -gt 80 ]]; then
+    echo "⚠️  High disk usage ($DISK_USAGE) - run maintenance"
+    RECOMMENDATIONS=$((RECOMMENDATIONS + 1))
+fi
+
+if [[ $UNCOMMITTED -gt 10 ]]; then
+    echo "⚠️  Commit pending changes ($UNCOMMITTED files)"
+    RECOMMENDATIONS=$((RECOMMENDATIONS + 1))
+fi
+
+if [[ $UNPUSHED -gt 5 ]]; then
+    echo "⚠️  Push commits to remote ($UNPUSHED commits)"
+    RECOMMENDATIONS=$((RECOMMENDATIONS + 1))
+fi
+
+if [[ $ERROR_COUNT -gt 10 ]]; then
+    echo "⚠️  Review recent errors ($ERROR_COUNT found)"
+    RECOMMENDATIONS=$((RECOMMENDATIONS + 1))
+fi
+
+if [[ $RECOMMENDATIONS -eq 0 ]]; then
+    echo "✅ System healthy - no recommendations"
+fi
+
+echo ""
+echo "═══════════════════════════════════════════════════"
+echo ""
+echo "Quick Actions:"
+echo "  git status              - Review uncommitted changes"
+echo "  git push                - Push to remote"
+echo "  skippy-maintenance      - Run maintenance tasks"
+echo "  claude mcp list         - Check MCP status"
+echo ""

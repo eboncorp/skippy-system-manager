@@ -1,0 +1,128 @@
+#!/bin/bash
+# Skippy Profile Loader v1.0.0
+# Load environment profiles for different workflows
+
+PROFILE_DIR="$HOME/.skippy/profiles"
+
+show_help() {
+    echo "Skippy Profile Loader"
+    echo ""
+    echo "Usage:"
+    echo "  skippy-profile <profile_name>  - Load profile"
+    echo "  skippy-profile list            - List available profiles"
+    echo "  skippy-profile current         - Show active profile"
+    echo "  skippy-profile unload          - Unload current profile"
+    echo ""
+    echo "Available Profiles:"
+    if [[ -d "$PROFILE_DIR" ]]; then
+        for profile in "$PROFILE_DIR"/*.env; do
+            if [[ -f "$profile" ]]; then
+                NAME=$(basename "$profile" .env)
+                DESC=$(grep "^#" "$profile" | head -1 | sed 's/^# //')
+                echo "  $NAME - $DESC"
+            fi
+        done
+    else
+        echo "  No profiles found in $PROFILE_DIR"
+    fi
+}
+
+load_profile() {
+    PROFILE="$1"
+    PROFILE_FILE="$PROFILE_DIR/${PROFILE}.env"
+
+    if [[ ! -f "$PROFILE_FILE" ]]; then
+        echo "❌ Profile not found: $PROFILE"
+        echo ""
+        show_help
+        return 1
+    fi
+
+    # Source the profile
+    source "$PROFILE_FILE"
+
+    # Mark as active
+    export SKIPPY_ACTIVE_PROFILE="$PROFILE"
+    export SKIPPY_PROFILE_LOADED_AT="$(date +%Y-%m-%d\ %H:%M:%S)"
+
+    # Update PS1 to show active profile
+    export PS1="[$PROFILE] \u@\h:\w\$ "
+}
+
+list_profiles() {
+    echo "═══════════════════════════════════════════════════"
+    echo "  Available Skippy Profiles"
+    echo "═══════════════════════════════════════════════════"
+    echo ""
+
+    if [[ ! -d "$PROFILE_DIR" ]]; then
+        echo "No profiles directory found: $PROFILE_DIR"
+        return 1
+    fi
+
+    for profile in "$PROFILE_DIR"/*.env; do
+        if [[ -f "$profile" ]]; then
+            NAME=$(basename "$profile" .env)
+            DESC=$(grep "^#" "$profile" | head -1 | sed 's/^# //')
+            echo "Profile: $NAME"
+            echo "  $DESC"
+            echo ""
+        fi
+    done
+}
+
+show_current() {
+    if [[ -z "$SKIPPY_ACTIVE_PROFILE" ]]; then
+        echo "No profile currently loaded"
+        echo ""
+        echo "Load a profile with:"
+        echo "  source skippy-profile <profile_name>"
+    else
+        echo "═══════════════════════════════════════════════════"
+        echo "  Current Profile: $SKIPPY_ACTIVE_PROFILE"
+        echo "═══════════════════════════════════════════════════"
+        echo "Loaded: $SKIPPY_PROFILE_LOADED_AT"
+        echo ""
+        echo "Environment Variables:"
+        env | grep -E "^(WP_|SCRIPT_|CAMPAIGN_|SESSION_|FACTS_)" | sort
+    fi
+}
+
+unload_profile() {
+    if [[ -z "$SKIPPY_ACTIVE_PROFILE" ]]; then
+        echo "No profile currently loaded"
+        return 0
+    fi
+
+    echo "Unloading profile: $SKIPPY_ACTIVE_PROFILE"
+
+    # Unset common env vars
+    unset WP_PATH WP_URL SESSION_BASE FACTS_SHEET
+    unset SCRIPT_BASE TEMPLATE_DIR TEST_DIR
+    unset CAMPAIGN_BASE GDRIVE_FOLDER ANALYTICS_TIMEFRAME
+    unset SKIPPY_ACTIVE_PROFILE SKIPPY_PROFILE_LOADED_AT
+
+    # Reset PS1
+    export PS1="\u@\h:\w\$ "
+
+    echo "✅ Profile unloaded"
+}
+
+# Main
+case "$1" in
+    list)
+        list_profiles
+        ;;
+    current)
+        show_current
+        ;;
+    unload)
+        unload_profile
+        ;;
+    help|--help|-h|"")
+        show_help
+        ;;
+    *)
+        load_profile "$1"
+        ;;
+esac
