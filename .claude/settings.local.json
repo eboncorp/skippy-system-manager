@@ -185,7 +185,13 @@
       "Bash(git -C /home/dave/skippy stash list)",
       "Bash(git -C /home/dave/skippy stash show -p stash@{0})",
       "Bash(git -C /home/dave/skippy diff --cached .claude/settings.local.json)",
-      "Bash(git -C /home/dave/skippy reset HEAD .claude/settings.local.json)"
+      "Bash(git -C /home/dave/skippy reset HEAD .claude/settings.local.json)",
+      "Bash(git -C /home/dave/skippy commit -m \"$(cat <<''EOF''\nfeat: Complete skippy ecosystem integration\n\nUpdated automation scripts with reorganized paths and added \nintelligent file processor with OCR and AI classification.\n\nMajor changes:\n- New Intelligent File Processor with auto-rotation OCR and Sonnet 4 AI classification\n- Updated 14 automation scripts (gdrive, security, utility, wordpress)\n- Added comprehensive Skills creation standards and management tooling\n- 4 new skill management tools: audit, fix, identify candidates, convert\n- Fixed all 49 existing skills with proper YAML frontmatter\n- Session documentation for OCR improvements and ecosystem integration\n\nIntegration verified via 8-point test - all systems operational.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git -C /home/dave/skippy show HEAD:.claude/settings.local.json)",
+      "Bash(git -C /home/dave/skippy show HEAD:documentation/conversations/claude_code_complete_setup_session_2025-11-19_065208.md)",
+      "Bash(timeout 120 git:*)",
+      "Bash(git -C /home/dave/skippy stash pop:*)",
+      "Bash(git -C /home/dave/skippy commit -m \"chore: Update Claude Code auto-approvals after GitHub cleanup\n\nAdded permissions from GitHub cleanup session.\nRemoved API key security issue from history.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\")"
     ],
     "deny": [],
     "ask": []
