@@ -1,0 +1,101 @@
+#!/bin/bash
+# Changelog Generator v1.0.0
+# Generate changelog from git commits
+
+REPO_PATH="${1:-.}"
+OUTPUT="${2:-CHANGELOG.md}"
+
+cd "$REPO_PATH" || exit 1
+
+echo "Generating changelog for: $(basename $(pwd))"
+
+# Get all tags
+TAGS=$(git tag --sort=-version:refname 2>/dev/null)
+
+# Start changelog
+cat > "$OUTPUT" <<EOF
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/),
+and this project adheres to [Semantic Versioning](https://semver.org/).
+
+---
+
+EOF
+
+# If no tags, show unreleased
+if [[ -z "$TAGS" ]]; then
+    echo "## [Unreleased]" >> "$OUTPUT"
+    echo "" >> "$OUTPUT"
+
+    # Categorize commits
+    echo "### Added" >> "$OUTPUT"
+    git log --pretty=format:"%h %s" | grep "^[a-f0-9]* feat:" | sed 's/^[a-f0-9]* feat: /- /' >> "$OUTPUT" || echo "- (none)" >> "$OUTPUT"
+    echo "" >> "$OUTPUT"
+
+    echo "### Changed" >> "$OUTPUT"
+    git log --pretty=format:"%h %s" | grep "^[a-f0-9]* chore:" | sed 's/^[a-f0-9]* chore: /- /' >> "$OUTPUT" || echo "- (none)" >> "$OUTPUT"
+    echo "" >> "$OUTPUT"
+
+    echo "### Fixed" >> "$OUTPUT"
+    git log --pretty=format:"%h %s" | grep "^[a-f0-9]* fix:" | sed 's/^[a-f0-9]* fix: /- /' >> "$OUTPUT" || echo "- (none)" >> "$OUTPUT"
+    echo "" >> "$OUTPUT"
+
+    echo "---" >> "$OUTPUT"
+else
+    # Process each version
+    PREV_TAG=""
+    for TAG in $TAGS; do
+        TAG_DATE=$(git log -1 --format=%ai $TAG | cut -d' ' -f1)
+        echo "## [$TAG] - $TAG_DATE" >> "$OUTPUT"
+        echo "" >> "$OUTPUT"
+
+        # Get commits for this version
+        if [[ -z "$PREV_TAG" ]]; then
+            COMMITS=$(git log $TAG --pretty=format:"%h %s")
+        else
+            COMMITS=$(git log ${PREV_TAG}..${TAG} --pretty=format:"%h %s")
+        fi
+
+        # Categorize commits
+        echo "### Added" >> "$OUTPUT"
+        ADDED=$(echo "$COMMITS" | grep "^[a-f0-9]* feat:" | sed 's/^[a-f0-9]* feat: /- /')
+        if [[ -n "$ADDED" ]]; then
+            echo "$ADDED" >> "$OUTPUT"
+        else
+            echo "- (none)" >> "$OUTPUT"
+        fi
+        echo "" >> "$OUTPUT"
+
+        echo "### Changed" >> "$OUTPUT"
+        CHANGED=$(echo "$COMMITS" | grep "^[a-f0-9]* chore:" | sed 's/^[a-f0-9]* chore: /- /')
+        if [[ -n "$CHANGED" ]]; then
+            echo "$CHANGED" >> "$OUTPUT"
+        else
+            echo "- (none)" >> "$OUTPUT"
+        fi
+        echo "" >> "$OUTPUT"
+
+        echo "### Fixed" >> "$OUTPUT"
+        FIXED=$(echo "$COMMITS" | grep "^[a-f0-9]* fix:" | sed 's/^[a-f0-9]* fix: /- /')
+        if [[ -n "$FIXED" ]]; then
+            echo "$FIXED" >> "$OUTPUT"
+        else
+            echo "- (none)" >> "$OUTPUT"
+        fi
+        echo "" >> "$OUTPUT"
+
+        echo "---" >> "$OUTPUT"
+        echo "" >> "$OUTPUT"
+
+        PREV_TAG="$TAG"
+    done
+fi
+
+echo "" >> "$OUTPUT"
+echo "**Changelog generated:** $(date +%Y-%m-%d)" >> "$OUTPUT"
+echo "**Generator:** generate-changelog v1.0.0" >> "$OUTPUT"
+
+echo "✅ Changelog generated: $OUTPUT"

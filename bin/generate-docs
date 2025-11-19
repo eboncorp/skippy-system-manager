@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""
+Code Documentation Generator v1.0.0
+Auto-generate documentation for scripts
+"""
+
+import sys
+import re
+from pathlib import Path
+from datetime import datetime
+
+def extract_metadata(script_path: Path) -> dict:
+    """Extract metadata from script header."""
+    metadata = {
+        'name': script_path.name,
+        'description': '',
+        'version': '',
+        'usage': '',
+        'dependencies': [],
+        'examples': []
+    }
+
+    try:
+        with open(script_path, 'r') as f:
+            lines = f.readlines()
+
+            in_examples = False
+            for line in lines[:80]:  # Check first 80 lines
+                line = line.strip()
+
+                if re.match(r'^#\s*Description:', line):
+                    metadata['description'] = re.sub(r'^#\s*Description:\s*', '', line)
+                elif re.match(r'^#\s*Version:', line):
+                    metadata['version'] = re.sub(r'^#\s*Version:\s*', '', line)
+                elif re.match(r'^#\s*Usage:', line):
+                    metadata['usage'] = re.sub(r'^#\s*Usage:\s*', '', line)
+                elif re.match(r'^#\s*Requires:', line):
+                    deps = re.sub(r'^#\s*Requires:\s*', '', line)
+                    metadata['dependencies'] = [d.strip() for d in deps.split(',')]
+                elif re.match(r'^#\s*Example:', line):
+                    in_examples = True
+                elif in_examples and line.startswith('#'):
+                    example = re.sub(r'^#\s*', '', line)
+                    if example:
+                        metadata['examples'].append(example)
+                elif not line.startswith('#'):
+                    in_examples = False
+
+    except Exception as e:
+        print(f"Error reading {script_path}: {e}")
+
+    return metadata
+
+def generate_category_readme(category_path: Path):
+    """Generate README for script category."""
+    scripts = []
+
+    # Find all scripts
+    for ext in ['*.sh', '*.py']:
+        for script_file in category_path.glob(ext):
+            if script_file.is_file():
+                metadata = extract_metadata(script_file)
+                scripts.append(metadata)
+
+    if not scripts:
+        return
+
+    # Generate README
+    readme_path = category_path / 'README.md'
+    category_name = category_path.name.replace('_', ' ').title()
+
+    with open(readme_path, 'w') as f:
+        f.write(f"# {category_name} Scripts\n\n")
+        f.write(f"**Total Scripts:** {len(scripts)}\n")
+        f.write(f"**Last Updated:** {datetime.now().strftime('%Y-%m-%d')}\n\n")
+        f.write("---\n\n")
+
+        for script in sorted(scripts, key=lambda x: x['name']):
+            f.write(f"## {script['name']}\n\n")
+
+            if script['description']:
+                f.write(f"**Description:** {script['description']}\n\n")
+
+            if script['version']:
+                f.write(f"**Version:** {script['version']}\n\n")
+
+            if script['usage']:
+                f.write(f"**Usage:**\n```bash\n{script['usage']}\n```\n\n")
+
+            if script['dependencies']:
+                f.write(f"**Dependencies:** {', '.join(script['dependencies'])}\n\n")
+
+            if script['examples']:
+                f.write("**Examples:**\n```bash\n")
+                for example in script['examples']:
+                    f.write(f"{example}\n")
+                f.write("```\n\n")
+
+            f.write("---\n\n")
+
+    print(f"✅ Generated: {readme_path}")
+
+def generate_master_index(base_path: Path):
+    """Generate master index of all scripts."""
+    categories = {}
+
+    for category_dir in base_path.iterdir():
+        if category_dir.is_dir() and not category_dir.name.startswith('.'):
+            script_count = sum(1 for _ in category_dir.glob('*.sh')) + \
+                          sum(1 for _ in category_dir.glob('*.py'))
+            if script_count > 0:
+                categories[category_dir.name] = script_count
+
+    index_path = base_path / 'INDEX.md'
+
+    with open(index_path, 'w') as f:
+        f.write("# Skippy Script Index\n\n")
+        f.write(f"**Last Updated:** {datetime.now().strftime('%Y-%m-%d')}\n")
+        f.write(f"**Total Scripts:** {sum(categories.values())}\n")
+        f.write(f"**Categories:** {len(categories)}\n\n")
+        f.write("---\n\n")
+
+        f.write("## Categories\n\n")
+        for category, count in sorted(categories.items()):
+            category_name = category.replace('_', ' ').title()
+            f.write(f"### [{category_name}](./{category}/README.md)\n")
+            f.write(f"**Scripts:** {count}\n\n")
+
+        f.write("---\n\n")
+        f.write("## Quick Commands\n\n")
+        f.write("```bash\n")
+        f.write("# Search all scripts\n")
+        f.write("skippy-script search <keyword>\n\n")
+        f.write("# List scripts by category\n")
+        f.write("skippy-script list <category>\n\n")
+        f.write("# Show script statistics\n")
+        f.write("skippy-script stats\n")
+        f.write("```\n")
+
+    print(f"✅ Generated: {index_path}")
+
+def main():
+    """Main execution."""
+    base_path = Path.home() / 'skippy' / 'development' / 'scripts'
+
+    if not base_path.exists():
+        print(f"Scripts directory not found: {base_path}")
+        sys.exit(1)
+
+    print("═══════════════════════════════════════════════════")
+    print("  Code Documentation Generator")
+    print("═══════════════════════════════════════════════════")
+    print("")
+
+    # Generate category READMEs
+    for category in base_path.iterdir():
+        if category.is_dir() and not category.name.startswith('.'):
+            print(f"Processing: {category.name}")
+            generate_category_readme(category)
+
+    print("")
+
+    # Generate master index
+    print("Generating master index...")
+    generate_master_index(base_path)
+
+    print("")
+    print("✅ Documentation generation complete")
+
+if __name__ == '__main__':
+    main()

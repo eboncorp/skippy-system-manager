@@ -1,0 +1,145 @@
+#!/bin/bash
+# Enhanced Command History v1.0.0
+# SQLite-backed history with context
+
+HISTORY_DB="$HOME/.skippy/history.db"
+
+# Initialize database
+init_db() {
+    mkdir -p "$(dirname $HISTORY_DB)"
+
+    sqlite3 "$HISTORY_DB" <<SQL
+CREATE TABLE IF NOT EXISTS command_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT,
+    command TEXT,
+    working_dir TEXT,
+    exit_code INTEGER,
+    session_id TEXT,
+    project TEXT,
+    tags TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_command ON command_history(command);
+CREATE INDEX IF NOT EXISTS idx_project ON command_history(project);
+CREATE INDEX IF NOT EXISTS idx_timestamp ON command_history(timestamp);
+SQL
+}
+
+# Log command
+log_command() {
+    local cmd="$1"
+    local exit_code="$2"
+    local working_dir="$(pwd)"
+
+    # Detect project
+    local project="general"
+    if [[ "$working_dir" =~ wordpress ]]; then
+        project="wordpress"
+    elif [[ "$working_dir" =~ scripts ]]; then
+        project="scripts"
+    elif [[ "$working_dir" =~ campaign ]]; then
+        project="campaign"
+    fi
+
+    # Auto-tag
+    local tags=""
+    [[ "$cmd" =~ ^wp ]] && tags="$tags,wordpress"
+    [[ "$cmd" =~ ^git ]] && tags="$tags,git"
+    [[ "$cmd" =~ ^claude ]] && tags="$tags,claude-code"
+    [[ "$cmd" =~ ^skippy- ]] && tags="$tags,skippy"
+
+    sqlite3 "$HISTORY_DB" <<SQL
+INSERT INTO command_history
+(timestamp, command, working_dir, exit_code, session_id, project, tags)
+VALUES (
+    '$(date +"%Y-%m-%d %H:%M:%S")',
+    '$(echo "$cmd" | sed "s/'/''/g")',
+    '$working_dir',
+    $exit_code,
+    '$SESSION_ID',
+    '$project',
+    '$tags'
+);
+SQL
+}
+
+# Search history
+search_history() {
+    local query="$1"
+
+    sqlite3 "$HISTORY_DB" -column -header <<SQL
+SELECT
+    datetime(timestamp) as time,
+    substr(command, 1, 60) as command,
+    project,
+    exit_code as exit
+FROM command_history
+WHERE command LIKE '%$query%'
+ORDER BY timestamp DESC
+LIMIT 20;
+SQL
+}
+
+# Top commands
+top_commands() {
+    sqlite3 "$HISTORY_DB" -column -header <<SQL
+SELECT
+    substr(command, 1, 50) as command,
+    COUNT(*) as uses,
+    printf('%.0f%%', AVG(CASE WHEN exit_code = 0 THEN 100.0 ELSE 0.0 END)) as success
+FROM command_history
+GROUP BY command
+ORDER BY uses DESC
+LIMIT 20;
+SQL
+}
+
+# Project commands
+project_commands() {
+    local project="$1"
+
+    sqlite3 "$HISTORY_DB" -column -header <<SQL
+SELECT
+    datetime(timestamp) as time,
+    substr(command, 1, 50) as command,
+    exit_code as exit
+FROM command_history
+WHERE project = '$project'
+ORDER BY timestamp DESC
+LIMIT 20;
+SQL
+}
+
+# Usage
+case "$1" in
+    init)
+        init_db
+        echo "✅ History database initialized"
+        ;;
+    log)
+        log_command "$2" "${3:-0}"
+        ;;
+    search)
+        search_history "$2"
+        ;;
+    top)
+        top_commands
+        ;;
+    project)
+        project_commands "$2"
+        ;;
+    *)
+        echo "Enhanced Command History v1.0.0"
+        echo ""
+        echo "Usage:"
+        echo "  history-enhanced init              - Initialize database"
+        echo "  history-enhanced log <cmd> <exit>  - Log command"
+        echo "  history-enhanced search <query>    - Search history"
+        echo "  history-enhanced top               - Most used commands"
+        echo "  history-enhanced project <name>    - Commands by project"
+        echo ""
+        echo "To enable automatic logging, add to ~/.bashrc:"
+        echo "  export PROMPT_COMMAND='history-enhanced log \"\$(history 1 | sed \"s/^[ ]*[0-9]*[ ]//\")\" \$?'"
+        ;;
+esac
