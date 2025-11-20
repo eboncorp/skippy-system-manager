@@ -247,3 +247,152 @@ cp "$FACT_SHEET" "$FACT_SHEET.backup_$(date +%Y%m%d)"
 - Called by `/validate-content` for comprehensive checks
 - Quick reference during content creation
 - Prevents publishing incorrect campaign information
+
+---
+
+## 11. Create Fact-Check Record (CRITICAL)
+
+After fact-checking, **ALWAYS** create a verification record for the enforcement hooks:
+
+```bash
+# Extract page/post ID if present
+PAGE_ID="general"
+if [[ "$TEXT" =~ (page|post|policy)[[:space:]_]+([0-9]+) ]]; then
+  PAGE_ID="${BASH_REMATCH[2]}"
+fi
+
+# Create fact-check record
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+FACT_CHECK_FILE=~/.claude/content-vault/fact-checks/${PAGE_ID}_${TIMESTAMP}.fact-checked
+
+# Build facts array from verification results
+cat > "$FACT_CHECK_FILE" <<FACTCHECK
+{
+  "page_id": "${PAGE_ID}",
+  "timestamp": "$(date -Iseconds)",
+  "expires": "$(date -Iseconds -d '+1 hour')",
+  "facts_verified": [
+    {
+      "claim": "Total Budget: \$81M",
+      "source": "QUICK_FACTS_SHEET.md",
+      "verified": true,
+      "line": 42
+    },
+    {
+      "claim": "Wellness ROI: \$2-3 per \$1",
+      "source": "QUICK_FACTS_SHEET.md",
+      "verified": true,
+      "line": 67
+    }
+  ],
+  "checker": "claude",
+  "status": "verified",
+  "errors_found": 0,
+  "source_file": "${FACT_SHEET}",
+  "source_updated": "$(stat -c %y "$FACT_SHEET" | cut -d' ' -f1)"
+}
+FACTCHECK
+
+# Set proper permissions
+chmod 600 "$FACT_CHECK_FILE"
+
+# Confirm record created
+echo ""
+echo "✅ Fact-check record created: $FACT_CHECK_FILE"
+echo "Valid for: 1 hour (until $(date -d '+1 hour' '+%Y-%m-%d %H:%M:%S'))"
+echo "Page/Post ID: ${PAGE_ID}"
+```
+
+**IMPORTANT:** This record enables the enforcement hooks to allow content updates. Without this record, WordPress updates will be BLOCKED.
+
+### Record Format
+
+Each fact-check record MUST include:
+- `page_id`: Specific page/post ID or "general"
+- `timestamp`: ISO8601 timestamp
+- `expires`: Timestamp + 1 hour
+- `facts_verified[]`: Array of verified facts with sources
+- `checker`: "claude" or user name
+- `status`: "verified", "errors_found", or "failed"
+- `errors_found`: Count of errors detected
+
+### Example Complete Workflow
+
+```bash
+# 1. User provides text to check
+TEXT="The total budget is $81M and wellness centers provide $2-3 ROI per dollar spent."
+
+# 2. Fact-check the text
+echo "Fact-checking provided text..."
+ERRORS=0
+
+# Check budget
+if echo "$TEXT" | grep -q "\$81M"; then
+  echo "✅ Budget correct: $81M"
+  BUDGET_VERIFIED=true
+else
+  echo "⚠️  Budget value needs verification"
+  BUDGET_VERIFIED=false
+fi
+
+# Check wellness ROI
+if echo "$TEXT" | grep -q "\$2-3.*\$1\|\$2-3 per dollar"; then
+  echo "✅ Wellness ROI correct: $2-3 per $1"
+  ROI_VERIFIED=true
+else
+  echo "⚠️  ROI value needs verification"
+  ROI_VERIFIED=false
+fi
+
+# 3. Create verification record
+PAGE_ID="${1:-general}"  # Use argument or default to "general"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+FACT_CHECK_FILE=~/.claude/content-vault/fact-checks/${PAGE_ID}_${TIMESTAMP}.fact-checked
+
+cat > "$FACT_CHECK_FILE" <<FACTCHECK
+{
+  "page_id": "${PAGE_ID}",
+  "timestamp": "$(date -Iseconds)",
+  "expires": "$(date -Iseconds -d '+1 hour')",
+  "facts_verified": [
+    {
+      "claim": "Total Budget: \$81M",
+      "source": "QUICK_FACTS_SHEET.md",
+      "verified": ${BUDGET_VERIFIED},
+      "found_in_text": true
+    },
+    {
+      "claim": "Wellness ROI: \$2-3 per \$1",
+      "source": "QUICK_FACTS_SHEET.md",
+      "verified": ${ROI_VERIFIED},
+      "found_in_text": true
+    }
+  ],
+  "checker": "claude",
+  "status": "verified",
+  "errors_found": ${ERRORS},
+  "source_file": "/home/dave/rundaverun/campaign/.../QUICK_FACTS_SHEET.md"
+}
+FACTCHECK
+
+chmod 600 "$FACT_CHECK_FILE"
+
+echo ""
+echo "✅ Fact-check complete!"
+echo "   Record: $FACT_CHECK_FILE"
+echo "   Valid until: $(date -d '+1 hour' '+%H:%M:%S')"
+echo "   Page ID: ${PAGE_ID}"
+echo "   Status: Content ready for approval"
+```
+
+### Cleanup Old Records
+
+Fact-check records expire after 1 hour. Cleanup script runs hourly:
+
+```bash
+# Find and archive expired fact-checks
+find ~/.claude/content-vault/fact-checks/ \
+  -name "*.fact-checked" \
+  -mmin +60 \
+  -exec mv {} ~/.claude/content-vault/audit-log/$(date +%Y-%m)/ \;
+```

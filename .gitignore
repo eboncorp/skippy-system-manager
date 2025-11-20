@@ -36,3 +36,4 @@ Thumbs.db
 .vscode/
 .idea/
 *.iml
+mcp-servers/wordpress-validator/__pycache__/
