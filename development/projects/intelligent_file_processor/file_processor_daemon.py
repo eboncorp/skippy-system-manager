@@ -7,6 +7,7 @@ Main entry point - watches folders and processes files automatically
 import sys
 import time
 import logging
+from logging.handlers import RotatingFileHandler
 import argparse
 from pathlib import Path
 import subprocess
@@ -51,12 +52,15 @@ class FileProcessorDaemon:
         Args:
             config_path: Path to configuration file
         """
-        # Setup logging
+        # Setup basic logging (console only)
         self.setup_logging()
 
         # Load configuration
         self.config = ConfigLoader(config_path)
         self.logger.info("Configuration loaded successfully")
+
+        # Configure file logging based on config
+        self.configure_file_logging()
 
         # Initialize Phase 2 components (optional)
         self.ocr_engine = None
@@ -99,15 +103,75 @@ class FileProcessorDaemon:
         self.logger.info("Intelligent File Processor initialized")
 
     def setup_logging(self):
-        """Setup logging configuration"""
-        # For now, log to console
-        # TODO: Add file logging based on config
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s [%(levelname)s] %(message)s',
+        """Setup logging configuration (console only initially)"""
+        # Create logger
+        self.logger = logging.getLogger(__name__)
+
+        # Prevent duplicate handlers if called multiple times
+        if self.logger.handlers:
+            return
+
+        # Set log level to INFO initially (will be updated from config if available)
+        log_level = logging.INFO
+
+        # Create formatter
+        formatter = logging.Formatter(
+            fmt='%(asctime)s [%(levelname)s] %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S'
         )
-        self.logger = logging.getLogger(__name__)
+
+        # Always add console handler
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(formatter)
+        self.logger.addHandler(console_handler)
+
+        # Set initial log level
+        self.logger.setLevel(log_level)
+
+    def configure_file_logging(self):
+        """Configure file logging based on config (called after config is loaded)"""
+        # Get logging configuration
+        log_file = self.config.get('logging.file')
+        log_level_str = self.config.get('logging.level', 'INFO')
+        max_size_mb = self.config.get('logging.max_size_mb', 50)
+        backup_count = self.config.get('logging.backup_count', 5)
+
+        # Update log level
+        try:
+            log_level = getattr(logging, log_level_str.upper())
+            self.logger.setLevel(log_level)
+        except (AttributeError, ValueError):
+            self.logger.warning(f"Invalid log level '{log_level_str}', using INFO")
+            self.logger.setLevel(logging.INFO)
+
+        # Add file handler if log file is configured
+        if log_file:
+            try:
+                # Create log directory if it doesn't exist
+                log_path = Path(log_file)
+                log_path.parent.mkdir(parents=True, exist_ok=True)
+
+                # Create rotating file handler
+                max_bytes = max_size_mb * 1024 * 1024  # Convert MB to bytes
+                file_handler = RotatingFileHandler(
+                    log_file,
+                    maxBytes=max_bytes,
+                    backupCount=backup_count
+                )
+
+                # Use same formatter as console
+                formatter = logging.Formatter(
+                    fmt='%(asctime)s [%(levelname)s] %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S'
+                )
+                file_handler.setFormatter(formatter)
+
+                # Add file handler to logger
+                self.logger.addHandler(file_handler)
+                self.logger.info(f"File logging enabled: {log_file}")
+
+            except Exception as e:
+                self.logger.error(f"Failed to setup file logging: {e}")
 
     def process_file(self, file_path: str):
         """

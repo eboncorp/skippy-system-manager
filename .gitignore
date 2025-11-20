@@ -19,6 +19,13 @@ work/
 # Logs
 *.log
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
 # Private/sensitive (already in root .gitignore but restate here)
 business/
 personal/
