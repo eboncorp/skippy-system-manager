@@ -1,0 +1,125 @@
+{
+  "name": "wordpress-permissive",
+  "description": "Optimized permissions for efficient WordPress development work",
+  "version": "1.0.0",
+  "created": "2025-11-19",
+  "use_case": "WordPress content updates, page editing, deployment tasks",
+
+  "auto_approve": {
+    "description": "Tools that are auto-approved without user confirmation",
+    "tools": [
+      "Read",
+      "Grep",
+      "Glob"
+    ],
+    "bash_commands": [
+      "wp post get *",
+      "wp option get *",
+      "wp db check",
+      "cat",
+      "ls",
+      "pwd",
+      "find",
+      "grep",
+      "wc",
+      "head",
+      "tail",
+      "stat",
+      "date"
+    ],
+    "file_patterns": [
+      "*.html",
+      "*.md",
+      "*/page_*_*.html",
+      "*/post_*_*.html",
+      "*/policy_*_*.html",
+      "*/SESSION_DIR/*"
+    ]
+  },
+
+  "require_approval": {
+    "description": "Operations that require user approval (but allowed with approval)",
+    "tools": [
+      "Edit",
+      "Write"
+    ],
+    "bash_commands": [
+      "wp post update *",
+      "wp post create *",
+      "wp media import *"
+    ],
+    "conditions": {
+      "Edit": "Only for WordPress content files in session directories",
+      "Write": "Only for session work files, not production",
+      "wp_post_update": "Requires valid approval + fact-check via hooks"
+    }
+  },
+
+  "blocked": {
+    "description": "Operations that are always blocked",
+    "tools": [],
+    "bash_commands": [
+      "rm -rf *",
+      "wp db drop",
+      "wp db reset",
+      "git push --force",
+      "chmod 777 *",
+      "chown * *"
+    ],
+    "file_patterns": [
+      ".env",
+      ".env.*",
+      "credentials.json",
+      "*.key",
+      "*.pem",
+      "business/*",
+      "personal/*"
+    ]
+  },
+
+  "enforcement_hooks": {
+    "description": "Active enforcement hooks for this profile",
+    "enabled": [
+      "pre_wordpress_update_protection.sh",
+      "pre_fact_check_enforcement.sh",
+      "pre_sensitive_file_protection.sh"
+    ],
+    "disabled": []
+  },
+
+  "context_loading": {
+    "auto_load_workflows": true,
+    "workflows_directory": ".claude/workflows",
+    "auto_load_on_session_start": [
+      "wordpress_update_workflow.md"
+    ]
+  },
+
+  "session_requirements": {
+    "mandatory_session_dir": true,
+    "require_before_files": true,
+    "require_after_verification": true,
+    "require_session_readme": true
+  },
+
+  "fact_checking": {
+    "required_before_approval": true,
+    "validity_hours": 1,
+    "fact_sheet_path": "/home/dave/rundaverun/campaign/GODADDY_DEPLOYMENT_2025-10-13/1_WORDPRESS_PLUGIN/dave-biggers-policy-manager/assets/markdown-files/QUICK_FACTS_SHEET.md"
+  },
+
+  "approval_workflow": {
+    "required_before_publish": true,
+    "validity_hours": 24,
+    "default_approver": "dave",
+    "require_notes": true
+  },
+
+  "notes": [
+    "This profile is optimized for WordPress content development",
+    "Enforcement hooks ensure approval + fact-check compliance",
+    "Read operations are auto-approved for efficiency",
+    "Write operations require approval via hooks",
+    "All sensitive files are protected regardless of approval"
+  ]
+}
