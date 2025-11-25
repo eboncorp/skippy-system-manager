@@ -15,7 +15,7 @@
 ```bash
 find /home/dave/skippy/development/scripts -type f -name "*.sh" -exec grep -l "keyword" {} \;
 ```
-**Available scripts:** 179 scripts in `/home/dave/skippy/development/scripts/`
+**Available scripts:** 2400+ scripts in `/home/dave/skippy/development/`
 
 Check if similar functionality already exists.
 
