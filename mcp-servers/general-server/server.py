@@ -2929,12 +2929,28 @@ def screenshot_capture(url: str, output_path: str = "", width: int = 1920, heigh
 
     try:
         import asyncio
+        import nest_asyncio
+
+        # Apply nest_asyncio to allow nested event loops (needed for MCP server context)
+        nest_asyncio.apply()
 
         async def take_screenshot():
-            browser = await launch(headless=True, args=['--no-sandbox'])
+            browser = await launch(
+                headless=True,
+                args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+            )
             page = await browser.newPage()
-            await page.setViewport({'width': width, 'height': height})
+            await page.setViewport({'width': width, 'height': height, 'isMobile': width < 500})
+
+            # Set mobile user agent for mobile viewports
+            if width < 500:
+                await page.setUserAgent(
+                    'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) '
+                    'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1'
+                )
+
             await page.goto(url, waitUntil='networkidle0', timeout=30000)
+            await asyncio.sleep(0.5)  # Wait for animations
 
             if not output_path:
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -2949,6 +2965,7 @@ def screenshot_capture(url: str, output_path: str = "", width: int = 1920, heigh
             await browser.close()
             return save_path
 
+        # Use asyncio.run() with nest_asyncio for compatibility
         result_path = asyncio.get_event_loop().run_until_complete(take_screenshot())
         return f"✅ Screenshot saved: {result_path}"
 
