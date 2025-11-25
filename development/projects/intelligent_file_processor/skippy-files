@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+"""
+Skippy Files - CLI Tool for Intelligent File Processor
+Manage, search, and review processed files
+"""
+
+import sys
+import argparse
+from pathlib import Path
+import json
+from datetime import datetime, timedelta
+
+# Add core directory to path
+sys.path.insert(0, str(Path(__file__).parent / 'core'))
+
+try:
+    from database import Database
+    from config_loader import ConfigLoader
+    import logging
+except ImportError as e:
+    print(f"Error: Missing dependencies - {e}")
+    print("Make sure you're in the intelligent_file_processor directory")
+    sys.exit(1)
+
+
+class SkippyFilesCLI:
+    """CLI tool for interacting with file processor"""
+
+    def __init__(self):
+        """Initialize CLI"""
+        # Setup logging (quiet for CLI)
+        logging.basicConfig(level=logging.ERROR)
+        self.logger = logging.getLogger(__name__)
+
+        # Load config
+        try:
+            self.config = ConfigLoader()
+            db_path = self.config.get('logging.database', '/home/dave/skippy/logs/file_processor.db')
+            self.db = Database(db_path, self.logger)
+        except Exception as e:
+            print(f"Error loading configuration: {e}")
+            sys.exit(1)
+
+    def status(self, args):
+        """Show recent activity and statistics"""
+        print("=" * 70)
+        print(" Intelligent File Processor - Status")
+        print("=" * 70)
+
+        # Get statistics
+        stats = self.db.get_statistics(days=args.days)
+
+        print(f"\nPast {args.days} days:")
+        print(f"  Files processed: {stats['total_processed']}")
+        print(f"  Successful: {stats['successful']}")
+        print(f"  Failed: {stats['failed']}")
+        if stats['avg_confidence']:
+            print(f"  Avg confidence: {stats['avg_confidence']:.1f}%")
+        print(f"  Errors: {stats['errors']}")
+
+        # By category
+        if stats['by_category']:
+            print(f"\nBy Category:")
+            for category, count in sorted(stats['by_category'].items(), key=lambda x: x[1], reverse=True):
+                print(f"  {category}: {count}")
+
+        # Recent files
+        print(f"\nRecent Files ({args.limit}):")
+        recent = self.db.get_recent_files(limit=args.limit)
+
+        if recent:
+            for file in recent:
+                timestamp = file['processed_at']
+                status = "✅" if file['success'] else "❌"
+                print(f"  {status} {timestamp} | {file['original_name']}")
+                if file['final_name']:
+                    print(f"      → {file['classification']}/{file['subcategory'] or ''} | {file['final_name']}")
+                    print(f"      Confidence: {file['confidence']}%")
+        else:
+            print("  No files processed yet")
+
+        print("")
+
+    def search(self, args):
+        """Search processed files"""
+        results = self.db.search_files(args.query, limit=args.limit)
+
+        print(f"\nSearch results for '{args.query}': {len(results)} files\n")
+
+        if results:
+            for file in results:
+                print(f"📄 {file['original_name']}")
+                if file['final_name']:
+                    print(f"   → {file['final_name']}")
+                print(f"   Category: {file['classification']}/{file['subcategory'] or 'none'}")
+                print(f"   Confidence: {file['confidence']}%")
+                if file['final_path']:
+                    print(f"   Location: {file['final_path']}")
+                print(f"   Processed: {file['processed_at']}")
+                print("")
+        else:
+            print("No matches found")
+
+    def quarantine(self, args):
+        """Manage quarantined files"""
+        if args.action == 'list':
+            queue = self.db.get_quarantine_queue(reviewed=False)
+
+            print(f"\nQuarantined Files: {len(queue)}\n")
+
+            if queue:
+                for item in queue:
+                    print(f"ID: {item['id']}")
+                    print(f"   File: {item['file_path']}")
+                    print(f"   Reason: {item['reason']}")
+                    print(f"   Suggested: {item['suggested_classification']} ({item['confidence']}%)")
+                    print(f"   Date: {item['quarantined_at']}")
+                    print("")
+            else:
+                print("No files in quarantine")
+
+        elif args.action == 'reviewed':
+            queue = self.db.get_quarantine_queue(reviewed=True)
+            print(f"\nReviewed Files: {len(queue)}\n")
+
+            if queue:
+                for item in queue:
+                    print(f"ID: {item['id']} | {Path(item['file_path']).name}")
+                    print(f"   Final: {item['final_classification']}")
+                    print(f"   Reviewed: {item['reviewed_at']}")
+                    print("")
+
+    def stats(self, args):
+        """Show detailed statistics"""
+        stats = self.db.get_statistics(days=args.period)
+
+        print("\n" + "=" * 70)
+        print(f" Statistics - Last {args.period} Days")
+        print("=" * 70)
+
+        print(f"\n📊 Overview:")
+        print(f"  Total Processed: {stats['total_processed']}")
+        print(f"  Success Rate: {(stats['successful'] / max(stats['total_processed'], 1)) * 100:.1f}%")
+        print(f"  Failed: {stats['failed']}")
+        print(f"  Errors: {stats['errors']}")
+
+        if stats['avg_confidence']:
+            print(f"  Average Confidence: {stats['avg_confidence']:.1f}%")
+
+        print(f"\n📁 By Category:")
+        if stats['by_category']:
+            total = sum(stats['by_category'].values())
+            for category, count in sorted(stats['by_category'].items(), key=lambda x: x[1], reverse=True):
+                percentage = (count / total) * 100
+                bar = "█" * int(percentage / 2)
+                print(f"  {category:15} {count:4} ({percentage:5.1f}%) {bar}")
+        else:
+            print("  No data")
+
+        # Confidence distribution
+        print(f"\n📈 Recent Activity:")
+        recent = self.db.get_recent_files(limit=10)
+        for file in recent:
+            timestamp = datetime.fromisoformat(file['processed_at']).strftime('%Y-%m-%d %H:%M')
+            conf_bar = "█" * int(file['confidence'] / 10)
+            print(f"  {timestamp} | {file['confidence']:3.0f}% {conf_bar:10} | {file['classification']}")
+
+        print("")
+
+    def export(self, args):
+        """Export database to JSON"""
+        print(f"Exporting to {args.output}...")
+
+        data = {
+            'exported_at': datetime.now().isoformat(),
+            'recent_files': self.db.get_recent_files(limit=args.limit),
+            'statistics': self.db.get_statistics(days=30),
+            'quarantine': self.db.get_quarantine_queue(reviewed=False)
+        }
+
+        with open(args.output, 'w') as f:
+            json.dump(data, f, indent=2, default=str)
+
+        print(f"✅ Exported {len(data['recent_files'])} files")
+
+
+def main():
+    """Main CLI entry point"""
+    parser = argparse.ArgumentParser(
+        description='Skippy Files - Intelligent File Processor CLI',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  skippy-files status                    # Show recent activity
+  skippy-files status --days 30          # Last 30 days
+  skippy-files search "invoice"          # Search for files
+  skippy-files quarantine list           # List quarantined files
+  skippy-files stats --period week       # Weekly statistics
+  skippy-files export --output data.json # Export to JSON
+        """
+    )
+
+    subparsers = parser.add_subparsers(dest='command', help='Command to run')
+
+    # Status command
+    status_parser = subparsers.add_parser('status', help='Show recent activity')
+    status_parser.add_argument('--days', type=int, default=7, help='Number of days (default: 7)')
+    status_parser.add_argument('--limit', type=int, default=10, help='Number of recent files (default: 10)')
+
+    # Search command
+    search_parser = subparsers.add_parser('search', help='Search processed files')
+    search_parser.add_argument('query', help='Search query')
+    search_parser.add_argument('--limit', type=int, default=50, help='Max results (default: 50)')
+
+    # Quarantine command
+    quarantine_parser = subparsers.add_parser('quarantine', help='Manage quarantine')
+    quarantine_parser.add_argument('action', choices=['list', 'reviewed'], help='Action to perform')
+
+    # Stats command
+    stats_parser = subparsers.add_parser('stats', help='Show statistics')
+    stats_parser.add_argument('--period', type=int, default=7, help='Period in days (default: 7)')
+
+    # Export command
+    export_parser = subparsers.add_parser('export', help='Export data to JSON')
+    export_parser.add_argument('--output', default='skippy_export.json', help='Output file')
+    export_parser.add_argument('--limit', type=int, default=1000, help='Max files to export')
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+
+    # Run command
+    cli = SkippyFilesCLI()
+
+    if args.command == 'status':
+        cli.status(args)
+    elif args.command == 'search':
+        cli.search(args)
+    elif args.command == 'quarantine':
+        cli.quarantine(args)
+    elif args.command == 'stats':
+        cli.stats(args)
+    elif args.command == 'export':
+        cli.export(args)
+
+
+if __name__ == "__main__":
+    main()

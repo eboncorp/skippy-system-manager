@@ -1,0 +1,115 @@
+# Intelligent File Processor Configuration
+# Version: 1.0.0
+
+# Input folders to watch
+watch_folders:
+  - path: /home/dave/skippy/operations/downloads
+    enabled: true
+    recursive: false
+
+  - path: /home/dave/skippy/operations/claude/downloads
+    enabled: true
+    recursive: false
+
+  - path: /home/dave/skippy/operations/claude/uploads
+    enabled: true
+    recursive: false
+
+  - path: /home/dave/skippy/operations/scans/incoming
+    enabled: true
+    recursive: false
+    extensions: [.pdf, .png, .jpg, .jpeg, .tiff]
+
+  - path: /home/dave/skippy/media/photos/screenshots
+    enabled: false  # Enable if desired
+    recursive: false
+
+# Processing behavior
+processing:
+  # Wait time before processing (allow file to fully download/save)
+  stabilization_delay: 2  # seconds (reduced for scanner compatibility)
+
+  # Quarantine period (allow user to cancel if needed)
+  quarantine_period: 30  # seconds
+
+  # Enable AI classification via MCP
+  use_ai_classification: true  # Set to true to enable Claude integration
+
+  # Confidence threshold (0-100)
+  min_confidence: 60
+
+  # Unknown files go to quarantine
+  quarantine_unknown: true
+
+  # Backup before moving
+  create_backup: true
+  backup_retention_days: 90
+
+# Output destinations
+destinations:
+  campaign: /home/dave/skippy/business/campaign/documents
+  business: /home/dave/skippy/business/eboncorp
+  personal: /home/dave/skippy/personal
+  technical: /home/dave/skippy/development/misc
+  media_photos: /home/dave/skippy/media/photos
+  media_videos: /home/dave/skippy/media/videos
+  media_screenshots: /home/dave/skippy/media/photos/screenshots
+  quarantine: /home/dave/skippy/operations/quarantine
+  backups: /home/dave/skippy/system/backups/file_processor
+
+# Notification settings
+notifications:
+  enabled: true
+  method: desktop  # desktop, email, slack, log
+  notify_on_success: true
+  notify_on_error: true
+  notify_on_quarantine: true
+
+  # Desktop notification
+  desktop:
+    duration: 5000  # milliseconds
+    urgency: normal  # low, normal, critical
+
+# Logging
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR
+  file: /home/dave/skippy/system/logs_main/file_processor.log
+  max_size_mb: 50
+  backup_count: 5
+
+  # Log every action to database for learning
+  database: /home/dave/skippy/system/logs_main/file_processor.db
+
+# Learning system
+learning:
+  enabled: true
+  track_corrections: true
+  adaptive_classification: true
+
+# Ignore patterns (never process these)
+ignore_patterns:
+  - "*.tmp"
+  - "*.crdownload"
+  - "*.part"
+  - "*.download"
+  - "*.swp"
+  - "*.~lock*"
+  - ".DS_Store"
+  - "Thumbs.db"
+  - "desktop.ini"
+
+# File age limits
+age_limits:
+  # Don't process files older than X days (already organized)
+  max_age_days: 7
+  # Don't process files in the future (bad timestamps)
+  allow_future_dates: false
+
+# Performance
+performance:
+  # Max file size to OCR (in MB)
+  max_ocr_size_mb: 50
+  # Max concurrent processing
+  max_workers: 4
+  # Batch processing interval
+  batch_interval_seconds: 10

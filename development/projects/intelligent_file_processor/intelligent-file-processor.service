@@ -1,0 +1,17 @@
+[Unit]
+Description=Intelligent File Processor Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=dave
+WorkingDirectory=/home/dave/skippy/development/projects/intelligent_file_processor
+EnvironmentFile=/home/dave/.credentials/anthropic.env
+ExecStart=/usr/bin/python3 file_processor_daemon.py
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
