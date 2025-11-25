@@ -25,6 +25,9 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
+.venv/
+venv/
+*.egg-info/
 
 # Private/sensitive (already in root .gitignore but restate here)
 business/
