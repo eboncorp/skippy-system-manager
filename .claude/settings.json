@@ -1,5 +1,7 @@
 {
-  "alwaysThinkingEnabled": false,
+  "env": {
+    "MAX_THINKING_TOKENS": "10000"
+  },
   "permissions": {
     "allow": [
       "Read(/home/dave/skippy/**)",
@@ -84,7 +86,12 @@
       "SlashCommand(/stock-photo)",
       "SlashCommand(/fact-check)",
       "SlashCommand(/git-branches)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(rm /home/dave/skippy/work/screenshots/*.png)",
+      "Bash(rm /home/dave/skippy/work/screenshots/*_original.png)",
+      "Bash(rm /home/dave/skippy/work/screenshots/*_full.png)",
+      "Bash(rm /home/dave/skippy/work/screenshots/*_section*.png)",
+      "Bash(find /home/dave/skippy/work/screenshots -name '*.png' -mtime +7 -delete)"
     ],
     "ask": [
       "Bash(git push:*)",

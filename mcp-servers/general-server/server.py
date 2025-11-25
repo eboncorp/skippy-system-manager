@@ -2967,6 +2967,58 @@ def screenshot_capture(url: str, output_path: str = "", width: int = 1920, heigh
 
         # Use asyncio.run() with nest_asyncio for compatibility
         result_path = asyncio.get_event_loop().run_until_complete(take_screenshot())
+
+        # Check if image exceeds API limit (8000px) and handle accordingly
+        MAX_DIMENSION = 7500  # Stay under 8000px API limit with margin
+        try:
+            from PIL import Image
+            img = Image.open(result_path)
+            w, h = img.size
+
+            if h > MAX_DIMENSION:
+                # For very tall images (full-page captures), split into sections
+                original_path = result_path.replace('.png', '_full.png')
+                img.save(original_path)
+
+                # Calculate how many sections we need
+                section_height = MAX_DIMENSION - 200  # Leave some overlap margin
+                num_sections = (h + section_height - 1) // section_height
+
+                section_paths = []
+                for i in range(min(num_sections, 5)):  # Max 5 sections to avoid too many files
+                    top = i * section_height
+                    bottom = min(top + MAX_DIMENSION, h)
+                    section = img.crop((0, top, w, bottom))
+
+                    section_path = result_path.replace('.png', f'_section{i+1}.png')
+                    section.save(section_path)
+                    section_paths.append(section_path)
+
+                # Keep first section as the main file for easy viewing
+                first_section = img.crop((0, 0, w, min(MAX_DIMENSION, h)))
+                first_section.save(result_path)
+
+                return (f"✅ Screenshot saved: {result_path}\n"
+                        f"⚠️  Full page was {w}x{h}px (exceeds 8000px limit)\n"
+                        f"📁 Full image saved: {original_path}\n"
+                        f"📄 Split into {len(section_paths)} viewable sections:\n   " +
+                        "\n   ".join(section_paths))
+
+            elif w > MAX_DIMENSION:
+                # Wide images (rare) - just resize proportionally
+                scale = MAX_DIMENSION / w
+                new_w, new_h = int(w * scale), int(h * scale)
+                original_path = result_path.replace('.png', '_original.png')
+                img.save(original_path)
+                img_resized = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+                img_resized.save(result_path)
+                return f"✅ Screenshot saved: {result_path}\n⚠️  Image was {w}x{h}, resized to {new_w}x{new_h} (API limit: 8000px)\n📁 Original saved: {original_path}"
+
+        except ImportError:
+            pass  # PIL not available, skip resize check
+        except Exception as resize_err:
+            return f"✅ Screenshot saved: {result_path}\n⚠️  Could not check/resize image: {resize_err}"
+
         return f"✅ Screenshot saved: {result_path}"
 
     except Exception as e:
