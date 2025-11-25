@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
 General Purpose MCP Server
-Version: 2.5.0 (Utility Tools Expansion)
+Version: 2.6.0 (Full Skippy Integration)
 Author: Claude Code
 Created: 2025-10-31
-Updated: 2025-11-24 (Utility Tools Expansion - 14 new tools)
+Updated: 2025-11-24 (Full Skippy Integration - 24 new tools)
 
 SECURITY ENHANCEMENTS (v2.4.0):
 - Phase 1: Command injection prevention, path traversal protection
@@ -2913,6 +2913,20 @@ def screenshot_capture(url: str, output_path: str = "", width: int = 1920, heigh
     if launch is None:
         return "❌ pyppeteer not installed. Run: pip install pyppeteer"
 
+    # Validate URL using Skippy validator
+    if SKIPPY_LIBS_AVAILABLE:
+        try:
+            validate_url(url)
+        except ValidationError as e:
+            return f"❌ Invalid URL: {str(e)}"
+
+    # Validate output path if provided
+    if output_path and SKIPPY_LIBS_AVAILABLE:
+        try:
+            validate_path(output_path, must_exist=False)
+        except ValidationError as e:
+            return f"❌ Invalid output path: {str(e)}"
+
     try:
         import asyncio
 
@@ -2954,6 +2968,18 @@ def pdf_to_text(pdf_path: str, output_path: str = "") -> str:
     Returns:
         Extracted text or path to saved file
     """
+    # Validate paths using Skippy validator
+    if SKIPPY_LIBS_AVAILABLE:
+        try:
+            validate_path(pdf_path, must_exist=True)
+        except ValidationError as e:
+            return f"❌ Invalid PDF path: {str(e)}"
+        if output_path:
+            try:
+                validate_path(output_path, must_exist=False)
+            except ValidationError as e:
+                return f"❌ Invalid output path: {str(e)}"
+
     try:
         import subprocess
 
@@ -3010,6 +3036,18 @@ def image_resize(
     Returns:
         Path to resized image with size info
     """
+    # Validate paths using Skippy validator
+    if SKIPPY_LIBS_AVAILABLE:
+        try:
+            validate_path(image_path, must_exist=True)
+        except ValidationError as e:
+            return f"❌ Invalid image path: {str(e)}"
+        if output_path:
+            try:
+                validate_path(output_path, must_exist=False)
+            except ValidationError as e:
+                return f"❌ Invalid output path: {str(e)}"
+
     try:
         from PIL import Image
 
@@ -3163,6 +3201,18 @@ def compress_files(
     Returns:
         Path to archive with size info
     """
+    # Validate paths using Skippy validator
+    if SKIPPY_LIBS_AVAILABLE:
+        try:
+            validate_path(source_path, must_exist=True)
+        except ValidationError as e:
+            return f"❌ Invalid source path: {str(e)}"
+        if output_path:
+            try:
+                validate_path(output_path, must_exist=False)
+            except ValidationError as e:
+                return f"❌ Invalid output path: {str(e)}"
+
     try:
         import shutil
         import tarfile
@@ -3686,13 +3736,388 @@ First 10 files:
 
 
 # ============================================================================
+# SKIPPY SYSTEM INTEGRATION TOOLS (Added 2025-11-24)
+# ============================================================================
+
+@mcp.tool()
+def skippy_performance_summary(operation_name: str = "") -> str:
+    """
+    Get performance metrics summary from Skippy performance monitoring.
+
+    Args:
+        operation_name: Specific operation to get metrics for (empty = all)
+
+    Returns:
+        Performance metrics summary
+    """
+    try:
+        if not SKIPPY_LIBS_AVAILABLE:
+            return "❌ Skippy libraries not available"
+
+        from skippy_performance import _global_monitor, get_performance_summary
+
+        summary = get_performance_summary(operation_name if operation_name else None)
+
+        if "error" in summary:
+            return f"⚠️ {summary['error']}"
+
+        output = f"""📊 Performance Summary: {summary.get('operation', 'all')}
+
+Total Executions: {summary.get('total_executions', 0)}
+
+Duration Statistics:
+  • Min: {summary.get('duration', {}).get('min', 0):.3f}s
+  • Max: {summary.get('duration', {}).get('max', 0):.3f}s
+  • Avg: {summary.get('duration', {}).get('avg', 0):.3f}s
+  • Total: {summary.get('duration', {}).get('total', 0):.3f}s
+
+Recent Metrics:
+"""
+        for metric in summary.get('recent_metrics', [])[-3:]:
+            output += f"  • {metric.get('name', 'unknown')}: {metric.get('duration_seconds', 0):.3f}s\n"
+
+        return output
+
+    except Exception as e:
+        return f"❌ Error getting performance summary: {str(e)}"
+
+
+@mcp.tool()
+def skippy_circuit_breaker_status() -> str:
+    """
+    Get status of all Skippy circuit breakers.
+
+    Returns:
+        Circuit breaker states and health
+    """
+    try:
+        if not SKIPPY_RESILIENCE_AVAILABLE:
+            return "❌ Skippy resilience library not available"
+
+        from skippy_resilience import get_all_circuit_breaker_states
+
+        states = get_all_circuit_breaker_states()
+
+        if not states:
+            return "No circuit breakers registered."
+
+        output = "🔌 Circuit Breaker Status\n\n"
+
+        for name, state in states.items():
+            status_icon = {
+                'closed': '🟢',
+                'open': '🔴',
+                'half_open': '🟡'
+            }.get(state.get('state', 'unknown'), '⚪')
+
+            output += f"""{status_icon} {name}
+   State: {state.get('state', 'unknown').upper()}
+   Failures: {state.get('failure_count', 0)}/{state.get('config', {}).get('failure_threshold', 5)}
+   Last Failure: {state.get('last_failure', 'never')}
+
+"""
+
+        return output
+
+    except Exception as e:
+        return f"❌ Error getting circuit breaker status: {str(e)}"
+
+
+@mcp.tool()
+def skippy_circuit_breaker_reset(name: str) -> str:
+    """
+    Reset a specific circuit breaker to closed state.
+
+    Args:
+        name: Name of the circuit breaker to reset
+
+    Returns:
+        Success or error message
+    """
+    try:
+        if not SKIPPY_RESILIENCE_AVAILABLE:
+            return "❌ Skippy resilience library not available"
+
+        from skippy_resilience import get_circuit_breaker
+
+        cb = get_circuit_breaker(name)
+        cb.reset()
+
+        return f"✅ Circuit breaker '{name}' reset to CLOSED state"
+
+    except Exception as e:
+        return f"❌ Error resetting circuit breaker: {str(e)}"
+
+
+@mcp.tool()
+def skippy_cache_stats() -> str:
+    """
+    Get Skippy graceful cache statistics.
+
+    Returns:
+        Cache statistics and health
+    """
+    try:
+        if not SKIPPY_ADVANCED_RESILIENCE:
+            return "❌ Skippy advanced resilience not available"
+
+        from skippy_resilience_advanced import get_cache
+
+        cache = get_cache()
+        stats = cache.get_statistics()
+
+        output = f"""📦 Skippy Cache Statistics
+
+Total Entries: {stats.get('total_entries', 0)}
+Valid Entries: {stats.get('valid_entries', 0)}
+Stale Entries: {stats.get('stale_entries', 0)}
+Total Hits: {stats.get('total_hits', 0)}
+Capacity Used: {stats.get('capacity_percent', 0):.1f}%
+"""
+
+        return output
+
+    except Exception as e:
+        return f"❌ Error getting cache stats: {str(e)}"
+
+
+@mcp.tool()
+def skippy_cache_clear(pattern: str = "") -> str:
+    """
+    Clear Skippy cache entries.
+
+    Args:
+        pattern: Pattern to match for selective clearing (empty = clear all)
+
+    Returns:
+        Number of entries cleared
+    """
+    try:
+        if not SKIPPY_ADVANCED_RESILIENCE:
+            return "❌ Skippy advanced resilience not available"
+
+        from skippy_resilience_advanced import get_cache
+
+        cache = get_cache()
+
+        if pattern:
+            # Get count before
+            stats_before = cache.get_statistics()
+            cache.invalidate_pattern(pattern)
+            stats_after = cache.get_statistics()
+            cleared = stats_before['total_entries'] - stats_after['total_entries']
+            return f"✅ Cleared {cleared} cache entries matching '{pattern}'"
+        else:
+            stats = cache.get_statistics()
+            count = stats['total_entries']
+            cache.clear()
+            return f"✅ Cleared all {count} cache entries"
+
+    except Exception as e:
+        return f"❌ Error clearing cache: {str(e)}"
+
+
+@mcp.tool()
+def skippy_alerts_recent(hours: int = 24) -> str:
+    """
+    Get recent Skippy system alerts.
+
+    Args:
+        hours: Number of hours to look back (default 24)
+
+    Returns:
+        List of recent alerts
+    """
+    try:
+        if not SKIPPY_ADVANCED_RESILIENCE:
+            return "❌ Skippy advanced resilience not available"
+
+        from skippy_resilience_advanced import get_alert_manager
+
+        manager = get_alert_manager()
+        alerts = manager.get_recent_alerts(hours=hours)
+
+        if not alerts:
+            return f"✅ No alerts in the last {hours} hours"
+
+        output = f"🚨 Recent Alerts (last {hours}h)\n\n"
+
+        level_icons = {
+            'critical': '🔴',
+            'error': '🟠',
+            'warning': '🟡',
+            'info': '🔵'
+        }
+
+        for alert in alerts[-10:]:  # Last 10
+            icon = level_icons.get(alert.get('level', 'info'), '⚪')
+            output += f"""{icon} [{alert.get('level', 'info').upper()}] {alert.get('title', 'Unknown')}
+   {alert.get('message', '')}
+   Time: {alert.get('timestamp', 'unknown')}
+   Service: {alert.get('service', 'N/A')}
+
+"""
+
+        if len(alerts) > 10:
+            output += f"... and {len(alerts) - 10} more alerts\n"
+
+        return output
+
+    except Exception as e:
+        return f"❌ Error getting alerts: {str(e)}"
+
+
+@mcp.tool()
+def skippy_send_alert(
+    title: str,
+    message: str,
+    level: str = "info",
+    service: str = ""
+) -> str:
+    """
+    Send a Skippy system alert.
+
+    Args:
+        title: Alert title
+        message: Alert message
+        level: Alert level (info, warning, error, critical)
+        service: Service name (optional)
+
+    Returns:
+        Success or error message
+    """
+    try:
+        if not SKIPPY_ADVANCED_RESILIENCE:
+            return "❌ Skippy advanced resilience not available"
+
+        from skippy_resilience_advanced import get_alert_manager, Alert, AlertLevel
+
+        # Validate level
+        valid_levels = ['info', 'warning', 'error', 'critical']
+        if level.lower() not in valid_levels:
+            return f"❌ Invalid level. Use: {', '.join(valid_levels)}"
+
+        manager = get_alert_manager()
+        alert = Alert(
+            level=level.lower(),
+            title=title,
+            message=message,
+            service=service if service else None
+        )
+        manager.send_alert(alert)
+
+        level_icons = {'critical': '🔴', 'error': '🟠', 'warning': '🟡', 'info': '🔵'}
+        icon = level_icons.get(level.lower(), '⚪')
+
+        return f"{icon} Alert sent: [{level.upper()}] {title}"
+
+    except Exception as e:
+        return f"❌ Error sending alert: {str(e)}"
+
+
+@mcp.tool()
+def skippy_metrics_summary() -> str:
+    """
+    Get summary of all persisted Skippy metrics.
+
+    Returns:
+        Metrics files and storage summary
+    """
+    try:
+        if not SKIPPY_ADVANCED_RESILIENCE:
+            return "❌ Skippy advanced resilience not available"
+
+        from skippy_resilience_advanced import get_metrics_persistence
+
+        persistence = get_metrics_persistence()
+        if not persistence:
+            return "⚠️ Metrics persistence not initialized"
+
+        summary = persistence.get_metrics_summary()
+
+        if "error" in summary:
+            return f"❌ {summary['error']}"
+
+        output = f"""📈 Skippy Metrics Summary
+
+Directory: {summary.get('metrics_dir', 'N/A')}
+Total Size: {summary.get('total_size_mb', 0):.2f} MB
+
+Files:
+"""
+        for filename, info in summary.get('files', {}).items():
+            output += f"  • {filename}: {info.get('size_mb', 0):.2f} MB\n"
+
+        return output
+
+    except Exception as e:
+        return f"❌ Error getting metrics summary: {str(e)}"
+
+
+@mcp.tool()
+def skippy_health_check() -> str:
+    """
+    Run Skippy system health checks.
+
+    Returns:
+        Health check results for all registered services
+    """
+    try:
+        if not SKIPPY_RESILIENCE_AVAILABLE:
+            return "❌ Skippy resilience library not available"
+
+        from skippy_resilience import HealthChecker
+
+        # Create checker and run standard checks
+        checker = HealthChecker()
+
+        # Register basic checks
+        @checker.register("skippy_libs")
+        def check_libs():
+            return SKIPPY_LIBS_AVAILABLE, "Skippy libraries loaded"
+
+        @checker.register("resilience")
+        def check_resilience():
+            return SKIPPY_RESILIENCE_AVAILABLE, "Resilience features available"
+
+        @checker.register("advanced_resilience")
+        def check_advanced():
+            return SKIPPY_ADVANCED_RESILIENCE, "Advanced resilience available"
+
+        @checker.register("metrics_dir")
+        def check_metrics():
+            metrics_dir = Path(SKIPPY_PATH) / "logs" / "metrics"
+            return metrics_dir.exists(), f"Metrics directory: {metrics_dir}"
+
+        # Run all checks
+        summary = checker.get_summary()
+
+        status_icon = "🟢" if summary['overall_healthy'] else "🔴"
+        output = f"""{status_icon} Skippy Health Check
+
+Overall: {'HEALTHY' if summary['overall_healthy'] else 'UNHEALTHY'}
+Checks: {summary['healthy_count']}/{summary['total_checks']} passed
+
+Details:
+"""
+        for name, result in summary.get('checks', {}).items():
+            icon = "✅" if result['healthy'] else "❌"
+            output += f"  {icon} {name}: {result['message']}\n"
+
+        return output
+
+    except Exception as e:
+        return f"❌ Error running health check: {str(e)}"
+
+
+# ============================================================================
 # SERVER INITIALIZATION
 # ============================================================================
 
 def main():
     """Initialize and run the MCP server."""
-    logger.info("Starting General Purpose MCP Server v2.5.0")
-    logger.info("Total tools: 88 (69 base + 5 WordPress campaign + 14 utility tools)")
+    logger.info("Starting General Purpose MCP Server v2.6.0")
+    logger.info("Total tools: 98 (69 base + 5 WordPress + 14 utility + 10 Skippy integration)")
     mcp.run(transport='stdio')
 
 
