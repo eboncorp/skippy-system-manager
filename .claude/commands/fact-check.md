@@ -16,8 +16,9 @@ When this skill is invoked, perform rapid fact validation:
 For immediate fact verification without full content scan:
 
 ```bash
-# Primary authoritative source
-FACT_SHEET="/home/dave/rundaverun/campaign/GODADDY_DEPLOYMENT_2025-10-13/1_WORDPRESS_PLUGIN/dave-biggers-policy-manager/assets/markdown-files/QUICK_FACTS_SHEET.md"
+# Primary authoritative source (symlinked for convenience)
+FACT_SHEET="/home/dave/skippy/reference/QUICK_FACTS_SHEET.md"
+# Original location: /home/dave/rundaverun/campaign/GODADDY_DEPLOYMENT_2025-10-13/1_WORDPRESS_PLUGIN/dave-biggers-policy-manager/assets/markdown-files/QUICK_FACTS_SHEET.md
 ```
 
 ### 2. Common Fact Queries
