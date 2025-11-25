@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
 General Purpose MCP Server
-Version: 2.4.0 (Security Hardened)
+Version: 2.5.0 (Utility Tools Expansion)
 Author: Claude Code
 Created: 2025-10-31
-Updated: 2025-11-12 (Security Hardening Phase 1 & 2 Complete)
+Updated: 2025-11-24 (Utility Tools Expansion - 14 new tools)
 
 SECURITY ENHANCEMENTS (v2.4.0):
 - Phase 1: Command injection prevention, path traversal protection
@@ -2892,13 +2892,807 @@ Note: This is a basic analytics framework. For full analytics:
 
 
 # ============================================================================
+# NEW UTILITY TOOLS (Added 2025-11-24)
+# ============================================================================
+
+@mcp.tool()
+def screenshot_capture(url: str, output_path: str = "", width: int = 1920, height: int = 1080, full_page: bool = False) -> str:
+    """
+    Take a screenshot of a URL using pyppeteer.
+
+    Args:
+        url: URL to capture (local or remote)
+        output_path: Where to save screenshot (auto-generated if empty)
+        width: Viewport width (default 1920)
+        height: Viewport height (default 1080)
+        full_page: Capture full scrollable page (default False)
+
+    Returns:
+        Path to saved screenshot or error message
+    """
+    if launch is None:
+        return "❌ pyppeteer not installed. Run: pip install pyppeteer"
+
+    try:
+        import asyncio
+
+        async def take_screenshot():
+            browser = await launch(headless=True, args=['--no-sandbox'])
+            page = await browser.newPage()
+            await page.setViewport({'width': width, 'height': height})
+            await page.goto(url, waitUntil='networkidle0', timeout=30000)
+
+            if not output_path:
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                save_path = f"/home/dave/skippy/work/screenshots/screenshot_{timestamp}.png"
+            else:
+                save_path = output_path
+
+            # Ensure directory exists
+            Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+
+            await page.screenshot({'path': save_path, 'fullPage': full_page})
+            await browser.close()
+            return save_path
+
+        result_path = asyncio.get_event_loop().run_until_complete(take_screenshot())
+        return f"✅ Screenshot saved: {result_path}"
+
+    except Exception as e:
+        return f"❌ Screenshot failed: {str(e)}"
+
+
+@mcp.tool()
+def pdf_to_text(pdf_path: str, output_path: str = "") -> str:
+    """
+    Extract text from a PDF file.
+
+    Args:
+        pdf_path: Path to PDF file
+        output_path: Where to save text (prints if empty)
+
+    Returns:
+        Extracted text or path to saved file
+    """
+    try:
+        import subprocess
+
+        # Use pdftotext if available (poppler-utils)
+        result = subprocess.run(
+            ['pdftotext', '-layout', pdf_path, '-'],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+
+        if result.returncode != 0:
+            return f"❌ pdftotext failed: {result.stderr}"
+
+        text = result.stdout
+
+        if output_path:
+            Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, 'w') as f:
+                f.write(text)
+            return f"✅ Text extracted to: {output_path} ({len(text)} chars)"
+
+        # Return first 5000 chars if no output path
+        if len(text) > 5000:
+            return f"{text[:5000]}\n\n... (truncated, {len(text)} total chars)"
+        return text
+
+    except FileNotFoundError:
+        return "❌ pdftotext not found. Install with: sudo apt install poppler-utils"
+    except Exception as e:
+        return f"❌ PDF extraction failed: {str(e)}"
+
+
+@mcp.tool()
+def image_resize(
+    image_path: str,
+    output_path: str = "",
+    width: int = 0,
+    height: int = 0,
+    max_size: int = 0,
+    quality: int = 85
+) -> str:
+    """
+    Resize and optimize an image.
+
+    Args:
+        image_path: Path to source image
+        output_path: Where to save (overwrites if empty)
+        width: Target width (0 = auto based on height)
+        height: Target height (0 = auto based on width)
+        max_size: Max dimension for either side (overrides width/height)
+        quality: JPEG quality 1-100 (default 85)
+
+    Returns:
+        Path to resized image with size info
+    """
+    try:
+        from PIL import Image
+
+        img = Image.open(image_path)
+        original_size = os.path.getsize(image_path)
+        orig_width, orig_height = img.size
+
+        # Calculate new dimensions
+        if max_size:
+            ratio = min(max_size / orig_width, max_size / orig_height)
+            if ratio < 1:
+                new_width = int(orig_width * ratio)
+                new_height = int(orig_height * ratio)
+            else:
+                new_width, new_height = orig_width, orig_height
+        elif width and height:
+            new_width, new_height = width, height
+        elif width:
+            ratio = width / orig_width
+            new_width = width
+            new_height = int(orig_height * ratio)
+        elif height:
+            ratio = height / orig_height
+            new_height = height
+            new_width = int(orig_width * ratio)
+        else:
+            return "❌ Must specify width, height, or max_size"
+
+        # Resize
+        img_resized = img.resize((new_width, new_height), Image.LANCZOS)
+
+        # Determine output path
+        if not output_path:
+            base, ext = os.path.splitext(image_path)
+            output_path = f"{base}_resized{ext}"
+
+        # Save with optimization
+        if img_resized.mode in ('RGBA', 'P'):
+            img_resized = img_resized.convert('RGB')
+
+        img_resized.save(output_path, quality=quality, optimize=True)
+        new_size = os.path.getsize(output_path)
+
+        return f"""✅ Image resized:
+- Original: {orig_width}x{orig_height} ({original_size:,} bytes)
+- New: {new_width}x{new_height} ({new_size:,} bytes)
+- Saved: {output_path}
+- Reduction: {((original_size - new_size) / original_size * 100):.1f}%"""
+
+    except ImportError:
+        return "❌ Pillow not installed. Run: pip install Pillow"
+    except Exception as e:
+        return f"❌ Image resize failed: {str(e)}"
+
+
+@mcp.tool()
+def json_to_csv(json_path: str, output_path: str = "") -> str:
+    """
+    Convert JSON array to CSV file.
+
+    Args:
+        json_path: Path to JSON file (must be array of objects)
+        output_path: Where to save CSV (auto-generated if empty)
+
+    Returns:
+        Path to CSV file or error message
+    """
+    try:
+        import csv
+
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+
+        if not isinstance(data, list):
+            return "❌ JSON must be an array of objects"
+
+        if not data:
+            return "❌ JSON array is empty"
+
+        if not output_path:
+            output_path = json_path.rsplit('.', 1)[0] + '.csv'
+
+        # Get all keys from all objects
+        all_keys = set()
+        for item in data:
+            if isinstance(item, dict):
+                all_keys.update(item.keys())
+
+        fieldnames = sorted(all_keys)
+
+        with open(output_path, 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for item in data:
+                if isinstance(item, dict):
+                    writer.writerow(item)
+
+        return f"✅ Converted to CSV: {output_path} ({len(data)} rows, {len(fieldnames)} columns)"
+
+    except Exception as e:
+        return f"❌ JSON to CSV failed: {str(e)}"
+
+
+@mcp.tool()
+def csv_to_json(csv_path: str, output_path: str = "") -> str:
+    """
+    Convert CSV file to JSON array.
+
+    Args:
+        csv_path: Path to CSV file
+        output_path: Where to save JSON (auto-generated if empty)
+
+    Returns:
+        Path to JSON file or error message
+    """
+    try:
+        import csv
+
+        with open(csv_path, 'r') as f:
+            reader = csv.DictReader(f)
+            data = list(reader)
+
+        if not output_path:
+            output_path = csv_path.rsplit('.', 1)[0] + '.json'
+
+        with open(output_path, 'w') as f:
+            json.dump(data, f, indent=2)
+
+        return f"✅ Converted to JSON: {output_path} ({len(data)} records)"
+
+    except Exception as e:
+        return f"❌ CSV to JSON failed: {str(e)}"
+
+
+@mcp.tool()
+def compress_files(
+    source_path: str,
+    output_path: str = "",
+    format: str = "zip",
+    include_pattern: str = "*"
+) -> str:
+    """
+    Compress files into an archive.
+
+    Args:
+        source_path: File or directory to compress
+        output_path: Where to save archive (auto-generated if empty)
+        format: Archive format (zip, tar, tar.gz, tar.bz2)
+        include_pattern: Glob pattern for files to include (default *)
+
+    Returns:
+        Path to archive with size info
+    """
+    try:
+        import shutil
+        import tarfile
+        import zipfile
+        from pathlib import Path
+
+        source = Path(source_path)
+
+        if not source.exists():
+            return f"❌ Source not found: {source_path}"
+
+        # Generate output path if not provided
+        if not output_path:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            if format == 'zip':
+                output_path = f"{source.stem}_{timestamp}.zip"
+            elif format == 'tar':
+                output_path = f"{source.stem}_{timestamp}.tar"
+            elif format == 'tar.gz':
+                output_path = f"{source.stem}_{timestamp}.tar.gz"
+            elif format == 'tar.bz2':
+                output_path = f"{source.stem}_{timestamp}.tar.bz2"
+            else:
+                return f"❌ Unknown format: {format}. Use: zip, tar, tar.gz, tar.bz2"
+
+        # Compress
+        if format == 'zip':
+            with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+                if source.is_file():
+                    zf.write(source, source.name)
+                else:
+                    for file in source.rglob(include_pattern):
+                        if file.is_file():
+                            zf.write(file, file.relative_to(source.parent))
+
+        elif format in ('tar', 'tar.gz', 'tar.bz2'):
+            mode = 'w'
+            if format == 'tar.gz':
+                mode = 'w:gz'
+            elif format == 'tar.bz2':
+                mode = 'w:bz2'
+
+            with tarfile.open(output_path, mode) as tf:
+                if source.is_file():
+                    tf.add(source, source.name)
+                else:
+                    for file in source.rglob(include_pattern):
+                        if file.is_file():
+                            tf.add(file, file.relative_to(source.parent))
+
+        archive_size = os.path.getsize(output_path)
+        return f"✅ Archive created: {output_path} ({archive_size:,} bytes)"
+
+    except Exception as e:
+        return f"❌ Compression failed: {str(e)}"
+
+
+@mcp.tool()
+def cron_list(user: str = "") -> str:
+    """
+    List cron jobs for a user.
+
+    Args:
+        user: Username (current user if empty)
+
+    Returns:
+        List of cron jobs with schedule descriptions
+    """
+    try:
+        if user:
+            result = subprocess.run(['crontab', '-u', user, '-l'], capture_output=True, text=True)
+        else:
+            result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
+
+        if result.returncode != 0:
+            if "no crontab" in result.stderr.lower():
+                return "No cron jobs configured."
+            return f"❌ Error listing crontab: {result.stderr}"
+
+        lines = result.stdout.strip().split('\n')
+        output = "📅 Cron Jobs:\n\n"
+
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+
+            parts = line.split(None, 5)
+            if len(parts) >= 6:
+                schedule = ' '.join(parts[:5])
+                command = parts[5]
+
+                # Parse schedule
+                minute, hour, dom, month, dow = parts[:5]
+                desc = _describe_cron_schedule(minute, hour, dom, month, dow)
+
+                output += f"• {desc}\n  └─ {command[:60]}{'...' if len(command) > 60 else ''}\n\n"
+
+        return output if output != "📅 Cron Jobs:\n\n" else "No cron jobs configured."
+
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
+
+
+def _describe_cron_schedule(minute, hour, dom, month, dow):
+    """Helper to describe cron schedule in human terms."""
+    if minute == '*' and hour == '*':
+        return "Every minute"
+    elif minute.startswith('*/'):
+        return f"Every {minute[2:]} minutes"
+    elif hour == '*':
+        return f"Hourly at minute {minute}"
+    elif dom == '*' and month == '*' and dow == '*':
+        return f"Daily at {hour}:{minute.zfill(2)}"
+    elif dow != '*':
+        days = {'0': 'Sun', '1': 'Mon', '2': 'Tue', '3': 'Wed', '4': 'Thu', '5': 'Fri', '6': 'Sat', '7': 'Sun'}
+        day_name = days.get(dow, dow)
+        return f"Weekly on {day_name} at {hour}:{minute.zfill(2)}"
+    elif dom != '*':
+        return f"Monthly on day {dom} at {hour}:{minute.zfill(2)}"
+    else:
+        return f"{minute} {hour} {dom} {month} {dow}"
+
+
+@mcp.tool()
+def cron_add(schedule: str, command: str, comment: str = "") -> str:
+    """
+    Add a new cron job.
+
+    Args:
+        schedule: Cron schedule (e.g., "0 3 * * *" for daily at 3 AM)
+        command: Command to run
+        comment: Optional comment to add above the job
+
+    Returns:
+        Success message or error
+    """
+    try:
+        # Get existing crontab
+        result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
+        existing = result.stdout if result.returncode == 0 else ""
+
+        # Build new entry
+        new_entry = ""
+        if comment:
+            new_entry += f"# {comment}\n"
+        new_entry += f"{schedule} {command}\n"
+
+        # Append to existing
+        new_crontab = existing.rstrip() + "\n" + new_entry
+
+        # Install new crontab
+        process = subprocess.Popen(['crontab', '-'], stdin=subprocess.PIPE, text=True)
+        process.communicate(input=new_crontab)
+
+        if process.returncode != 0:
+            return "❌ Failed to install crontab"
+
+        return f"✅ Cron job added: {schedule} {command[:40]}..."
+
+    except Exception as e:
+        return f"❌ Error adding cron job: {str(e)}"
+
+
+@mcp.tool()
+def ssl_check(hostname: str, port: int = 443) -> str:
+    """
+    Check SSL certificate status and expiry.
+
+    Args:
+        hostname: Domain to check (e.g., "example.com")
+        port: Port number (default 443)
+
+    Returns:
+        Certificate info including expiry date
+    """
+    try:
+        import ssl
+        import socket
+        from datetime import datetime
+
+        context = ssl.create_default_context()
+        conn = context.wrap_socket(
+            socket.socket(socket.AF_INET),
+            server_hostname=hostname
+        )
+        conn.settimeout(10)
+
+        try:
+            conn.connect((hostname, port))
+            cert = conn.getpeercert()
+        finally:
+            conn.close()
+
+        # Parse expiry
+        not_after = datetime.strptime(cert['notAfter'], '%b %d %H:%M:%S %Y %Z')
+        not_before = datetime.strptime(cert['notBefore'], '%b %d %H:%M:%S %Y %Z')
+        days_left = (not_after - datetime.now()).days
+
+        # Get subject
+        subject = dict(x[0] for x in cert['subject'])
+        issuer = dict(x[0] for x in cert['issuer'])
+
+        # Status
+        if days_left < 0:
+            status = "🔴 EXPIRED"
+        elif days_left < 7:
+            status = "🟠 CRITICAL - Expires in < 7 days"
+        elif days_left < 30:
+            status = "🟡 WARNING - Expires in < 30 days"
+        else:
+            status = "🟢 Valid"
+
+        return f"""🔐 SSL Certificate for {hostname}
+
+Status: {status}
+Days until expiry: {days_left}
+
+Subject: {subject.get('commonName', 'N/A')}
+Issuer: {issuer.get('organizationName', 'N/A')}
+
+Valid From: {not_before.strftime('%Y-%m-%d')}
+Valid Until: {not_after.strftime('%Y-%m-%d')}
+
+Alternative Names: {', '.join(cert.get('subjectAltName', [('DNS', 'N/A')])[0:3])}
+"""
+
+    except ssl.SSLError as e:
+        return f"❌ SSL Error: {str(e)}"
+    except socket.error as e:
+        return f"❌ Connection error: {str(e)}"
+    except Exception as e:
+        return f"❌ Error checking SSL: {str(e)}"
+
+
+@mcp.tool()
+def dns_lookup(hostname: str, record_type: str = "A") -> str:
+    """
+    Perform DNS lookup for a hostname.
+
+    Args:
+        hostname: Domain to lookup
+        record_type: DNS record type (A, AAAA, MX, TXT, CNAME, NS, SOA)
+
+    Returns:
+        DNS records found
+    """
+    try:
+        import subprocess
+
+        # Use dig for reliable DNS lookups
+        result = subprocess.run(
+            ['dig', '+short', record_type, hostname],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        if result.returncode != 0:
+            return f"❌ DNS lookup failed: {result.stderr}"
+
+        records = result.stdout.strip()
+        if not records:
+            return f"No {record_type} records found for {hostname}"
+
+        output = f"🌐 DNS Lookup: {hostname} ({record_type})\n\n"
+        for record in records.split('\n'):
+            output += f"  • {record}\n"
+
+        return output
+
+    except FileNotFoundError:
+        # Fallback to nslookup
+        try:
+            result = subprocess.run(
+                ['nslookup', '-type=' + record_type, hostname],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            return f"🌐 DNS Lookup: {hostname}\n\n{result.stdout}"
+        except:
+            return "❌ Neither dig nor nslookup available"
+    except Exception as e:
+        return f"❌ DNS lookup error: {str(e)}"
+
+
+@mcp.tool()
+def port_check(host: str, ports: str = "80,443") -> str:
+    """
+    Check if ports are open on a host.
+
+    Args:
+        host: Hostname or IP to check
+        ports: Comma-separated port numbers or range (e.g., "80,443" or "20-25")
+
+    Returns:
+        Status of each port
+    """
+    try:
+        import socket
+
+        # Parse ports
+        port_list = []
+        for part in ports.split(','):
+            part = part.strip()
+            if '-' in part:
+                start, end = map(int, part.split('-'))
+                port_list.extend(range(start, end + 1))
+            else:
+                port_list.append(int(part))
+
+        output = f"🔌 Port Check: {host}\n\n"
+        open_count = 0
+
+        for port in port_list:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+
+            try:
+                result = sock.connect_ex((host, port))
+                if result == 0:
+                    output += f"  ✅ Port {port}: OPEN\n"
+                    open_count += 1
+                else:
+                    output += f"  ❌ Port {port}: CLOSED\n"
+            except socket.error as e:
+                output += f"  ⚠️  Port {port}: ERROR ({str(e)})\n"
+            finally:
+                sock.close()
+
+        output += f"\n{open_count}/{len(port_list)} ports open"
+        return output
+
+    except Exception as e:
+        return f"❌ Port check error: {str(e)}"
+
+
+@mcp.tool()
+def send_notification(
+    message: str,
+    title: str = "Skippy Notification",
+    channel: str = "desktop"
+) -> str:
+    """
+    Send a notification via various channels.
+
+    Args:
+        message: Notification message
+        title: Notification title
+        channel: Notification channel (desktop, slack, log)
+
+    Returns:
+        Success/failure message
+    """
+    try:
+        if channel == "desktop":
+            # Use notify-send for desktop notifications
+            result = subprocess.run(
+                ['notify-send', '-u', 'normal', title, message],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0:
+                return f"✅ Desktop notification sent: {title}"
+            else:
+                return f"❌ Desktop notification failed: {result.stderr}"
+
+        elif channel == "slack":
+            if WebClient is None:
+                return "❌ slack_sdk not installed. Run: pip install slack_sdk"
+
+            slack_token = os.getenv('SLACK_BOT_TOKEN')
+            slack_channel = os.getenv('SLACK_CHANNEL', '#general')
+
+            if not slack_token:
+                return "❌ SLACK_BOT_TOKEN environment variable not set"
+
+            client = WebClient(token=slack_token)
+            response = client.chat_postMessage(
+                channel=slack_channel,
+                text=f"*{title}*\n{message}"
+            )
+            return f"✅ Slack notification sent to {slack_channel}"
+
+        elif channel == "log":
+            # Log to skippy notification log
+            log_path = f"{SKIPPY_PATH}/logs/notifications.log"
+            Path(log_path).parent.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            with open(log_path, 'a') as f:
+                f.write(f"[{timestamp}] {title}: {message}\n")
+            return f"✅ Notification logged to {log_path}"
+
+        else:
+            return f"❌ Unknown channel: {channel}. Use: desktop, slack, log"
+
+    except Exception as e:
+        return f"❌ Notification failed: {str(e)}"
+
+
+@mcp.tool()
+def db_compare(
+    table1: str,
+    table2: str = "",
+    database: str = "wordpress",
+    key_column: str = "ID"
+) -> str:
+    """
+    Compare two database tables or snapshots.
+
+    Args:
+        table1: First table name or path to SQL dump
+        table2: Second table name (if empty, shows table structure)
+        database: Database name (default: wordpress)
+        key_column: Primary key column for comparison (default: ID)
+
+    Returns:
+        Comparison results or table structure
+    """
+    try:
+        # If no table2, show structure of table1
+        if not table2:
+            query = f"DESCRIBE {table1}"
+            result = subprocess.run(
+                ['wp', f'--path={WORDPRESS_PATH}', 'db', 'query', query],
+                capture_output=True,
+                text=True
+            )
+            return f"📊 Table Structure: {table1}\n\n{result.stdout}"
+
+        # Compare row counts
+        count1_result = subprocess.run(
+            ['wp', f'--path={WORDPRESS_PATH}', 'db', 'query',
+             f"SELECT COUNT(*) FROM {table1}", '--skip-column-names'],
+            capture_output=True, text=True
+        )
+        count2_result = subprocess.run(
+            ['wp', f'--path={WORDPRESS_PATH}', 'db', 'query',
+             f"SELECT COUNT(*) FROM {table2}", '--skip-column-names'],
+            capture_output=True, text=True
+        )
+
+        count1 = count1_result.stdout.strip()
+        count2 = count2_result.stdout.strip()
+
+        # Find rows in table1 not in table2
+        diff_query = f"""
+        SELECT {key_column} FROM {table1}
+        WHERE {key_column} NOT IN (SELECT {key_column} FROM {table2})
+        LIMIT 10
+        """
+        diff_result = subprocess.run(
+            ['wp', f'--path={WORDPRESS_PATH}', 'db', 'query', diff_query],
+            capture_output=True, text=True
+        )
+
+        return f"""📊 Table Comparison
+
+{table1}: {count1} rows
+{table2}: {count2} rows
+
+Rows in {table1} not in {table2}:
+{diff_result.stdout if diff_result.stdout.strip() else '(none)'}
+"""
+
+    except Exception as e:
+        return f"❌ Database comparison failed: {str(e)}"
+
+
+@mcp.tool()
+def extract_archive(archive_path: str, output_dir: str = "") -> str:
+    """
+    Extract a compressed archive.
+
+    Args:
+        archive_path: Path to archive file (.zip, .tar, .tar.gz, .tar.bz2)
+        output_dir: Directory to extract to (same directory if empty)
+
+    Returns:
+        List of extracted files or error
+    """
+    try:
+        import tarfile
+        import zipfile
+        from pathlib import Path
+
+        archive = Path(archive_path)
+        if not archive.exists():
+            return f"❌ Archive not found: {archive_path}"
+
+        if not output_dir:
+            output_dir = str(archive.parent)
+
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+        extracted = []
+
+        if archive.suffix == '.zip':
+            with zipfile.ZipFile(archive_path, 'r') as zf:
+                zf.extractall(output_dir)
+                extracted = zf.namelist()
+
+        elif archive.suffix in ('.tar', '.gz', '.bz2', '.xz'):
+            with tarfile.open(archive_path, 'r:*') as tf:
+                tf.extractall(output_dir)
+                extracted = tf.getnames()
+
+        else:
+            return f"❌ Unknown archive format: {archive.suffix}"
+
+        return f"""✅ Extracted {len(extracted)} files to {output_dir}
+
+First 10 files:
+{chr(10).join('  • ' + f for f in extracted[:10])}
+{'...' if len(extracted) > 10 else ''}
+"""
+
+    except Exception as e:
+        return f"❌ Extraction failed: {str(e)}"
+
+
+# ============================================================================
 # SERVER INITIALIZATION
 # ============================================================================
 
 def main():
     """Initialize and run the MCP server."""
     logger.info("Starting General Purpose MCP Server v2.5.0")
-    logger.info("Total tools: 74 (69 base + 5 WordPress campaign tools)")
+    logger.info("Total tools: 88 (69 base + 5 WordPress campaign + 14 utility tools)")
     mcp.run(transport='stdio')
 
 
