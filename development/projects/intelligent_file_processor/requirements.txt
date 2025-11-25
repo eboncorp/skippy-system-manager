@@ -1,0 +1,21 @@
+# Intelligent File Processor Requirements
+# Version: 2.0.0 (Phase 2 - Intelligence)
+
+# Core dependencies (Phase 1)
+watchdog>=3.0.0          # File system monitoring
+PyYAML>=6.0.0            # Configuration parsing
+
+# Content analysis (Phase 1)
+PyPDF2>=3.0.0            # PDF text extraction
+Pillow>=10.0.0           # Image processing and EXIF data
+
+# Phase 2 - Intelligence (Optional but recommended)
+pytesseract>=0.3.10      # OCR text extraction from images
+pdf2image>=1.16.0        # Convert PDF to images for OCR
+anthropic>=0.7.0         # Claude API for AI classification
+
+# Phase 4 - Web Dashboard (Optional)
+flask>=3.0.0             # Web framework for dashboard
+
+# Note: OCR also requires system packages:
+#   sudo apt install tesseract-ocr tesseract-ocr-eng poppler-utils
