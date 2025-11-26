@@ -58,6 +58,9 @@ class FileProcessorDaemon:
         self.config = ConfigLoader(config_path)
         self.logger.info("Configuration loaded successfully")
 
+        # Setup file logging now that config is available
+        self._setup_file_logging()
+
         # Initialize Phase 2 components (optional)
         self.ocr_engine = None
         self.database = None
@@ -99,15 +102,50 @@ class FileProcessorDaemon:
         self.logger.info("Intelligent File Processor initialized")
 
     def setup_logging(self):
-        """Setup logging configuration"""
-        # For now, log to console
-        # TODO: Add file logging based on config
+        """Setup basic console logging (file logging added after config loads)"""
         logging.basicConfig(
             level=logging.INFO,
             format='%(asctime)s [%(levelname)s] %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S'
         )
         self.logger = logging.getLogger(__name__)
+
+    def _setup_file_logging(self):
+        """Add file logging based on configuration"""
+        from logging.handlers import RotatingFileHandler
+
+        log_file = self.config.get('logging.file')
+        if not log_file:
+            self.logger.debug("No log file configured, using console only")
+            return
+
+        # Get config values
+        log_level_str = self.config.get('logging.level', 'INFO')
+        log_level = getattr(logging, log_level_str.upper(), logging.INFO)
+        max_bytes = self.config.get('logging.max_size_mb', 50) * 1024 * 1024
+        backup_count = self.config.get('logging.backup_count', 5)
+
+        # Ensure log directory exists
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Create rotating file handler
+        file_handler = RotatingFileHandler(
+            log_file,
+            maxBytes=max_bytes,
+            backupCount=backup_count
+        )
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s [%(levelname)s] %(name)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        ))
+
+        # Add handler and update level
+        self.logger.addHandler(file_handler)
+        self.logger.setLevel(log_level)
+        logging.getLogger().setLevel(log_level)
+
+        self.logger.info(f"File logging enabled: {log_file} (max {self.config.get('logging.max_size_mb', 50)}MB, {backup_count} backups)")
 
     def process_file(self, file_path: str):
         """
