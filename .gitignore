@@ -27,7 +27,23 @@ __pycache__/
 .Python
 .venv/
 venv/
+env/
 *.egg-info/
+*.egg
+.eggs/
+dist/
+build/
+
+# Testing/Coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# Type checking
+.mypy_cache/
 
 # Private/sensitive (already in root .gitignore but restate here)
 business/
@@ -46,4 +62,3 @@ Thumbs.db
 .vscode/
 .idea/
 *.iml
-mcp-servers/wordpress-validator/__pycache__/
