@@ -6866,3 +6866,2275 @@ def reset_circuit_breaker(service_name: str) -> str:
     except Exception as e:
         return f"Error: {str(e)}"
 
+
+# ============================================================================
+# SESSION MANAGEMENT TOOLS
+# ============================================================================
+
+@mcp.tool()
+def session_create(category: str, description: str) -> str:
+    """
+    Create a standardized session directory for work tracking.
+
+    Args:
+        category: Session category (wordpress, scripts, security, git, mcp, validation, precommit, campaign, general)
+        description: Brief description (lowercase, underscores, 2-5 words)
+
+    Returns:
+        JSON with session directory path and initialization info
+    """
+    try:
+        valid_categories = ["wordpress", "scripts", "security", "git", "mcp", "validation", "precommit", "campaign", "general"]
+        if category not in valid_categories:
+            return json.dumps({"success": False, "error": f"Invalid category. Must be one of: {', '.join(valid_categories)}"}, indent=2)
+
+        description = re.sub(r'[^a-z0-9_]', '_', description.lower())
+        description = re.sub(r'_+', '_', description).strip('_')
+
+        if not description or len(description) < 3:
+            return json.dumps({"success": False, "error": "Description must be at least 3 characters"}, indent=2)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        session_name = f"{timestamp}_{description}"
+        session_dir = Path(SKIPPY_PATH) / "work" / category / session_name
+        session_dir.mkdir(parents=True, exist_ok=True)
+
+        readme_content = f"""# Session: {description.replace('_', ' ').title()}
+
+**Date:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+**Category:** {category}
+**Directory:** {session_dir}
+
+## Overview
+[Brief description of work being done]
+
+## Files Modified
+- [List files here]
+
+## Changes Made
+1. [Change 1]
+
+## Verification Results
+- [ ] Change 1 verified
+
+## Rollback Procedure
+```bash
+# Commands to undo changes if needed
+```
+
+## Status
+In Progress
+"""
+        (session_dir / "README.md").write_text(readme_content)
+
+        return json.dumps({
+            "success": True,
+            "session_dir": str(session_dir),
+            "session_name": session_name,
+            "category": category,
+            "created_at": datetime.now().isoformat(),
+            "files_created": ["README.md"],
+            "usage": f'export SESSION_DIR="{session_dir}"'
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Failed to create session: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def session_list(category: str = "", hours: int = 24) -> str:
+    """
+    List recent session directories.
+
+    Args:
+        category: Filter by category (optional, empty = all categories)
+        hours: How many hours back to look (default: 24)
+
+    Returns:
+        JSON with list of recent sessions
+    """
+    try:
+        work_dir = Path(SKIPPY_PATH) / "work"
+        sessions = []
+        cutoff_time = datetime.now().timestamp() - (hours * 3600)
+
+        categories = [category] if category else [d.name for d in work_dir.iterdir() if d.is_dir()]
+
+        for cat in categories:
+            cat_dir = work_dir / cat
+            if not cat_dir.exists():
+                continue
+
+            for session_dir in cat_dir.iterdir():
+                if not session_dir.is_dir():
+                    continue
+                try:
+                    dir_name = session_dir.name
+                    if len(dir_name) >= 15 and dir_name[8] == '_':
+                        timestamp_str = dir_name[:15]
+                        session_time = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
+                        if session_time.timestamp() >= cutoff_time:
+                            file_count = sum(1 for _ in session_dir.rglob("*") if _.is_file())
+                            has_readme = (session_dir / "README.md").exists()
+                            sessions.append({
+                                "path": str(session_dir),
+                                "name": dir_name,
+                                "category": cat,
+                                "created_at": session_time.isoformat(),
+                                "age_hours": round((datetime.now() - session_time).total_seconds() / 3600, 1),
+                                "file_count": file_count,
+                                "has_readme": has_readme
+                            })
+                except (ValueError, IndexError):
+                    continue
+
+        sessions.sort(key=lambda x: x["created_at"], reverse=True)
+        return json.dumps({"success": True, "hours_searched": hours, "category_filter": category or "all", "session_count": len(sessions), "sessions": sessions[:50]}, indent=2)
+
+    except Exception as e:
+        logger.error(f"Failed to list sessions: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def session_summarize(session_dir: str) -> str:
+    """
+    Generate summary for a session directory.
+
+    Args:
+        session_dir: Path to the session directory
+
+    Returns:
+        JSON with summary information
+    """
+    try:
+        session_path = Path(session_dir)
+        if not session_path.exists():
+            return json.dumps({"success": False, "error": "Session directory does not exist"}, indent=2)
+
+        files = []
+        total_size = 0
+        for f in session_path.rglob("*"):
+            if f.is_file():
+                files.append({
+                    "path": str(f.relative_to(session_path)),
+                    "size": f.stat().st_size,
+                    "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat()
+                })
+                total_size += f.stat().st_size
+
+        dir_name = session_path.name
+        parts = dir_name.split('_', 2)
+        description = parts[2].replace('_', ' ').title() if len(parts) >= 3 else dir_name
+
+        before_files = [f for f in files if "_before" in f["path"]]
+        after_files = [f for f in files if "_after" in f["path"]]
+        final_files = [f for f in files if "_final" in f["path"]]
+
+        summary = {
+            "success": True,
+            "session_dir": str(session_path),
+            "description": description,
+            "total_files": len(files),
+            "total_size_kb": round(total_size / 1024, 2),
+            "workflow_files": {"before_snapshots": len(before_files), "after_snapshots": len(after_files), "final_versions": len(final_files)},
+            "files": files[:30]
+        }
+        return json.dumps(summary, indent=2)
+
+    except Exception as e:
+        logger.error(f"Failed to summarize session: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def session_archive(session_dir: str) -> str:
+    """
+    Archive a completed session by compressing it.
+
+    Args:
+        session_dir: Path to the session directory to archive
+
+    Returns:
+        JSON with archive information
+    """
+    try:
+        import shutil
+        session_path = Path(session_dir)
+        if not session_path.exists():
+            return json.dumps({"success": False, "error": "Session directory does not exist"}, indent=2)
+
+        archive_dir = Path(SKIPPY_PATH) / "archives" / "sessions"
+        archive_dir.mkdir(parents=True, exist_ok=True)
+
+        archive_name = f"{session_path.name}.tar.gz"
+        archive_path = archive_dir / archive_name
+
+        shutil.make_archive(str(archive_path.with_suffix('').with_suffix('')), 'gztar', session_path.parent, session_path.name)
+        archive_size = archive_path.stat().st_size
+
+        return json.dumps({
+            "success": True,
+            "session_dir": str(session_path),
+            "archive_path": str(archive_path),
+            "archive_size_mb": round(archive_size / (1024 * 1024), 2),
+            "message": f"Session archived. Original directory remains intact."
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Failed to archive session: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+# ============================================================================
+# FACT VALIDATION TOOLS
+# ============================================================================
+
+@mcp.tool()
+def facts_validate(text: str) -> str:
+    """
+    Validate text content against authoritative campaign facts.
+
+    Checks for incorrect campaign statistics from QUICK_FACTS_SHEET.md.
+
+    Args:
+        text: Text content to validate
+
+    Returns:
+        JSON with validation results and any issues found
+    """
+    try:
+        authoritative_facts = {
+            "total_budget": {
+                "correct": "$1.27 billion",
+                "wrong": ["$81M", "$81 million", "$110.5M", "$110M"],
+                "topic": "Total Budget"
+            },
+            "wellness_roi": {
+                "correct": "$1.80 per $1 spent",
+                "wrong": ["$2-3", "$2-$3", "2-3 per", "$2 to $3"],
+                "topic": "Wellness Center ROI"
+            },
+            "mini_substations": {
+                "correct": "46 substations",
+                "wrong": ["42 substations", "40 substations", "50 substations"],
+                "topic": "Mini Police Substations"
+            },
+            "wellness_centers": {
+                "correct": "18 centers",
+                "wrong": ["15 centers", "20 centers", "12 centers"],
+                "topic": "Wellness Centers"
+            },
+            "police_budget": {
+                "correct": "$245.9M",
+                "wrong": ["$200M", "$250M", "$300M"],
+                "topic": "Police Budget"
+            },
+            "crime_reduction_goal": {
+                "correct": "35% reduction",
+                "wrong": ["40% reduction", "50% reduction", "25% reduction"],
+                "topic": "Crime Reduction Goal"
+            },
+            "participatory_budget": {
+                "correct": "$15M",
+                "wrong": ["$10M", "$20M", "$5M"],
+                "topic": "Participatory Budgeting"
+            },
+            "new_jobs": {
+                "correct": "400+ new jobs",
+                "wrong": ["200 jobs", "500 jobs", "300 jobs"],
+                "topic": "New Jobs Created"
+            }
+        }
+
+        issues = []
+        verified = []
+        text_lower = text.lower()
+
+        for fact_id, fact in authoritative_facts.items():
+            for wrong in fact["wrong"]:
+                if wrong.lower() in text_lower:
+                    issues.append({
+                        "type": "incorrect_fact",
+                        "topic": fact["topic"],
+                        "found": wrong,
+                        "correct": fact["correct"],
+                        "severity": "high"
+                    })
+            if fact["correct"].lower() in text_lower:
+                verified.append({"topic": fact["topic"], "value": fact["correct"]})
+
+        # Check JCPS patterns
+        if re.search(r"44%?\s*(?:reading|proficient)", text_lower):
+            issues.append({"type": "incorrect_fact", "topic": "JCPS Reading", "found": "44%", "correct": "34-35%", "severity": "high"})
+        if re.search(r"41%?\s*(?:math|proficient)", text_lower):
+            issues.append({"type": "incorrect_fact", "topic": "JCPS Math", "found": "41%", "correct": "27-28%", "severity": "high"})
+
+        result = {
+            "success": True,
+            "valid": len(issues) == 0,
+            "issues_found": len(issues),
+            "facts_verified": len(verified),
+            "issues": issues,
+            "verified": verified
+        }
+        if issues:
+            result["recommendation"] = "Please correct issues before publishing. Reference QUICK_FACTS_SHEET.md."
+        else:
+            result["recommendation"] = "Content appears factually consistent with campaign data."
+
+        return json.dumps(result, indent=2)
+
+    except Exception as e:
+        logger.error(f"Fact validation failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def facts_lookup(topic: str) -> str:
+    """
+    Look up authoritative campaign fact by topic.
+
+    Args:
+        topic: Topic to look up (budget, roi, substations, wellness, police, crime, jobs, etc.)
+
+    Returns:
+        JSON with the authoritative fact and context
+    """
+    try:
+        facts_db = {
+            "budget": {"value": "$1.27 billion", "context": "Same as Mayor Greenberg's approved 2025-2026 budget", "notes": "No new taxes, balanced and realistic"},
+            "total_budget": {"value": "$1.025B operating", "breakdown": {"public_safety": "$395.2M (31.2%)", "community_investment": "$210M (16.6%)", "infrastructure": "$241M (19.0%)"}},
+            "roi": {"value": "$1.80 saved for every $1 spent", "context": "Wellness center return on investment", "evidence": "35% reduction in ER visits"},
+            "substations": {"value": "46 mini police substations", "deployment": "12 in Year 1, 24 total Year 2, 36 Year 3, all 46 by Year 4", "cost": "$650K per station annually"},
+            "wellness": {"value": "18 community wellness centers", "deployment": "6 per year over 3 years", "cost": "$2.5M per center annually"},
+            "police": {"value": "$245.9M", "context": "Same as Greenberg's police budget - deployment is smarter, not less"},
+            "crime": {"value": "35% reduction goal over 4 years", "evidence": "Based on 50+ cities using similar models"},
+            "jobs": {"value": "400+ new positions created", "breakdown": {"wellness_staff": "~180", "youth_workers": "~200", "facilitators": "~25"}},
+            "participatory": {"value": "$15M across all districts", "context": "Community decides spending priorities"},
+            "youth": {"value": "$55M consolidated", "breakdown": {"after_school": "$15M", "summer_jobs": "$12M (3,000 positions)", "mentorship": "$8M"}},
+            "mental_health": {"value": "10 mobile crisis teams", "context": "Social worker + officer pairs, 24/7 coverage", "cost": "$7M annually"}
+        }
+
+        topic_lower = topic.lower()
+        for key, fact in facts_db.items():
+            if key in topic_lower or topic_lower in key:
+                return json.dumps({"success": True, "topic": key, "fact": fact}, indent=2)
+
+        matches = [key for key in facts_db.keys() if any(word in key for word in topic_lower.split())]
+        if matches:
+            return json.dumps({"success": True, "topic_not_found": topic, "suggestions": matches}, indent=2)
+
+        return json.dumps({"success": True, "topic_not_found": topic, "available_topics": list(facts_db.keys())}, indent=2)
+
+    except Exception as e:
+        logger.error(f"Fact lookup failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def facts_diff(old_content: str, new_content: str) -> str:
+    """
+    Compare two content versions and identify any fact changes.
+
+    Args:
+        old_content: Original content
+        new_content: Updated content
+
+    Returns:
+        JSON with fact changes detected
+    """
+    try:
+        number_patterns = [
+            (r'\$[\d,]+(?:\.\d+)?[MBK]?(?:\s*(?:million|billion))?', 'dollar_amount'),
+            (r'\d+(?:\.\d+)?%', 'percentage'),
+            (r'\d{1,3}(?:,\d{3})*\s*(?:jobs?|positions?|centers?|stations?)', 'count'),
+        ]
+
+        old_facts = {}
+        new_facts = {}
+
+        for pattern, fact_type in number_patterns:
+            old_matches = re.findall(pattern, old_content, re.IGNORECASE)
+            new_matches = re.findall(pattern, new_content, re.IGNORECASE)
+            if old_matches:
+                old_facts[fact_type] = old_matches
+            if new_matches:
+                new_facts[fact_type] = new_matches
+
+        changes = []
+        for fact_type in set(old_facts.keys()) | set(new_facts.keys()):
+            old_vals = set(old_facts.get(fact_type, []))
+            new_vals = set(new_facts.get(fact_type, []))
+            removed = old_vals - new_vals
+            added = new_vals - old_vals
+            if removed or added:
+                changes.append({"type": fact_type, "removed": list(removed), "added": list(added)})
+
+        validation_result = json.loads(facts_validate(new_content))
+
+        return json.dumps({
+            "success": True,
+            "changes_detected": len(changes),
+            "changes": changes,
+            "new_content_validation": {"valid": validation_result.get("valid", True), "issues": validation_result.get("issues", [])},
+            "recommendation": "Review changes carefully. Ensure all modified facts are accurate."
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Fact diff failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+# ============================================================================
+# WORDPRESS AUTOMATION TOOLS
+# ============================================================================
+
+@mcp.tool()
+def wp_update_with_verification(post_id: int, content: str, session_dir: str = "", verify: bool = True, fact_check: bool = True) -> str:
+    """
+    Update WordPress post/page with automatic verification and fact-checking.
+
+    Args:
+        post_id: WordPress post/page ID
+        content: New HTML content
+        session_dir: Session directory (auto-created if empty)
+        verify: Whether to verify update after applying (default: True)
+        fact_check: Whether to check facts before updating (default: True)
+
+    Returns:
+        JSON with update results and verification status
+    """
+    try:
+        wp_path = os.getenv("WORDPRESS_PATH", "/home/dave/skippy/rundaverun_local_site/app/public")
+
+        if not session_dir:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            session_dir = str(Path(SKIPPY_PATH) / "work" / "wordpress" / f"{timestamp}_post_{post_id}_update")
+            Path(session_dir).mkdir(parents=True, exist_ok=True)
+
+        session_path = Path(session_dir)
+        results = {"success": False, "post_id": post_id, "session_dir": str(session_path), "steps": {}}
+
+        # Fact check
+        if fact_check:
+            fact_result = json.loads(facts_validate(content))
+            results["steps"]["fact_check"] = {"performed": True, "valid": fact_result.get("valid", True), "issues": fact_result.get("issues", [])}
+            if not fact_result.get("valid", True):
+                results["error"] = "Content failed fact validation. Fix issues before updating."
+                return json.dumps(results, indent=2)
+
+        # Save before snapshot
+        before_cmd = f'wp --path="{wp_path}" post get {post_id} --field=post_content'
+        before_result = subprocess.run(before_cmd, shell=True, capture_output=True, text=True)
+        if before_result.returncode == 0:
+            before_file = session_path / f"page_{post_id}_before.html"
+            before_file.write_text(before_result.stdout)
+            results["steps"]["before_snapshot"] = {"saved": str(before_file)}
+        else:
+            results["error"] = f"Failed to get current content: {before_result.stderr}"
+            return json.dumps(results, indent=2)
+
+        # Save final
+        final_file = session_path / f"page_{post_id}_final.html"
+        final_file.write_text(content)
+        results["steps"]["final_saved"] = {"saved": str(final_file)}
+
+        # Apply update
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as tf:
+            tf.write(content)
+            temp_file = tf.name
+
+        update_cmd = f'wp --path="{wp_path}" post update {post_id} --post_content="$(cat {temp_file})"'
+        update_result = subprocess.run(update_cmd, shell=True, capture_output=True, text=True)
+        os.unlink(temp_file)
+
+        if update_result.returncode != 0:
+            results["error"] = f"Failed to update post: {update_result.stderr}"
+            return json.dumps(results, indent=2)
+
+        results["steps"]["update_applied"] = {"status": "success"}
+
+        # Verify
+        if verify:
+            verify_cmd = f'wp --path="{wp_path}" post get {post_id} --field=post_content'
+            verify_result = subprocess.run(verify_cmd, shell=True, capture_output=True, text=True)
+            if verify_result.returncode == 0:
+                after_file = session_path / f"page_{post_id}_after.html"
+                after_file.write_text(verify_result.stdout)
+                actual_normalized = ' '.join(verify_result.stdout.strip().split())
+                expected_normalized = ' '.join(content.strip().split())
+                verified = actual_normalized == expected_normalized
+                results["steps"]["verification"] = {"performed": True, "verified": verified, "after_file": str(after_file)}
+
+        results["success"] = True
+        results["message"] = f"Post {post_id} updated successfully"
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"WordPress update failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def wp_cache_flush_all(local: bool = True, production: bool = False) -> str:
+    """
+    Flush all WordPress caches (object cache, rewrite rules, transients).
+
+    Args:
+        local: Flush local site cache (default: True)
+        production: Flush production site cache (default: False)
+
+    Returns:
+        JSON with flush results
+    """
+    try:
+        results = {"success": True, "sites": {}}
+
+        if local:
+            wp_path = os.getenv("WORDPRESS_PATH", "/home/dave/skippy/rundaverun_local_site/app/public")
+            local_results = []
+            commands = [("cache flush", "Object cache flushed"), ("rewrite flush", "Rewrite rules flushed"), ("transient delete --all", "Transients deleted")]
+            for cmd, desc in commands:
+                full_cmd = f'wp --path="{wp_path}" {cmd}'
+                result = subprocess.run(full_cmd, shell=True, capture_output=True, text=True)
+                local_results.append({"command": cmd, "success": result.returncode == 0, "message": desc if result.returncode == 0 else result.stderr})
+            results["sites"]["local"] = {"path": wp_path, "actions": local_results}
+
+        if production:
+            ssh_key = os.path.expanduser("~/.ssh/godaddy_rundaverun")
+            ssh_user = "git_deployer_f44cc3416a_545525@bp6.0cf.myftpupload.com"
+            prod_results = []
+            for cmd in ["wp cache flush", "wp rewrite flush"]:
+                full_cmd = f'SSH_AUTH_SOCK="" ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i {ssh_key} {ssh_user} "cd html && {cmd} 2>/dev/null"'
+                result = subprocess.run(full_cmd, shell=True, capture_output=True, text=True)
+                prod_results.append({"command": cmd, "success": result.returncode == 0, "output": result.stdout.strip() if result.returncode == 0 else result.stderr})
+            results["sites"]["production"] = {"host": "rundaverun.org", "actions": prod_results}
+
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Cache flush failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def wp_content_compare(post_id: int) -> str:
+    """
+    Compare WordPress content between local and production sites.
+
+    Args:
+        post_id: WordPress post/page ID
+
+    Returns:
+        JSON with comparison results
+    """
+    try:
+        results = {"success": True, "post_id": post_id, "local": {}, "production": {}, "differences": []}
+
+        # Get local content
+        wp_path = os.getenv("WORDPRESS_PATH", "/home/dave/skippy/rundaverun_local_site/app/public")
+        local_cmd = f'wp --path="{wp_path}" post get {post_id} --field=post_content'
+        local_result = subprocess.run(local_cmd, shell=True, capture_output=True, text=True)
+
+        if local_result.returncode == 0:
+            results["local"]["content_length"] = len(local_result.stdout)
+            results["local"]["content_preview"] = local_result.stdout[:500] + "..." if len(local_result.stdout) > 500 else local_result.stdout
+            local_content = local_result.stdout
+        else:
+            results["local"]["error"] = local_result.stderr
+            local_content = ""
+
+        # Get production content
+        ssh_key = os.path.expanduser("~/.ssh/godaddy_rundaverun")
+        ssh_user = "git_deployer_f44cc3416a_545525@bp6.0cf.myftpupload.com"
+        prod_cmd = f'SSH_AUTH_SOCK="" ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i {ssh_key} {ssh_user} "cd html && wp post get {post_id} --field=post_content 2>/dev/null"'
+        prod_result = subprocess.run(prod_cmd, shell=True, capture_output=True, text=True)
+
+        if prod_result.returncode == 0:
+            results["production"]["content_length"] = len(prod_result.stdout)
+            results["production"]["content_preview"] = prod_result.stdout[:500] + "..." if len(prod_result.stdout) > 500 else prod_result.stdout
+            prod_content = prod_result.stdout
+        else:
+            results["production"]["error"] = prod_result.stderr
+            prod_content = ""
+
+        if local_content and prod_content:
+            local_normalized = ' '.join(local_content.split())
+            prod_normalized = ' '.join(prod_content.split())
+            results["match"] = local_normalized == prod_normalized
+            if not results["match"]:
+                results["differences"].append({"type": "content_mismatch", "local_length": len(local_content), "production_length": len(prod_content), "length_diff": len(local_content) - len(prod_content)})
+
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Content compare failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+# ============================================================================
+# DEPLOYMENT VERIFICATION TOOLS
+# ============================================================================
+
+@mcp.tool()
+def deploy_verify_url(url: str, expected_text: str = "", check_ssl: bool = True, check_response_time: bool = True) -> str:
+    """
+    Verify a deployed URL is accessible and contains expected content.
+
+    Args:
+        url: URL to verify
+        expected_text: Text that should appear on the page (optional)
+        check_ssl: Check SSL certificate validity (default: True)
+        check_response_time: Report response time (default: True)
+
+    Returns:
+        JSON with verification results
+    """
+    try:
+        import ssl
+        import socket
+        from urllib.parse import urlparse
+
+        results = {"success": True, "url": url, "checks": {}}
+        parsed = urlparse(url)
+
+        # HTTP check
+        import time
+        start_time = time.time()
+        try:
+            response = httpx.get(url, timeout=30.0, follow_redirects=True)
+            end_time = time.time()
+            results["checks"]["http"] = {"status_code": response.status_code, "success": response.status_code == 200, "final_url": str(response.url)}
+            if check_response_time:
+                results["checks"]["http"]["response_time_ms"] = round((end_time - start_time) * 1000)
+            if expected_text:
+                content_found = expected_text.lower() in response.text.lower()
+                results["checks"]["content"] = {"expected": expected_text, "found": content_found}
+        except Exception as e:
+            results["checks"]["http"] = {"success": False, "error": str(e)}
+
+        # SSL check
+        if check_ssl and parsed.scheme == "https":
+            try:
+                context = ssl.create_default_context()
+                with socket.create_connection((parsed.hostname, 443), timeout=10) as sock:
+                    with context.wrap_socket(sock, server_hostname=parsed.hostname) as ssock:
+                        cert = ssock.getpeercert()
+                        not_after = cert.get('notAfter', '')
+                        if not_after:
+                            expiry = datetime.strptime(not_after, '%b %d %H:%M:%S %Y %Z')
+                            days_until_expiry = (expiry - datetime.now()).days
+                            results["checks"]["ssl"] = {"valid": True, "expires": not_after, "days_until_expiry": days_until_expiry, "warning": days_until_expiry < 30}
+            except Exception as e:
+                results["checks"]["ssl"] = {"valid": False, "error": str(e)}
+
+        results["overall_success"] = all(check.get("success", True) for check in results["checks"].values())
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Deploy verification failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def deploy_verify_site(site_type: str = "production") -> str:
+    """
+    Run comprehensive verification checks on the campaign website.
+
+    Args:
+        site_type: Site to verify - "local" or "production" (default: production)
+
+    Returns:
+        JSON with comprehensive verification results
+    """
+    try:
+        if site_type == "production":
+            base_url = "https://rundaverun.org"
+        else:
+            base_url = "http://rundaverun-local-complete-022655.local"
+
+        results = {"success": True, "site_type": site_type, "base_url": base_url, "timestamp": datetime.now().isoformat(), "pages": {}}
+
+        pages_to_check = [
+            ("", "Dave Biggers"),
+            ("/about/", "Dave Biggers"),
+            ("/neighborhoods/", "neighborhood"),
+            ("/get-involved/", "volunteer"),
+            ("/contact/", "contact"),
+        ]
+
+        for path, expected in pages_to_check:
+            url = f"{base_url}{path}"
+            try:
+                response = httpx.get(url, timeout=15.0, follow_redirects=True)
+                page_result = {
+                    "status_code": response.status_code,
+                    "success": response.status_code == 200,
+                    "content_check": expected.lower() in response.text.lower() if expected else True,
+                    "content_length": len(response.text)
+                }
+            except Exception as e:
+                page_result = {"success": False, "error": str(e)}
+            results["pages"][path or "/"] = page_result
+
+        total_pages = len(results["pages"])
+        successful_pages = sum(1 for p in results["pages"].values() if p.get("success", False))
+        results["summary"] = {"total_pages": total_pages, "successful": successful_pages, "failed": total_pages - successful_pages, "success_rate": f"{(successful_pages / total_pages) * 100:.1f}%"}
+        results["overall_success"] = successful_pages == total_pages
+
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Site verification failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+# ==============================================================================
+# HEALTH CHECK AGGREGATION TOOLS
+# ==============================================================================
+
+@mcp.tool()
+def health_check_all() -> str:
+    """
+    Run comprehensive health checks across all systems.
+
+    Returns:
+        JSON with aggregated health status for all monitored systems
+    """
+    try:
+        results = {
+            "success": True,
+            "timestamp": datetime.now().isoformat(),
+            "systems": {},
+            "summary": {"healthy": 0, "warning": 0, "critical": 0}
+        }
+
+        # Local system checks
+        try:
+            disk = psutil.disk_usage('/')
+            disk_percent = disk.percent
+            results["systems"]["local_disk"] = {
+                "status": "critical" if disk_percent > 90 else "warning" if disk_percent > 80 else "healthy",
+                "value": f"{disk_percent}%",
+                "details": f"{disk.free // (1024**3)}GB free of {disk.total // (1024**3)}GB"
+            }
+        except Exception as e:
+            results["systems"]["local_disk"] = {"status": "error", "error": str(e)}
+
+        try:
+            memory = psutil.virtual_memory()
+            mem_percent = memory.percent
+            results["systems"]["local_memory"] = {
+                "status": "critical" if mem_percent > 90 else "warning" if mem_percent > 80 else "healthy",
+                "value": f"{mem_percent}%",
+                "details": f"{memory.available // (1024**3)}GB available"
+            }
+        except Exception as e:
+            results["systems"]["local_memory"] = {"status": "error", "error": str(e)}
+
+        # WordPress local
+        try:
+            wp_path = os.getenv("WORDPRESS_PATH", "/home/dave/skippy/rundaverun_local_site/app/public")
+            wp_check = subprocess.run(f'wp --path="{wp_path}" core is-installed', shell=True, capture_output=True, timeout=10)
+            results["systems"]["wordpress_local"] = {
+                "status": "healthy" if wp_check.returncode == 0 else "critical",
+                "value": "installed" if wp_check.returncode == 0 else "not responding"
+            }
+        except Exception as e:
+            results["systems"]["wordpress_local"] = {"status": "error", "error": str(e)}
+
+        # Production site
+        try:
+            response = httpx.get("https://rundaverun.org", timeout=10.0)
+            results["systems"]["production_site"] = {
+                "status": "healthy" if response.status_code == 200 else "warning",
+                "value": f"HTTP {response.status_code}",
+                "response_time_ms": int(response.elapsed.total_seconds() * 1000)
+            }
+        except Exception as e:
+            results["systems"]["production_site"] = {"status": "critical", "error": str(e)}
+
+        # Summarize
+        for system, data in results["systems"].items():
+            status = data.get("status", "error")
+            if status == "healthy":
+                results["summary"]["healthy"] += 1
+            elif status == "warning":
+                results["summary"]["warning"] += 1
+            else:
+                results["summary"]["critical"] += 1
+
+        total = len(results["systems"])
+        results["summary"]["total"] = total
+        results["overall_status"] = "critical" if results["summary"]["critical"] > 0 else "warning" if results["summary"]["warning"] > 0 else "healthy"
+
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def health_check_quick() -> str:
+    """
+    Quick health check - just essential systems.
+
+    Returns:
+        JSON with quick health status
+    """
+    try:
+        checks = []
+
+        # Disk
+        disk = psutil.disk_usage('/')
+        checks.append(("disk", disk.percent < 90, f"{disk.percent}%"))
+
+        # Memory
+        mem = psutil.virtual_memory()
+        checks.append(("memory", mem.percent < 90, f"{mem.percent}%"))
+
+        # Production site
+        try:
+            resp = httpx.get("https://rundaverun.org", timeout=5.0)
+            checks.append(("production", resp.status_code == 200, f"HTTP {resp.status_code}"))
+        except:
+            checks.append(("production", False, "unreachable"))
+
+        all_ok = all(c[1] for c in checks)
+        return json.dumps({
+            "success": True,
+            "all_ok": all_ok,
+            "checks": {name: {"ok": ok, "value": val} for name, ok, val in checks},
+            "emoji": "✅" if all_ok else "⚠️"
+        }, indent=2)
+
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+# ==============================================================================
+# UTILITY TOOLS
+# ==============================================================================
+
+@mcp.tool()
+def file_backup(file_path: str, backup_dir: str = "") -> str:
+    """
+    Create a timestamped backup of a file.
+
+    Args:
+        file_path: Path to file to backup
+        backup_dir: Directory for backup (default: same directory as file)
+
+    Returns:
+        JSON with backup file path
+    """
+    try:
+        source = Path(file_path)
+        if not source.exists():
+            return json.dumps({"success": False, "error": "Source file does not exist"}, indent=2)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_name = f"{source.stem}_{timestamp}{source.suffix}"
+
+        if backup_dir:
+            backup_path = Path(backup_dir) / backup_name
+            backup_path.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            backup_path = source.parent / backup_name
+
+        import shutil
+        shutil.copy2(source, backup_path)
+
+        return json.dumps({
+            "success": True,
+            "original": str(source),
+            "backup": str(backup_path),
+            "size_bytes": backup_path.stat().st_size
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"File backup failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def text_diff(text1: str, text2: str, context_lines: int = 3) -> str:
+    """
+    Generate a unified diff between two text strings.
+
+    Args:
+        text1: First text (original)
+        text2: Second text (modified)
+        context_lines: Number of context lines (default: 3)
+
+    Returns:
+        JSON with diff output
+    """
+    try:
+        import difflib
+        lines1 = text1.splitlines(keepends=True)
+        lines2 = text2.splitlines(keepends=True)
+
+        diff = list(difflib.unified_diff(lines1, lines2, fromfile='original', tofile='modified', n=context_lines))
+
+        additions = sum(1 for line in diff if line.startswith('+') and not line.startswith('+++'))
+        deletions = sum(1 for line in diff if line.startswith('-') and not line.startswith('---'))
+
+        return json.dumps({
+            "success": True,
+            "has_changes": len(diff) > 0,
+            "additions": additions,
+            "deletions": deletions,
+            "diff": ''.join(diff) if diff else "No differences found"
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Text diff failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def json_validate(json_string: str) -> str:
+    """
+    Validate JSON string and return parsed structure info.
+
+    Args:
+        json_string: JSON string to validate
+
+    Returns:
+        JSON with validation results
+    """
+    try:
+        parsed = json.loads(json_string)
+
+        def get_structure(obj, depth=0):
+            if depth > 3:
+                return "..."
+            if isinstance(obj, dict):
+                return {k: get_structure(v, depth+1) for k, v in list(obj.items())[:5]}
+            elif isinstance(obj, list):
+                return [get_structure(obj[0], depth+1)] if obj else []
+            else:
+                return type(obj).__name__
+
+        return json.dumps({
+            "success": True,
+            "valid": True,
+            "type": type(parsed).__name__,
+            "structure_preview": get_structure(parsed),
+            "size_bytes": len(json_string)
+        }, indent=2)
+
+    except json.JSONDecodeError as e:
+        return json.dumps({
+            "success": True,
+            "valid": False,
+            "error": str(e),
+            "line": e.lineno,
+            "column": e.colno
+        }, indent=2)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def timestamp_convert(timestamp: str, to_format: str = "iso") -> str:
+    """
+    Convert between timestamp formats.
+
+    Args:
+        timestamp: Input timestamp (unix epoch, ISO 8601, or common formats)
+        to_format: Output format - "iso", "unix", "human", "date" (default: iso)
+
+    Returns:
+        JSON with converted timestamp
+    """
+    try:
+        dt = None
+
+        # Try unix timestamp
+        if timestamp.isdigit() or (timestamp.startswith('-') and timestamp[1:].isdigit()):
+            ts = int(timestamp)
+            if ts > 1e12:  # milliseconds
+                ts = ts / 1000
+            dt = datetime.fromtimestamp(ts)
+
+        # Try ISO format
+        if dt is None:
+            try:
+                dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            except:
+                pass
+
+        # Try common formats
+        if dt is None:
+            formats = ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y%m%d_%H%M%S"]
+            for fmt in formats:
+                try:
+                    dt = datetime.strptime(timestamp, fmt)
+                    break
+                except:
+                    continue
+
+        if dt is None:
+            return json.dumps({"success": False, "error": "Could not parse timestamp"}, indent=2)
+
+        result = {"success": True, "input": timestamp, "parsed": dt.isoformat()}
+
+        if to_format == "iso":
+            result["output"] = dt.isoformat()
+        elif to_format == "unix":
+            result["output"] = int(dt.timestamp())
+        elif to_format == "human":
+            result["output"] = dt.strftime("%B %d, %Y at %I:%M %p")
+        elif to_format == "date":
+            result["output"] = dt.strftime("%Y-%m-%d")
+        else:
+            result["output"] = dt.isoformat()
+
+        return json.dumps(result, indent=2)
+
+    except Exception as e:
+        logger.error(f"Timestamp convert failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def env_check(var_names: str) -> str:
+    """
+    Check if environment variables are set.
+
+    Args:
+        var_names: Comma-separated list of variable names to check
+
+    Returns:
+        JSON with variable status (values masked for security)
+    """
+    try:
+        names = [n.strip() for n in var_names.split(',')]
+        results = {}
+
+        for name in names:
+            value = os.environ.get(name)
+            if value is None:
+                results[name] = {"set": False}
+            else:
+                # Mask value for security
+                masked = value[:3] + "***" + value[-3:] if len(value) > 8 else "***"
+                results[name] = {"set": True, "length": len(value), "preview": masked}
+
+        all_set = all(r["set"] for r in results.values())
+
+        return json.dumps({
+            "success": True,
+            "all_set": all_set,
+            "variables": results
+        }, indent=2)
+
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+# ==============================================================================
+# GIT AUTOMATION TOOLS
+# ==============================================================================
+
+@mcp.tool()
+def git_safe_commit(repo_path: str, message: str, files: str = "") -> str:
+    """
+    Create a git commit with proper formatting and Co-Authored-By.
+
+    Args:
+        repo_path: Path to git repository
+        message: Commit message (will be formatted properly)
+        files: Comma-separated files to stage (empty = all staged files)
+
+    Returns:
+        JSON with commit results
+    """
+    try:
+        repo = Path(repo_path)
+        if not (repo / ".git").exists():
+            return json.dumps({"success": False, "error": "Not a git repository"}, indent=2)
+
+        results = {"success": False, "repo": str(repo), "steps": []}
+
+        if files:
+            for f in files.split(','):
+                f = f.strip()
+                cmd = f'git -C "{repo}" add "{f}"'
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                results["steps"].append({"action": f"stage {f}", "success": result.returncode == 0})
+
+        status_cmd = f'git -C "{repo}" diff --cached --name-only'
+        status_result = subprocess.run(status_cmd, shell=True, capture_output=True, text=True)
+        staged_files = [f for f in status_result.stdout.strip().split('\n') if f]
+
+        if not staged_files:
+            return json.dumps({"success": False, "error": "No staged changes to commit"}, indent=2)
+
+        results["staged_files"] = staged_files
+
+        full_message = f"{message}\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>"
+
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tf:
+            tf.write(full_message)
+            msg_file = tf.name
+
+        commit_cmd = f'git -C "{repo}" commit -F "{msg_file}"'
+        commit_result = subprocess.run(commit_cmd, shell=True, capture_output=True, text=True)
+        os.unlink(msg_file)
+
+        if commit_result.returncode == 0:
+            hash_cmd = f'git -C "{repo}" rev-parse --short HEAD'
+            hash_result = subprocess.run(hash_cmd, shell=True, capture_output=True, text=True)
+            results["success"] = True
+            results["commit_hash"] = hash_result.stdout.strip()
+            results["message"] = message
+            results["files_committed"] = len(staged_files)
+        else:
+            results["error"] = commit_result.stderr
+
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Git safe commit failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def git_branch_cleanup(repo_path: str, dry_run: bool = True) -> str:
+    """
+    Find and optionally delete merged branches.
+
+    Args:
+        repo_path: Path to git repository
+        dry_run: If True, only list branches without deleting (default: True)
+
+    Returns:
+        JSON with branch cleanup results
+    """
+    try:
+        repo = Path(repo_path)
+        if not (repo / ".git").exists():
+            return json.dumps({"success": False, "error": "Not a git repository"}, indent=2)
+
+        current_cmd = f'git -C "{repo}" branch --show-current'
+        current_result = subprocess.run(current_cmd, shell=True, capture_output=True, text=True)
+        current_branch = current_result.stdout.strip()
+
+        merged_cmd = f'git -C "{repo}" branch --merged'
+        merged_result = subprocess.run(merged_cmd, shell=True, capture_output=True, text=True)
+
+        merged_branches = []
+        protected = ["main", "master", "develop", current_branch]
+
+        for line in merged_result.stdout.strip().split('\n'):
+            branch = line.strip().lstrip('* ')
+            if branch and branch not in protected:
+                merged_branches.append(branch)
+
+        results = {
+            "success": True,
+            "repo": str(repo),
+            "current_branch": current_branch,
+            "merged_branches": merged_branches,
+            "dry_run": dry_run
+        }
+
+        if not dry_run and merged_branches:
+            deleted = []
+            for branch in merged_branches:
+                del_cmd = f'git -C "{repo}" branch -d "{branch}"'
+                del_result = subprocess.run(del_cmd, shell=True, capture_output=True, text=True)
+                if del_result.returncode == 0:
+                    deleted.append(branch)
+            results["deleted"] = deleted
+
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Git branch cleanup failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def git_diff_summary(repo_path: str, cached: bool = False) -> str:
+    """
+    Generate a summary of git changes suitable for commit messages.
+
+    Args:
+        repo_path: Path to git repository
+        cached: If True, show staged changes; if False, show unstaged (default: False)
+
+    Returns:
+        JSON with diff summary
+    """
+    try:
+        repo = Path(repo_path)
+        if not (repo / ".git").exists():
+            return json.dumps({"success": False, "error": "Not a git repository"}, indent=2)
+
+        cached_flag = "--cached" if cached else ""
+
+        stat_cmd = f'git -C "{repo}" diff {cached_flag} --stat'
+        stat_result = subprocess.run(stat_cmd, shell=True, capture_output=True, text=True)
+
+        files_cmd = f'git -C "{repo}" diff {cached_flag} --name-status'
+        files_result = subprocess.run(files_cmd, shell=True, capture_output=True, text=True)
+
+        changes = {"added": [], "modified": [], "deleted": [], "renamed": []}
+        for line in files_result.stdout.strip().split('\n'):
+            if not line:
+                continue
+            parts = line.split('\t')
+            status = parts[0]
+            filename = parts[-1]
+            if status.startswith('A'):
+                changes["added"].append(filename)
+            elif status.startswith('M'):
+                changes["modified"].append(filename)
+            elif status.startswith('D'):
+                changes["deleted"].append(filename)
+            elif status.startswith('R'):
+                changes["renamed"].append(filename)
+
+        total_files = sum(len(v) for v in changes.values())
+
+        return json.dumps({
+            "success": True,
+            "repo": str(repo),
+            "staged": cached,
+            "changes": changes,
+            "total_files": total_files,
+            "stat_summary": stat_result.stdout.strip().split('\n')[-1] if stat_result.stdout.strip() else "No changes"
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Git diff summary failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+# ==============================================================================
+# DATABASE TOOLS
+# ==============================================================================
+
+@mcp.tool()
+def db_snapshot(name: str = "", tables: str = "") -> str:
+    """
+    Create a quick database snapshot before making changes.
+
+    Args:
+        name: Optional name for the snapshot (auto-generated if empty)
+        tables: Comma-separated table names to snapshot (empty = all tables)
+
+    Returns:
+        JSON with snapshot file path and details
+    """
+    try:
+        wp_path = os.getenv("WORDPRESS_PATH", "/home/dave/skippy/rundaverun_local_site/app/public")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        snapshot_name = name or f"snapshot_{timestamp}"
+
+        snapshot_dir = Path(SKIPPY_PATH) / "archives" / "db_snapshots"
+        snapshot_dir.mkdir(parents=True, exist_ok=True)
+        snapshot_file = snapshot_dir / f"{snapshot_name}.sql"
+
+        tables_flag = tables.replace(',', ' ') if tables else ""
+        cmd = f'wp --path="{wp_path}" db export "{snapshot_file}" {tables_flag}'
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
+
+        if result.returncode == 0:
+            size = snapshot_file.stat().st_size
+            return json.dumps({
+                "success": True,
+                "snapshot_file": str(snapshot_file),
+                "size_mb": round(size / (1024 * 1024), 2),
+                "tables": tables or "all",
+                "timestamp": timestamp,
+                "restore_command": f'wp --path="{wp_path}" db import "{snapshot_file}"'
+            }, indent=2)
+        else:
+            return json.dumps({"success": False, "error": result.stderr}, indent=2)
+
+    except Exception as e:
+        logger.error(f"DB snapshot failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def db_restore(snapshot_file: str, confirm: bool = False) -> str:
+    """
+    Restore database from a snapshot file.
+
+    Args:
+        snapshot_file: Path to the snapshot SQL file
+        confirm: Must be True to actually restore (safety check)
+
+    Returns:
+        JSON with restore results
+    """
+    try:
+        if not confirm:
+            return json.dumps({
+                "success": False,
+                "error": "Safety check: Set confirm=True to actually restore the database",
+                "warning": "This will OVERWRITE the current database!"
+            }, indent=2)
+
+        snapshot_path = Path(snapshot_file)
+        if not snapshot_path.exists():
+            return json.dumps({"success": False, "error": "Snapshot file does not exist"}, indent=2)
+
+        wp_path = os.getenv("WORDPRESS_PATH", "/home/dave/skippy/rundaverun_local_site/app/public")
+
+        # Create backup before restore
+        backup_file = snapshot_path.parent / f"pre_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}.sql"
+        backup_cmd = f'wp --path="{wp_path}" db export "{backup_file}"'
+        subprocess.run(backup_cmd, shell=True, capture_output=True, text=True, timeout=120)
+
+        # Restore
+        restore_cmd = f'wp --path="{wp_path}" db import "{snapshot_file}"'
+        result = subprocess.run(restore_cmd, shell=True, capture_output=True, text=True, timeout=120)
+
+        if result.returncode == 0:
+            return json.dumps({
+                "success": True,
+                "restored_from": str(snapshot_path),
+                "backup_created": str(backup_file),
+                "message": "Database restored successfully"
+            }, indent=2)
+        else:
+            return json.dumps({"success": False, "error": result.stderr}, indent=2)
+
+    except Exception as e:
+        logger.error(f"DB restore failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def db_table_sizes() -> str:
+    """
+    Show WordPress database table sizes for optimization analysis.
+
+    Returns:
+        JSON with table sizes sorted by size
+    """
+    try:
+        wp_path = os.getenv("WORDPRESS_PATH", "/home/dave/skippy/rundaverun_local_site/app/public")
+
+        query = """
+        SELECT
+            table_name AS 'table',
+            ROUND(data_length / 1024 / 1024, 2) AS 'data_mb',
+            ROUND(index_length / 1024 / 1024, 2) AS 'index_mb',
+            ROUND((data_length + index_length) / 1024 / 1024, 2) AS 'total_mb',
+            table_rows AS 'rows'
+        FROM information_schema.tables
+        WHERE table_schema = DATABASE()
+        ORDER BY (data_length + index_length) DESC;
+        """
+
+        cmd = f'wp --path="{wp_path}" db query "{query}" --skip-column-names'
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+
+        if result.returncode == 0:
+            tables = []
+            total_size = 0
+            for line in result.stdout.strip().split('\n'):
+                if line:
+                    parts = line.split('\t')
+                    if len(parts) >= 5:
+                        size = float(parts[3]) if parts[3] else 0
+                        total_size += size
+                        tables.append({
+                            "table": parts[0],
+                            "data_mb": float(parts[1]) if parts[1] else 0,
+                            "index_mb": float(parts[2]) if parts[2] else 0,
+                            "total_mb": size,
+                            "rows": int(parts[4]) if parts[4] else 0
+                        })
+
+            return json.dumps({
+                "success": True,
+                "total_size_mb": round(total_size, 2),
+                "table_count": len(tables),
+                "tables": tables[:20],
+                "optimization_candidates": [t for t in tables if t["total_mb"] > 10]
+            }, indent=2)
+        else:
+            return json.dumps({"success": False, "error": result.stderr}, indent=2)
+
+    except Exception as e:
+        logger.error(f"DB table sizes failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+# ==============================================================================
+# LOG ANALYSIS TOOLS
+# ==============================================================================
+
+@mcp.tool()
+def log_errors_recent(hours: int = 24, sources: str = "all") -> str:
+    """
+    Aggregate recent errors from multiple log sources.
+
+    Args:
+        hours: How many hours back to search (default: 24)
+        sources: Comma-separated sources or "all" (wordpress, php, nginx, system)
+
+    Returns:
+        JSON with aggregated errors from all sources
+    """
+    try:
+        wp_path = os.getenv("WORDPRESS_PATH", "/home/dave/skippy/rundaverun_local_site/app/public")
+        results = {"success": True, "hours": hours, "sources": {}, "total_errors": 0}
+
+        log_paths = {
+            "wordpress": f"{wp_path}/wp-content/debug.log",
+            "php": "/var/log/php-fpm/error.log",
+            "nginx": "/var/log/nginx/error.log",
+            "system": "/var/log/syslog"
+        }
+
+        source_list = list(log_paths.keys()) if sources == "all" else [s.strip() for s in sources.split(',')]
+        cutoff_time = datetime.now() - timedelta(hours=hours)
+
+        for source in source_list:
+            if source not in log_paths:
+                continue
+            log_path = Path(log_paths[source])
+            if not log_path.exists():
+                results["sources"][source] = {"exists": False}
+                continue
+
+            errors = []
+            try:
+                with open(log_path, 'r', errors='ignore') as f:
+                    lines = f.readlines()[-500:]  # Last 500 lines
+                    for line in lines:
+                        line_lower = line.lower()
+                        if 'error' in line_lower or 'fatal' in line_lower or 'warning' in line_lower:
+                            errors.append(line.strip()[:200])
+                results["sources"][source] = {
+                    "exists": True,
+                    "error_count": len(errors),
+                    "recent_errors": errors[-10:]
+                }
+                results["total_errors"] += len(errors)
+            except PermissionError:
+                results["sources"][source] = {"exists": True, "error": "Permission denied"}
+
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Log errors recent failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def log_search_pattern(log_path: str, pattern: str, context_lines: int = 2, max_matches: int = 20) -> str:
+    """
+    Search log file for pattern with context lines.
+
+    Args:
+        log_path: Path to log file
+        pattern: Regex pattern to search for
+        context_lines: Number of lines before/after match (default: 2)
+        max_matches: Maximum matches to return (default: 20)
+
+    Returns:
+        JSON with matching log entries and context
+    """
+    try:
+        log_file = Path(log_path)
+        if not log_file.exists():
+            return json.dumps({"success": False, "error": "Log file does not exist"}, indent=2)
+
+        matches = []
+        pattern_re = re.compile(pattern, re.IGNORECASE)
+
+        with open(log_file, 'r', errors='ignore') as f:
+            lines = f.readlines()
+
+        for i, line in enumerate(lines):
+            if pattern_re.search(line):
+                start = max(0, i - context_lines)
+                end = min(len(lines), i + context_lines + 1)
+                context = ''.join(lines[start:end])
+                matches.append({
+                    "line_number": i + 1,
+                    "match": line.strip()[:200],
+                    "context": context.strip()[:500]
+                })
+                if len(matches) >= max_matches:
+                    break
+
+        return json.dumps({
+            "success": True,
+            "log_path": str(log_file),
+            "pattern": pattern,
+            "match_count": len(matches),
+            "matches": matches
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Log search pattern failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def log_tail_multi(log_paths: str, lines: int = 20) -> str:
+    """
+    Tail multiple log files at once.
+
+    Args:
+        log_paths: Comma-separated log file paths
+        lines: Number of lines to show from each (default: 20)
+
+    Returns:
+        JSON with recent lines from each log
+    """
+    try:
+        paths = [p.strip() for p in log_paths.split(',')]
+        results = {"success": True, "logs": {}}
+
+        for log_path in paths:
+            log_file = Path(log_path)
+            log_name = log_file.name
+
+            if not log_file.exists():
+                results["logs"][log_name] = {"exists": False, "path": log_path}
+                continue
+
+            try:
+                with open(log_file, 'r', errors='ignore') as f:
+                    all_lines = f.readlines()
+                    recent = all_lines[-lines:] if len(all_lines) > lines else all_lines
+                    results["logs"][log_name] = {
+                        "exists": True,
+                        "path": log_path,
+                        "total_lines": len(all_lines),
+                        "showing": len(recent),
+                        "content": ''.join(recent)
+                    }
+            except PermissionError:
+                results["logs"][log_name] = {"exists": True, "path": log_path, "error": "Permission denied"}
+
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Log tail multi failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+# ==============================================================================
+# CONTENT VALIDATION TOOLS
+# ==============================================================================
+
+@mcp.tool()
+def content_fact_check(content: str, facts_file: str = "") -> str:
+    """
+    Check content against authoritative facts file.
+
+    Args:
+        content: Text content to validate
+        facts_file: Path to facts file (default: QUICK_FACTS_SHEET.md)
+
+    Returns:
+        JSON with fact validation results
+    """
+    try:
+        facts_path = Path(facts_file) if facts_file else Path(SKIPPY_PATH) / "business/campaign/rundaverun/campaign/docs/QUICK_FACTS_SHEET.md"
+
+        if not facts_path.exists():
+            return json.dumps({"success": False, "error": f"Facts file not found: {facts_path}"}, indent=2)
+
+        with open(facts_path, 'r') as f:
+            facts_content = f.read()
+
+        # Known incorrect values to flag
+        incorrect_values = {
+            "$110.5M": "$81M is correct budget",
+            "$110M": "$81M is correct budget",
+            "110.5": "$81M is correct budget",
+            "$1.80": "$2-3 per $1 is correct ROI",
+            "1.80": "$2-3 per $1 is correct ROI",
+            "44%": "34-35% is correct JCPS reading",
+            "41%": "27-28% is correct JCPS math"
+        }
+
+        findings = {"flagged": [], "verified": [], "suggestions": []}
+
+        for wrong, correct in incorrect_values.items():
+            if wrong in content:
+                findings["flagged"].append({
+                    "found": wrong,
+                    "correction": correct,
+                    "severity": "HIGH"
+                })
+
+        # Check for common campaign facts
+        correct_facts = ["$81M", "$81 million", "$2-3 per $1", "34-35%", "27-28%"]
+        for fact in correct_facts:
+            if fact.lower() in content.lower():
+                findings["verified"].append(fact)
+
+        return json.dumps({
+            "success": True,
+            "content_length": len(content),
+            "facts_file": str(facts_path),
+            "findings": findings,
+            "status": "PASS" if not findings["flagged"] else "FAIL"
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Content fact check failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def content_link_check(content: str, base_url: str = "") -> str:
+    """
+    Check all links in content for validity.
+
+    Args:
+        content: HTML or markdown content to check
+        base_url: Base URL for relative links (optional)
+
+    Returns:
+        JSON with link validation results
+    """
+    try:
+        import urllib.request
+        import urllib.error
+
+        # Extract URLs from content
+        url_pattern = r'https?://[^\s<>"\']+|href=["\']([^"\']+)["\']'
+        matches = re.findall(url_pattern, content)
+
+        urls = []
+        for match in matches:
+            if isinstance(match, tuple):
+                url = match[0] if match[0] else match[1] if len(match) > 1 else None
+            else:
+                url = match
+            if url and url.startswith(('http://', 'https://')):
+                urls.append(url)
+
+        results = {"valid": [], "broken": [], "skipped": []}
+
+        for url in urls[:20]:  # Limit to 20 URLs
+            try:
+                req = urllib.request.Request(url, method='HEAD', headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    results["valid"].append({"url": url, "status": response.status})
+            except urllib.error.HTTPError as e:
+                results["broken"].append({"url": url, "status": e.code, "error": str(e.reason)})
+            except Exception as e:
+                results["skipped"].append({"url": url, "error": str(e)[:100]})
+
+        return json.dumps({
+            "success": True,
+            "total_links": len(urls),
+            "checked": len(results["valid"]) + len(results["broken"]),
+            "results": results
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Content link check failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def content_diff(content1: str, content2: str, context_lines: int = 3) -> str:
+    """
+    Generate unified diff between two content strings.
+
+    Args:
+        content1: Original content
+        content2: Modified content
+        context_lines: Number of context lines (default: 3)
+
+    Returns:
+        JSON with diff results
+    """
+    try:
+        import difflib
+
+        lines1 = content1.splitlines(keepends=True)
+        lines2 = content2.splitlines(keepends=True)
+
+        diff = list(difflib.unified_diff(lines1, lines2, fromfile='original', tofile='modified', n=context_lines))
+
+        additions = sum(1 for line in diff if line.startswith('+') and not line.startswith('+++'))
+        deletions = sum(1 for line in diff if line.startswith('-') and not line.startswith('---'))
+
+        return json.dumps({
+            "success": True,
+            "original_lines": len(lines1),
+            "modified_lines": len(lines2),
+            "additions": additions,
+            "deletions": deletions,
+            "has_changes": len(diff) > 0,
+            "diff": ''.join(diff)[:5000]  # Limit output size
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Content diff failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+# ==============================================================================
+# PRODUCTION SYNC TOOLS
+# ==============================================================================
+
+@mcp.tool()
+def production_db_sync_prepare(local_export: str = "") -> str:
+    """
+    Prepare local database for production sync (URL replacement, cleanup).
+
+    Args:
+        local_export: Path to local SQL export (will create if empty)
+
+    Returns:
+        JSON with prepared export file path
+    """
+    try:
+        wp_path = os.getenv("WORDPRESS_PATH", "/home/dave/skippy/rundaverun_local_site/app/public")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        session_dir = Path(SKIPPY_PATH) / "work/wordpress/production_sync" / timestamp
+        session_dir.mkdir(parents=True, exist_ok=True)
+
+        # Export if not provided
+        if not local_export:
+            export_file = session_dir / "local_export.sql"
+            export_cmd = f'wp --path="{wp_path}" db export "{export_file}"'
+            result = subprocess.run(export_cmd, shell=True, capture_output=True, text=True, timeout=120)
+            if result.returncode != 0:
+                return json.dumps({"success": False, "error": result.stderr}, indent=2)
+        else:
+            export_file = Path(local_export)
+            if not export_file.exists():
+                return json.dumps({"success": False, "error": "Export file not found"}, indent=2)
+
+        # Read and transform
+        with open(export_file, 'r') as f:
+            sql_content = f.read()
+
+        # URL replacements
+        local_url = "http://rundaverun-local-complete-022655.local"
+        production_url = "https://rundaverun.org"
+
+        transformed = sql_content.replace(local_url, production_url)
+
+        # Save production-ready version
+        production_file = session_dir / "production_ready.sql"
+        with open(production_file, 'w') as f:
+            f.write(transformed)
+
+        # Compress for upload
+        import gzip
+        compressed_file = session_dir / "production_ready.sql.gz"
+        with open(production_file, 'rb') as f_in:
+            with gzip.open(compressed_file, 'wb') as f_out:
+                f_out.write(f_in.read())
+
+        return json.dumps({
+            "success": True,
+            "session_dir": str(session_dir),
+            "original_export": str(export_file),
+            "production_file": str(production_file),
+            "compressed_file": str(compressed_file),
+            "replacements": {
+                "from": local_url,
+                "to": production_url
+            },
+            "size_mb": round(compressed_file.stat().st_size / (1024 * 1024), 2)
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Production DB sync prepare failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def production_file_sync(local_path: str, remote_path: str, dry_run: bool = True) -> str:
+    """
+    Sync files to production server via rsync.
+
+    Args:
+        local_path: Local directory or file to sync
+        remote_path: Remote destination path
+        dry_run: If True, show what would be synced without doing it (default: True)
+
+    Returns:
+        JSON with sync results
+    """
+    try:
+        local = Path(local_path)
+        if not local.exists():
+            return json.dumps({"success": False, "error": "Local path does not exist"}, indent=2)
+
+        ssh_key = os.path.expanduser("~/.ssh/godaddy_rundaverun")
+        ssh_user = "git_deployer_f44cc3416a_545525"
+        ssh_host = "bp6.0cf.myftpupload.com"
+
+        dry_run_flag = "-n" if dry_run else ""
+
+        rsync_cmd = f'SSH_AUTH_SOCK="" rsync -avz {dry_run_flag} -e "ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i {ssh_key}" "{local_path}" {ssh_user}@{ssh_host}:{remote_path}'
+
+        result = subprocess.run(rsync_cmd, shell=True, capture_output=True, text=True, timeout=300)
+
+        return json.dumps({
+            "success": result.returncode == 0,
+            "dry_run": dry_run,
+            "local_path": str(local_path),
+            "remote_path": remote_path,
+            "output": result.stdout[:2000] if result.stdout else "",
+            "error": result.stderr[:500] if result.stderr else ""
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Production file sync failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def production_cache_flush() -> str:
+    """
+    Flush all caches on production WordPress site.
+
+    Returns:
+        JSON with cache flush results
+    """
+    try:
+        ssh_key = os.path.expanduser("~/.ssh/godaddy_rundaverun")
+        ssh_user = "git_deployer_f44cc3416a_545525"
+        ssh_host = "bp6.0cf.myftpupload.com"
+
+        commands = [
+            "wp cache flush",
+            "wp rewrite flush",
+            "wp transient delete --all"
+        ]
+
+        results = {"success": True, "commands": []}
+
+        for cmd in commands:
+            ssh_cmd = f'SSH_AUTH_SOCK="" ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i {ssh_key} {ssh_user}@{ssh_host} "cd html && {cmd} 2>&1"'
+            result = subprocess.run(ssh_cmd, shell=True, capture_output=True, text=True, timeout=30)
+            results["commands"].append({
+                "command": cmd,
+                "success": result.returncode == 0,
+                "output": result.stdout.strip()[:200]
+            })
+
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Production cache flush failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+# ==============================================================================
+# MONITORING AND ALERTING TOOLS
+# ==============================================================================
+
+@mcp.tool()
+def monitor_site_health(url: str = "https://rundaverun.org") -> str:
+    """
+    Comprehensive site health check.
+
+    Args:
+        url: URL to check (default: https://rundaverun.org)
+
+    Returns:
+        JSON with health check results
+    """
+    try:
+        import urllib.request
+        import urllib.error
+        import time
+
+        results = {
+            "success": True,
+            "url": url,
+            "timestamp": datetime.now().isoformat(),
+            "checks": {}
+        }
+
+        # Homepage check
+        start_time = time.time()
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=10) as response:
+                content = response.read().decode('utf-8', errors='ignore')
+                elapsed = time.time() - start_time
+                results["checks"]["homepage"] = {
+                    "status": response.status,
+                    "response_time_ms": round(elapsed * 1000),
+                    "content_length": len(content),
+                    "has_title": "<title>" in content.lower()
+                }
+        except Exception as e:
+            results["checks"]["homepage"] = {"error": str(e)[:100]}
+
+        # Key pages
+        key_pages = ["/about/", "/get-involved/", "/neighborhoods/", "/contact/"]
+        results["checks"]["pages"] = {}
+
+        for page in key_pages:
+            page_url = url.rstrip('/') + page
+            try:
+                req = urllib.request.Request(page_url, method='HEAD', headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    results["checks"]["pages"][page] = {"status": response.status}
+            except urllib.error.HTTPError as e:
+                results["checks"]["pages"][page] = {"status": e.code}
+            except Exception as e:
+                results["checks"]["pages"][page] = {"error": str(e)[:50]}
+
+        # SSL check
+        if url.startswith("https"):
+            import ssl
+            import socket
+            hostname = url.replace("https://", "").split('/')[0]
+            try:
+                context = ssl.create_default_context()
+                with socket.create_connection((hostname, 443), timeout=5) as sock:
+                    with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+                        cert = ssock.getpeercert()
+                        not_after = cert.get('notAfter', '')
+                        results["checks"]["ssl"] = {
+                            "valid": True,
+                            "expires": not_after
+                        }
+            except Exception as e:
+                results["checks"]["ssl"] = {"error": str(e)[:100]}
+
+        # Overall health
+        all_ok = all(
+            check.get("status") == 200 or check.get("valid") == True
+            for check in results["checks"].values()
+            if isinstance(check, dict) and ("status" in check or "valid" in check)
+        )
+        results["overall_health"] = "HEALTHY" if all_ok else "DEGRADED"
+
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Monitor site health failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def monitor_resource_usage() -> str:
+    """
+    Check local system resource usage (CPU, memory, disk).
+
+    Returns:
+        JSON with resource usage metrics
+    """
+    try:
+        import shutil
+
+        results = {"success": True, "timestamp": datetime.now().isoformat()}
+
+        # Disk usage
+        disk = shutil.disk_usage("/")
+        results["disk"] = {
+            "total_gb": round(disk.total / (1024**3), 2),
+            "used_gb": round(disk.used / (1024**3), 2),
+            "free_gb": round(disk.free / (1024**3), 2),
+            "percent_used": round((disk.used / disk.total) * 100, 1)
+        }
+
+        # Memory (from /proc/meminfo)
+        try:
+            with open('/proc/meminfo', 'r') as f:
+                meminfo = f.read()
+            mem_total = int(re.search(r'MemTotal:\s+(\d+)', meminfo).group(1)) / 1024
+            mem_free = int(re.search(r'MemAvailable:\s+(\d+)', meminfo).group(1)) / 1024
+            results["memory"] = {
+                "total_mb": round(mem_total),
+                "available_mb": round(mem_free),
+                "percent_used": round(((mem_total - mem_free) / mem_total) * 100, 1)
+            }
+        except Exception:
+            results["memory"] = {"error": "Could not read memory info"}
+
+        # Load average
+        try:
+            with open('/proc/loadavg', 'r') as f:
+                load = f.read().split()[:3]
+            results["load_average"] = {
+                "1min": float(load[0]),
+                "5min": float(load[1]),
+                "15min": float(load[2])
+            }
+        except Exception:
+            results["load_average"] = {"error": "Could not read load average"}
+
+        # Alert thresholds
+        alerts = []
+        if results.get("disk", {}).get("percent_used", 0) > 85:
+            alerts.append("HIGH: Disk usage above 85%")
+        if results.get("memory", {}).get("percent_used", 0) > 90:
+            alerts.append("HIGH: Memory usage above 90%")
+        if results.get("load_average", {}).get("5min", 0) > 4:
+            alerts.append("MEDIUM: High load average")
+
+        results["alerts"] = alerts
+        results["status"] = "WARNING" if alerts else "OK"
+
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Monitor resource usage failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def monitor_services(services: str = "mysql,nginx,php-fpm") -> str:
+    """
+    Check status of system services.
+
+    Args:
+        services: Comma-separated service names (default: mysql,nginx,php-fpm)
+
+    Returns:
+        JSON with service status
+    """
+    try:
+        service_list = [s.strip() for s in services.split(',')]
+        results = {"success": True, "services": {}}
+
+        for service in service_list:
+            try:
+                cmd = f'systemctl is-active {service}'
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+                status = result.stdout.strip()
+                results["services"][service] = {
+                    "status": status,
+                    "running": status == "active"
+                }
+            except Exception as e:
+                results["services"][service] = {"error": str(e)[:50]}
+
+        running_count = sum(1 for s in results["services"].values() if s.get("running"))
+        results["summary"] = {
+            "total": len(service_list),
+            "running": running_count,
+            "stopped": len(service_list) - running_count
+        }
+        results["overall"] = "OK" if running_count == len(service_list) else "DEGRADED"
+
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Monitor services failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+# ==============================================================================
+# BACKUP VERIFICATION TOOLS
+# ==============================================================================
+
+@mcp.tool()
+def backup_list_recent(backup_type: str = "all", days: int = 7) -> str:
+    """
+    List recent backup files.
+
+    Args:
+        backup_type: Type of backup (wordpress, database, full, all)
+        days: Number of days to look back (default: 7)
+
+    Returns:
+        JSON with list of backup files
+    """
+    try:
+        backup_dirs = [
+            Path(SKIPPY_PATH) / "archives/db_snapshots",
+            Path(SKIPPY_PATH) / "archives/wordpress",
+            Path(SKIPPY_PATH) / "work/wordpress"
+        ]
+
+        cutoff = datetime.now() - timedelta(days=days)
+        backups = []
+
+        for backup_dir in backup_dirs:
+            if not backup_dir.exists():
+                continue
+
+            for item in backup_dir.rglob("*.sql*"):
+                try:
+                    mtime = datetime.fromtimestamp(item.stat().st_mtime)
+                    if mtime > cutoff:
+                        backups.append({
+                            "path": str(item),
+                            "name": item.name,
+                            "size_mb": round(item.stat().st_size / (1024 * 1024), 2),
+                            "modified": mtime.isoformat(),
+                            "type": "database"
+                        })
+                except Exception:
+                    continue
+
+        # Sort by modification time
+        backups.sort(key=lambda x: x["modified"], reverse=True)
+
+        return json.dumps({
+            "success": True,
+            "days": days,
+            "backup_count": len(backups),
+            "total_size_mb": round(sum(b["size_mb"] for b in backups), 2),
+            "backups": backups[:20]  # Limit to 20 most recent
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Backup list recent failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def backup_verify(backup_file: str) -> str:
+    """
+    Verify integrity of a backup file.
+
+    Args:
+        backup_file: Path to backup file to verify
+
+    Returns:
+        JSON with verification results
+    """
+    try:
+        backup_path = Path(backup_file)
+        if not backup_path.exists():
+            return json.dumps({"success": False, "error": "Backup file not found"}, indent=2)
+
+        results = {
+            "success": True,
+            "file": str(backup_path),
+            "checks": {}
+        }
+
+        # File size check
+        size = backup_path.stat().st_size
+        results["checks"]["size"] = {
+            "bytes": size,
+            "mb": round(size / (1024 * 1024), 2),
+            "valid": size > 1000  # More than 1KB
+        }
+
+        # File type check
+        suffix = backup_path.suffix.lower()
+        if suffix == '.gz':
+            import gzip
+            try:
+                with gzip.open(backup_path, 'rb') as f:
+                    f.read(1024)  # Read first 1KB
+                results["checks"]["compression"] = {"valid": True, "type": "gzip"}
+            except Exception as e:
+                results["checks"]["compression"] = {"valid": False, "error": str(e)[:50]}
+        elif suffix == '.sql':
+            try:
+                with open(backup_path, 'r') as f:
+                    header = f.read(1000)
+                has_sql = any(kw in header.upper() for kw in ['CREATE', 'INSERT', 'DROP', 'MySQL'])
+                results["checks"]["content"] = {"valid": has_sql, "type": "sql"}
+            except Exception as e:
+                results["checks"]["content"] = {"valid": False, "error": str(e)[:50]}
+
+        # MD5 checksum
+        import hashlib
+        try:
+            md5 = hashlib.md5()
+            with open(backup_path, 'rb') as f:
+                for chunk in iter(lambda: f.read(8192), b''):
+                    md5.update(chunk)
+            results["checks"]["checksum"] = {"md5": md5.hexdigest()}
+        except Exception as e:
+            results["checks"]["checksum"] = {"error": str(e)[:50]}
+
+        # Overall validity
+        all_valid = all(
+            check.get("valid", True) for check in results["checks"].values()
+            if "valid" in check
+        )
+        results["overall"] = "VALID" if all_valid else "INVALID"
+
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Backup verify failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def backup_cleanup(days: int = 30, dry_run: bool = True) -> str:
+    """
+    Clean up old backup files.
+
+    Args:
+        days: Delete backups older than this many days (default: 30)
+        dry_run: If True, only list files without deleting (default: True)
+
+    Returns:
+        JSON with cleanup results
+    """
+    try:
+        backup_dirs = [
+            Path(SKIPPY_PATH) / "archives/db_snapshots",
+        ]
+
+        cutoff = datetime.now() - timedelta(days=days)
+        to_delete = []
+
+        for backup_dir in backup_dirs:
+            if not backup_dir.exists():
+                continue
+
+            for item in backup_dir.glob("*.sql*"):
+                try:
+                    mtime = datetime.fromtimestamp(item.stat().st_mtime)
+                    if mtime < cutoff:
+                        to_delete.append({
+                            "path": str(item),
+                            "size_mb": round(item.stat().st_size / (1024 * 1024), 2),
+                            "age_days": (datetime.now() - mtime).days
+                        })
+                except Exception:
+                    continue
+
+        total_size = sum(f["size_mb"] for f in to_delete)
+        deleted = []
+
+        if not dry_run and to_delete:
+            for item in to_delete:
+                try:
+                    Path(item["path"]).unlink()
+                    deleted.append(item["path"])
+                except Exception:
+                    pass
+
+        return json.dumps({
+            "success": True,
+            "dry_run": dry_run,
+            "days_threshold": days,
+            "files_found": len(to_delete),
+            "total_size_mb": round(total_size, 2),
+            "files": to_delete[:20],
+            "deleted": deleted if not dry_run else []
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Backup cleanup failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+

@@ -1,14 +1,39 @@
 ---
 description: Recover context after auto-compacting from saved state
+allowed-tools: ["Bash", "Read", "Glob", "Grep"]
 ---
 
 Check for recent auto-compaction events and help recover session context.
+
+## Quick Recovery (Run These First)
+
+```bash
+# 1. Check for compaction saves (primary location)
+echo "=== Recent Compactions ==="
+ls -lt ~/.claude/compactions/ 2>/dev/null | head -5
+
+# 2. Check recent work directories (most useful)
+echo -e "\n=== Recent Work Sessions ==="
+find /home/dave/skippy/work -maxdepth 3 -type d -mmin -120 2>/dev/null | sort -r | head -10
+
+# 3. Check for in-progress session READMEs
+echo -e "\n=== Session READMEs (last 2 hours) ==="
+find /home/dave/skippy/work -name "README.md" -mmin -120 2>/dev/null | head -5
+
+# 4. Check recent conversation transcripts
+echo -e "\n=== Recent Transcripts ==="
+ls -lt /home/dave/skippy/conversations/*.md 2>/dev/null | head -3
+
+# 5. Check git for recent activity
+echo -e "\n=== Git Recent Activity ==="
+git -C /home/dave/skippy log --oneline --since="2 hours ago" 2>/dev/null | head -5
+```
 
 ## Automatic Recovery Process:
 
 1. **Check for recent compactions:**
    ```bash
-   ls -lt /home/dave/skippy/work/compactions/ | head -10
+   ls -lt ~/.claude/compactions/ | head -10
    ```
 
 2. **Read the most recent recovery information:**

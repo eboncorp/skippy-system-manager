@@ -171,6 +171,98 @@ if [ -n "$ORPHANED" ]; then
 fi
 ```
 
+### 8b. AUTO-CLEANUP (Interactive)
+```bash
+# Auto-cleanup stale and merged branches
+auto_cleanup_branches() {
+  REPO_PATH="${1:-.}"
+  cd "$REPO_PATH"
+
+  echo "=== Git Branch Auto-Cleanup ==="
+  echo "Repository: $(pwd)"
+  echo ""
+
+  # Get main branch
+  MAIN_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+  MAIN_BRANCH="${MAIN_BRANCH:-master}"
+
+  # 1. Prune remote tracking branches
+  echo "1. Pruning orphaned remote tracking branches..."
+  git remote prune origin
+
+  # 2. Find and delete fully merged local branches
+  echo ""
+  echo "2. Checking for fully merged local branches..."
+  MERGED=$(git branch --merged $MAIN_BRANCH | grep -v "^\*\|$MAIN_BRANCH\|main\|master\|develop")
+
+  if [ -n "$MERGED" ]; then
+    echo "Found merged branches:"
+    echo "$MERGED"
+    echo ""
+    echo "Deleting merged branches..."
+    echo "$MERGED" | xargs -r git branch -d
+  else
+    echo "No merged branches to delete."
+  fi
+
+  # 3. List stale branches (>60 days) for review
+  echo ""
+  echo "3. Stale branches (>60 days old):"
+  for branch in $(git branch --format='%(refname:short)'); do
+    if [ "$branch" != "$MAIN_BRANCH" ] && [ "$branch" != "main" ] && [ "$branch" != "master" ]; then
+      LAST_COMMIT_DATE=$(git log "$branch" -1 --format='%ci' 2>/dev/null)
+      if [ -n "$LAST_COMMIT_DATE" ]; then
+        DAYS_OLD=$(( ($(date +%s) - $(date -d "$LAST_COMMIT_DATE" +%s)) / 86400 ))
+        if [ $DAYS_OLD -gt 60 ]; then
+          LAST_MSG=$(git log "$branch" -1 --format='%s' | head -c 50)
+          echo "  - $branch ($DAYS_OLD days): $LAST_MSG..."
+        fi
+      fi
+    fi
+  done
+
+  # 4. Delete stale remote branches (with confirmation)
+  echo ""
+  echo "4. Checking remote branches..."
+  git fetch --prune
+
+  # 5. Summary
+  echo ""
+  echo "=== Cleanup Complete ==="
+  echo "Remaining branches:"
+  git branch -a | wc -l
+}
+
+# Run auto-cleanup
+auto_cleanup_branches "/home/dave/skippy"
+```
+
+### 8c. BULK DELETE Stale Branches
+```bash
+# Delete all branches matching pattern older than N days
+bulk_delete_stale() {
+  PATTERN="${1:-claude/}"
+  MAX_DAYS="${2:-30}"
+
+  echo "Deleting branches matching '$PATTERN' older than $MAX_DAYS days..."
+
+  for branch in $(git branch --format='%(refname:short)' | grep "$PATTERN"); do
+    LAST_COMMIT_DATE=$(git log "$branch" -1 --format='%ci' 2>/dev/null)
+    if [ -n "$LAST_COMMIT_DATE" ]; then
+      DAYS_OLD=$(( ($(date +%s) - $(date -d "$LAST_COMMIT_DATE" +%s)) / 86400 ))
+      if [ $DAYS_OLD -gt $MAX_DAYS ]; then
+        echo "Deleting $branch ($DAYS_OLD days old)..."
+        git branch -D "$branch" 2>/dev/null
+        git push origin --delete "$branch" 2>/dev/null || true
+      fi
+    fi
+  done
+}
+
+# Example: Delete all claude/* branches older than 14 days
+bulk_delete_stale "claude/" 14
+```
+
 ### 9. Visual Branch Graph
 ```bash
 # Generate visual representation
