@@ -115,16 +115,13 @@
       "SlashCommand(/content-approve)"
     ],
     "deny": [
-      "Bash(rm:*)",
-      "Bash(sudo rm:*)",
-      "Bash(DROP DATABASE:*)",
-      "Bash(DROP TABLE:*)",
-      "Bash(DELETE FROM:*)",
+      "Bash(rm -rf /:*)",
+      "Bash(rm -rf /*:*)",
+      "Bash(sudo rm -rf /:*)",
       "Bash(git push --force:*)",
       "Bash(git reset --hard HEAD~:*)",
       "Bash(mkfs:*)",
       "Bash(dd if=/dev/zero:*)",
-      "Bash(:(){ :|:& };:)",
       "Bash(chmod -R 777 /:*)",
       "Bash(chown -R:*)"
     ]
