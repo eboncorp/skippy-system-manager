@@ -1,6 +1,0 @@
-FILENAME                             	SHA256
-linux-i386_1.7.17_MyCrypto.AppImage  	80b06558f41724199a8e09c6ed462899c79b6999d7f8c9a065d62f86333f0dbc
-linux-x86-64_1.7.17_MyCrypto.AppImage	20eb48989b5ae5e60e438eff6830ac79a0d89ac26dff058097260e747e866444
-mac_1.7.17_MyCrypto.dmg              	8fe2652697b0557f7e221d0c960aa9e36a54445f12e7396a193cc5c5ad6ded06
-standalone_1.7.17_MyCrypto.zip       	f8538c82eef7a5dfba790cfd9221e782b998554071cbcb8f0c33c2a9f374a262
-windows_1.7.17_MyCrypto.exe          	1f2b3380448e7c6517c9ddd0a6afef229442c43536d17ee9b41d8ed06116087c
