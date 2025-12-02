@@ -1,0 +1,11 @@
+skill_name,auto_invoke_triggers,last_used,times_invoked,effectiveness_score,notes
+wordpress-deployment,WordPress updates,2025-11-23,42,9/10,Works great - auto-invokes reliably
+session-management,session end,2025-11-23,15,8/10,Sometimes misses subtle session end cues
+content-approval,approve content,2025-11-20,5,7/10,Needs clearer triggers for bulk approval
+mcp-server-tools,Google Drive|Pexels,2025-11-23,8,9/10,Very useful for file operations
+git-workflow,commit|push|merge,2025-11-22,12,8/10,Good coverage of git operations
+campaign-facts,budget|statistics,2025-11-21,6,10/10,Critical - always catches fact-checking needs
+autonomous-operations,,,0,?/10,Never auto-invoked - check triggers
+ci-cd-pipelines,deployment|github actions,2025-11-15,3,7/10,Useful but infrequent
+diagnostic-debugging,error|bug|issue,2025-11-19,4,8/10,Helpful for troubleshooting
+emergency-recovery,rollback|restore,2025-11-10,2,10/10,Critical when needed

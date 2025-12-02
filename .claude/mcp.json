@@ -1,0 +1,145 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/schemas/mcp.schema.json",
+  "version": "1.0.0",
+  "lastUpdated": "2025-12-02",
+  "description": "MCP server configuration for Skippy system. These servers extend Claude Code with additional tools.",
+
+  "mcpServers": {
+    "general-server": {
+      "description": "Skippy's comprehensive MCP server with 145+ tools for system management",
+      "command": "/home/dave/skippy/mcp-servers/general-server/.venv/bin/python3",
+      "args": ["/home/dave/skippy/mcp-servers/general-server/server.py"],
+      "version": "2.6.0",
+      "toolCount": 145,
+      "categories": [
+        "File operations (read, write, search, list)",
+        "System monitoring (disk, memory, CPU, processes)",
+        "Remote server management (SSH to ebon)",
+        "WordPress management (WP-CLI, backups, database)",
+        "Git operations (status, diff, credential scanning)",
+        "Docker container management",
+        "Log file analysis",
+        "Database queries (read-only)",
+        "Skippy script/protocol search",
+        "Screenshots and visual diff",
+        "Cron management",
+        "Network utilities (SSL, DNS, port checks)"
+      ],
+      "securityFeatures": [
+        "Command injection prevention",
+        "Path traversal protection",
+        "URL validation (SSRF prevention)",
+        "Comprehensive audit logging"
+      ],
+      "documentation": "/home/dave/skippy/mcp-servers/general-server/README.md"
+    },
+
+    "brave-search": {
+      "description": "Web search via Brave Search API",
+      "command": "mcp-server-brave-search",
+      "args": [],
+      "version": "latest",
+      "toolCount": 2,
+      "tools": [
+        "brave_web_search - General web search",
+        "brave_local_search - Local business search"
+      ],
+      "requiresApiKey": true,
+      "apiKeyEnvVar": "BRAVE_API_KEY"
+    },
+
+    "github": {
+      "description": "GitHub API integration for repository management",
+      "command": "mcp-server-github",
+      "args": [],
+      "version": "latest",
+      "toolCount": 25,
+      "tools": [
+        "create_or_update_file",
+        "search_repositories",
+        "create_repository",
+        "get_file_contents",
+        "push_files",
+        "create_issue",
+        "create_pull_request",
+        "fork_repository",
+        "create_branch",
+        "list_commits",
+        "list_issues",
+        "update_issue",
+        "add_issue_comment",
+        "search_code",
+        "search_issues",
+        "search_users",
+        "get_issue",
+        "get_pull_request",
+        "list_pull_requests",
+        "create_pull_request_review",
+        "merge_pull_request",
+        "get_pull_request_files",
+        "get_pull_request_status",
+        "update_pull_request_branch",
+        "get_pull_request_comments",
+        "get_pull_request_reviews"
+      ],
+      "requiresApiKey": true,
+      "apiKeyEnvVar": "GITHUB_PERSONAL_ACCESS_TOKEN"
+    },
+
+    "chrome-devtools": {
+      "description": "Browser automation and debugging via Chrome DevTools",
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest"],
+      "version": "latest",
+      "toolCount": 25,
+      "tools": [
+        "click - Click on element",
+        "close_page - Close browser page",
+        "drag - Drag and drop",
+        "emulate - Emulate device/network",
+        "evaluate_script - Run JavaScript",
+        "fill - Fill form input",
+        "fill_form - Fill multiple inputs",
+        "get_console_message - Get console messages",
+        "get_network_request - Get network requests",
+        "handle_dialog - Handle browser dialogs",
+        "hover - Hover over element",
+        "list_console_messages - List all console messages",
+        "list_network_requests - List network requests",
+        "list_pages - List open pages",
+        "navigate_page - Navigate to URL",
+        "new_page - Open new page",
+        "performance_analyze_insight - Analyze performance",
+        "performance_start_trace - Start performance trace",
+        "performance_stop_trace - Stop trace",
+        "press_key - Press keyboard key",
+        "resize_page - Resize window",
+        "select_page - Select page by index",
+        "take_screenshot - Capture screenshot",
+        "take_snapshot - Take a11y snapshot",
+        "upload_file - Upload file",
+        "wait_for - Wait for text"
+      ],
+      "requiresChrome": true,
+      "chromeRequirements": "Chrome browser with DevTools available"
+    }
+  },
+
+  "summary": {
+    "totalServers": 4,
+    "totalTools": 197,
+    "serverStatus": {
+      "general-server": "active",
+      "brave-search": "active",
+      "github": "active",
+      "chrome-devtools": "active"
+    }
+  },
+
+  "notes": [
+    "MCP servers are started automatically by Claude Code",
+    "general-server is the primary Skippy integration server",
+    "API keys are stored in environment variables, not in this file",
+    "See /home/dave/skippy/mcp-servers/ for server source code"
+  ]
+}

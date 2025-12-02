@@ -1,9 +1,0 @@
-Test invoice for EbonCorp
-
-Invoice #12345
-Date: 2025-11-18
-From: ABC Vendor
-To: EbonCorp LLC
-Amount: $500.00
-
-Services: Web development consulting

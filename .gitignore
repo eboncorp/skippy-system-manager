@@ -62,3 +62,67 @@ Thumbs.db
 .vscode/
 .idea/
 *.iml
+conversations/
+
+# Home directory files (shouldn't be in project)
+.bash*
+.cache/
+.config/
+.config_backup*/
+.credentials/
+.cups/
+.dotnet/
+.gnupg/
+.local/
+.npm/
+.npm-global/
+.pki/
+.steam*
+.thunderbird/
+.wget-hsts
+.Trash*/
+.android_secure/
+.chainlink-sepolia/
+.ebon-link-2-sepolia/
+.ebonhawk-maintenance/
+.epsonscan2/
+.gitconfig
+.hplip/
+.lesshst
+.profile
+.sudo_as_admin_successful
+.tidytux/
+.unified-system-manager/
+.advanced-system-manager/
+.venvs/
+.wp-cli/
+.history
+.npmrc.backup
+.nexus/
+.plcc-helper/
+.claude.json
+.claude.json.backup
+.claude/.credentials.json
+.claude/archived-backups/
+
+# Large data directories
+media/
+archives/
+websites/
+rundaverun_local_site/
+
+# Operations (local only)
+operations/
+
+# Development projects (separate repos)
+development/
+
+# Output files
+output/
+logs/
+
+# System files
+system/
+plugins/
+reference/
+backups/
