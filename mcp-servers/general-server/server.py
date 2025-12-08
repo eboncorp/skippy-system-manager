@@ -242,6 +242,7 @@ if SKIPPY_RESILIENCE_AVAILABLE:
     _github_limiter = RateLimiter(max_calls=30, period=60.0)  # 30 req/min
     _pexels_limiter = RateLimiter(max_calls=200, period=3600.0)  # 200 req/hour
     _http_limiter = RateLimiter(max_calls=100, period=60.0)  # 100 req/min for general HTTP
+    _brave_limiter = RateLimiter(max_calls=1, period=1.5)  # Brave Free tier: 1 req/1.5s (safe margin)
 
     # Global health checker
     _health_checker = HealthChecker()
@@ -355,6 +356,7 @@ else:
     _google_photos_limiter = None
     _github_limiter = None
     _pexels_limiter = None
+    _brave_limiter = None
     _health_checker = None
     _request_tracer = None
     _graceful_cache = None
@@ -9137,4 +9139,109 @@ def backup_cleanup(days: int = 30, dry_run: bool = True) -> str:
     except Exception as e:
         logger.error(f"Backup cleanup failed: {e}")
         return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+# =============================================================================
+# RATE-LIMITED WEB SEARCH TOOL
+# =============================================================================
+
+@mcp.tool()
+def rate_limited_web_search(
+    query: str,
+    num_results: int = 5
+) -> str:
+    """
+    Perform a web search with built-in rate limiting to avoid 429 errors.
+
+    This tool uses DuckDuckGo (no API key required) with rate limiting
+    to provide reliable web search without hitting rate limits.
+
+    Args:
+        query: Search query string
+        num_results: Number of results to return (default 5, max 10)
+
+    Returns:
+        JSON with search results or error message
+    """
+    import time
+
+    # Apply rate limiting if available
+    if _brave_limiter:
+        _brave_limiter._wait_if_needed()
+    else:
+        # Fallback: simple delay
+        time.sleep(1.5)
+
+    try:
+        num_results = min(num_results, 10)
+
+        # Use httpx to query DuckDuckGo HTML (no API key needed)
+        search_url = "https://html.duckduckgo.com/html/"
+        params = {"q": query}
+
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(search_url, data=params)
+            response.raise_for_status()
+
+        # Parse results from HTML
+        html = response.text
+        results = []
+
+        # Simple regex parsing for DuckDuckGo HTML results
+        import re
+        # Find result links
+        link_pattern = r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([^<]+)</a>'
+        snippet_pattern = r'<a[^>]+class="result__snippet"[^>]*>([^<]+)</a>'
+
+        links = re.findall(link_pattern, html)
+        snippets = re.findall(snippet_pattern, html)
+
+        for i, (url, title) in enumerate(links[:num_results]):
+            result = {
+                "title": title.strip(),
+                "url": url,
+                "snippet": snippets[i].strip() if i < len(snippets) else ""
+            }
+            results.append(result)
+
+        return json.dumps({
+            "success": True,
+            "query": query,
+            "num_results": len(results),
+            "results": results,
+            "note": "Rate-limited search via DuckDuckGo"
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Rate-limited web search failed: {e}")
+        return json.dumps({
+            "success": False,
+            "error": str(e),
+            "suggestion": "Try again in a few seconds or use fewer parallel searches"
+        }, indent=2)
+
+
+@mcp.tool()
+def check_brave_rate_limit() -> str:
+    """
+    Check the current Brave Search rate limit status.
+
+    Returns remaining calls and time until reset.
+    """
+    if _brave_limiter:
+        remaining = _brave_limiter.get_remaining_calls()
+        return json.dumps({
+            "success": True,
+            "rate_limiter": "active",
+            "remaining_calls": remaining,
+            "max_calls_per_period": _brave_limiter.max_calls,
+            "period_seconds": _brave_limiter.period,
+            "recommendation": "Use rate_limited_web_search for reliable searches"
+        }, indent=2)
+    else:
+        return json.dumps({
+            "success": True,
+            "rate_limiter": "not_available",
+            "note": "Resilience modules not loaded, using fallback delays"
+        }, indent=2)
 
