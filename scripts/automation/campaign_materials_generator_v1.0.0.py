@@ -109,6 +109,22 @@ GOLD = (255, 199, 44)
 WHITE = (255, 255, 255)
 LIGHT_GOLD = (255, 223, 128)
 
+# Special Color Schemes for Pride and Patriotic
+RAINBOW_COLORS = [
+    (228, 3, 3),      # Red
+    (255, 140, 0),    # Orange
+    (255, 237, 0),    # Yellow
+    (0, 128, 38),     # Green
+    (0, 77, 255),     # Blue
+    (117, 7, 135),    # Purple
+]
+
+PATRIOTIC_COLORS = {
+    'red': (191, 10, 48),
+    'white': (255, 255, 255),
+    'blue': (0, 40, 104),
+}
+
 # Slogans Configuration
 SLOGANS = {
     'weird': {
@@ -177,229 +193,533 @@ def draw_slogan(draw, slogan_key, x, y, font_size, fill, width=None, center=True
         return font_size
 
 # =============================================================================
+# SPECIAL RENDERING HELPERS FOR PRIDE AND PATRIOTIC
+# =============================================================================
+
+def draw_rainbow_border(draw, width, height, border_width):
+    """
+    Draw a rainbow segmented border around the entire image.
+    Each segment gets equal portion of the perimeter.
+    """
+    # Calculate perimeter segments
+    perimeter = 2 * (width + height)
+    segment_length = perimeter / len(RAINBOW_COLORS)
+
+    # Draw each color segment
+    current_pos = 0
+    for i, color in enumerate(RAINBOW_COLORS):
+        start = current_pos
+        end = current_pos + segment_length
+
+        # Top edge (left to right)
+        if start < width:
+            x1 = max(0, start)
+            x2 = min(width, end)
+            if x2 > x1:
+                draw.rectangle([x1, 0, x2, border_width], fill=color)
+
+        # Right edge (top to bottom)
+        right_start = width
+        if start < right_start + height and end > right_start:
+            y1 = max(0, start - right_start)
+            y2 = min(height, end - right_start)
+            if y2 > y1:
+                draw.rectangle([width - border_width, y1, width, y2], fill=color)
+
+        # Bottom edge (right to left)
+        bottom_start = width + height
+        if start < bottom_start + width and end > bottom_start:
+            x2 = width - max(0, start - bottom_start)
+            x1 = width - min(width, end - bottom_start)
+            if x2 > x1:
+                draw.rectangle([x1, height - border_width, x2, height], fill=color)
+
+        # Left edge (bottom to top)
+        left_start = 2 * width + height
+        if start < left_start + height and end > left_start:
+            y2 = height - max(0, start - left_start)
+            y1 = height - min(height, end - left_start)
+            if y2 > y1:
+                draw.rectangle([0, y1, border_width, y2], fill=color)
+
+        current_pos = end
+
+
+def draw_pride_background(img, draw, width, height, border_width):
+    """
+    Create pride-themed background with white center and rainbow border.
+    """
+    # White background first
+    draw.rectangle([0, 0, width, height], fill=WHITE)
+    # Rainbow border
+    draw_rainbow_border(draw, width, height, border_width)
+
+
+def draw_patriotic_background(img, draw, width, height):
+    """
+    Create patriotic red/white/blue background.
+    Navy blue center with red border, white text.
+    """
+    # Navy blue background
+    draw.rectangle([0, 0, width, height], fill=PATRIOTIC_COLORS['blue'])
+    # Red border
+    border = int(min(width, height) * 0.03)
+    draw.rectangle([0, 0, width, border], fill=PATRIOTIC_COLORS['red'])  # Top
+    draw.rectangle([0, height - border, width, height], fill=PATRIOTIC_COLORS['red'])  # Bottom
+    draw.rectangle([0, 0, border, height], fill=PATRIOTIC_COLORS['red'])  # Left
+    draw.rectangle([width - border, 0, width, height], fill=PATRIOTIC_COLORS['red'])  # Right
+
+
+def get_special_colors(color_name, width, height):
+    """
+    Get special color configuration for pride and patriotic.
+    Returns (bg_color, text_color, is_special, border_width)
+    """
+    if color_name == 'pride':
+        border_width = int(min(width, height) * 0.05)  # 5% border
+        return (WHITE, (117, 7, 135), True, border_width)  # Purple text on white
+    elif color_name == 'patriotic':
+        return (PATRIOTIC_COLORS['blue'], WHITE, True, 0)
+    else:
+        return (None, None, False, 0)
+
+
+# =============================================================================
 # MATERIAL GENERATORS
 # =============================================================================
 
-def create_palm_cards(slogan_key):
+def create_palm_cards(slogan_key, color_name=None):
     """
     Palm Card - 4x6 inches at 150 DPI (600x900px)
     Pocket-sized handout for door-to-door canvassing
+    Best format: PNG at 300 DPI for local print shops
     """
     s = SLOGANS[slogan_key]
-    out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
-    
     w, h = 600, 900
-    img = Image.new('RGB', (w, h), NAVY)
+
+    if color_name:
+        # Check for special pride/patriotic rendering
+        special_bg, special_text, is_special, border_width = get_special_colors(color_name, w, h)
+        if is_special:
+            bg_color = special_bg
+            text_color = special_text
+        else:
+            colors = BUTTON_COLORS[color_name]
+            bg_color = colors['bg']
+            text_color = colors['text']
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/print_materials_{s["name"]}')
+        filename = f'palm_card_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'palm_card.png'
+
+    img = Image.new('RGB', (w, h), bg_color)
     draw = ImageDraw.Draw(img)
-    
-    # Gold border
-    draw.rectangle([15, 15, w-15, h-15], outline=GOLD, width=4)
-    
+
+    # Special background rendering for pride/patriotic
+    if color_name == 'pride':
+        border_width = int(min(w, h) * 0.05)
+        draw_pride_background(img, draw, w, h, border_width)
+    elif color_name == 'patriotic':
+        draw_patriotic_background(img, draw, w, h)
+    else:
+        # Standard border
+        draw.rectangle([15, 15, w-15, h-15], outline=text_color, width=4)
+
     # DAVE
     font_dave = get_font(TYPEWRITER_BOLD, 140)
-    center_text(draw, "DAVE", font_dave, 80, w, GOLD)
-    
+    center_text(draw, "DAVE", font_dave, 80, w, text_color)
+
     # Slogan
-    draw_slogan(draw, slogan_key, 0, 260, 42, GOLD, w, center=True)
-    
+    font_slogan = get_font(SERIF_ITALIC, 42)
+    if s['line2']:
+        center_text(draw, s['line1'], font_slogan, 260, w, text_color)
+        center_text(draw, s['line2'], font_slogan, 310, w, text_color)
+    else:
+        center_text(draw, s['line1'], font_slogan, 280, w, text_color)
+
     # Divider line
-    draw.line([(100, 420), (w-100, 420)], fill=GOLD, width=2)
-    
+    draw.line([(100, 420), (w-100, 420)], fill=text_color, width=2)
+
     # Key message
     font_msg = get_font(SERIF_REGULAR, 28)
     messages = [
         "Independent for Mayor",
         "Louisville 2026",
         "",
-        "✓ 46 Mini Police Substations",
-        "✓ 18 Community Wellness Centers", 
+        "✓ Mini Substation in Every ZIP Code",
+        "✓ 18 Community Wellness Centers",
         "✓ Zero Tax Increases"
     ]
     y = 450
     for msg in messages:
         if msg:
-            center_text(draw, msg, font_msg, y, w, WHITE)
+            center_text(draw, msg, font_msg, y, w, WHITE if bg_color != WHITE else bg_color)
         y += 38
-    
+
     # Website
     font_web = get_font(SERIF_BOLD, 36)
-    center_text(draw, "rundaverun.org", font_web, h - 100, w, GOLD)
-    
-    img.save(f'{out_dir}/palm_card.png')
-    print(f"  Created: {s['name']}/palm_card.png")
+    center_text(draw, "rundaverun.org", font_web, h - 100, w, text_color)
 
-def create_facebook_cover(slogan_key):
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/{filename}")
+
+def create_facebook_cover(slogan_key, color_name=None):
     """
     Facebook Cover Photo - 820x312px (recommended size)
+    If color_name is None, creates default Navy/Gold version
     """
     s = SLOGANS[slogan_key]
-    out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
-    
+
+    if color_name:
+        colors = BUTTON_COLORS[color_name]
+        bg_color = colors['bg']
+        text_color = colors['text']
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/social_media_{s["name"]}')
+        filename = f'facebook_cover_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'facebook_cover.png'
+
     w, h = 820, 312
-    img = Image.new('RGB', (w, h), NAVY)
+    img = Image.new('RGB', (w, h), bg_color)
     draw = ImageDraw.Draw(img)
-    
+
     # DAVE on left
     font_dave = get_font(TYPEWRITER_BOLD, 140)
-    draw.text((50, 80), "DAVE", font=font_dave, fill=GOLD)
-    
-    # Slogan on right
-    font_slogan = get_font(SERIF_ITALIC, 36)
+    draw.text((50, 80), "DAVE", font=font_dave, fill=text_color)
+
+    # Slogan on right - smaller font for longer slogans
+    slogan_len = len(s['line1']) + (len(s['line2']) if s['line2'] else 0)
+    font_size = 28 if slogan_len > 40 else 36
+    font_slogan = get_font(SERIF_ITALIC, font_size)
     if s['line2']:
-        draw.text((400, 100), s['line1'], font=font_slogan, fill=GOLD)
-        draw.text((400, 145), s['line2'], font=font_slogan, fill=GOLD)
+        draw.text((400, 105), s['line1'], font=font_slogan, fill=text_color)
+        draw.text((400, 140), s['line2'], font=font_slogan, fill=text_color)
     else:
-        draw.text((400, 120), s['line1'], font=font_slogan, fill=GOLD)
-    
+        draw.text((400, 120), s['line1'], font=font_slogan, fill=text_color)
+
     # Website
     font_web = get_font(SERIF_REGULAR, 28)
-    draw.text((400, 220), "rundaverun.org", font=font_web, fill=WHITE)
-    
-    img.save(f'{out_dir}/facebook_cover.png')
-    print(f"  Created: {s['name']}/facebook_cover.png")
+    draw.text((400, 220), "rundaverun.org", font=font_web, fill=WHITE if color_name else WHITE)
 
-def create_linkedin_banner(slogan_key):
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/facebook_cover.png")
+
+def create_linkedin_banner(slogan_key, color_name=None):
     """
     LinkedIn Banner - 1584x396px
     """
     s = SLOGANS[slogan_key]
-    out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
-    
+
+    if color_name:
+        colors = BUTTON_COLORS[color_name]
+        bg_color = colors['bg']
+        text_color = colors['text']
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/social_media_{s["name"]}')
+        filename = f'linkedin_banner_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'linkedin_banner.png'
+
     w, h = 1584, 396
-    img = Image.new('RGB', (w, h), NAVY)
+    img = Image.new('RGB', (w, h), bg_color)
     draw = ImageDraw.Draw(img)
-    
+
     # DAVE
     font_dave = get_font(TYPEWRITER_BOLD, 180)
-    draw.text((100, 100), "DAVE", font=font_dave, fill=GOLD)
-    
-    # Slogan
-    font_slogan = get_font(SERIF_ITALIC, 48)
-    if s['line2']:
-        draw.text((650, 130), s['line1'], font=font_slogan, fill=GOLD)
-        draw.text((650, 190), s['line2'], font=font_slogan, fill=GOLD)
-    else:
-        draw.text((650, 160), s['line1'], font=font_slogan, fill=GOLD)
-    
-    # Website & tagline
-    font_web = get_font(SERIF_REGULAR, 36)
-    draw.text((650, 280), "rundaverun.org | Independent for Mayor | Louisville 2026", font=font_web, fill=WHITE)
-    
-    img.save(f'{out_dir}/linkedin_banner.png')
-    print(f"  Created: {s['name']}/linkedin_banner.png")
+    draw.text((100, 100), "DAVE", font=font_dave, fill=text_color)
 
-def create_profile_picture(slogan_key):
+    # Slogan - smaller font for longer slogans
+    slogan_len = len(s['line1']) + (len(s['line2']) if s['line2'] else 0)
+    font_size = 38 if slogan_len > 40 else 48
+    font_slogan = get_font(SERIF_ITALIC, font_size)
+    if s['line2']:
+        draw.text((650, 130), s['line1'], font=font_slogan, fill=text_color)
+        draw.text((650, 185), s['line2'], font=font_slogan, fill=text_color)
+    else:
+        draw.text((650, 160), s['line1'], font=font_slogan, fill=text_color)
+
+    # Website & tagline - shorter to fit
+    font_web = get_font(SERIF_REGULAR, 30)
+    draw.text((650, 290), "rundaverun.org | Independent for Mayor | Louisville", font=font_web, fill=WHITE)
+
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/linkedin_banner.png")
+
+def create_profile_picture(slogan_key, color_name=None):
     """
     Circular Profile Picture - 400x400px with circular mask
     For all social media platforms
     """
     s = SLOGANS[slogan_key]
-    out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
-    
+
+    if color_name:
+        colors = BUTTON_COLORS[color_name]
+        bg_color = colors['bg']
+        text_color = colors['text']
+        ring_color = text_color
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/social_media_{s["name"]}')
+        filename = f'profile_picture_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        ring_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'profile_picture.png'
+
     size = 400
     img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    
+
     # Draw circular background
-    draw.ellipse([0, 0, size, size], fill=NAVY)
-    
-    # Gold ring
-    draw.ellipse([8, 8, size-8, size-8], outline=GOLD, width=6)
-    
+    draw.ellipse([0, 0, size, size], fill=bg_color)
+
+    # Ring
+    draw.ellipse([8, 8, size-8, size-8], outline=ring_color, width=6)
+
     # DAVE centered
     font_dave = get_font(TYPEWRITER_BOLD, 110)
     bbox = draw.textbbox((0, 0), "DAVE", font=font_dave)
     x = (size - (bbox[2] - bbox[0])) // 2
     y = (size - (bbox[3] - bbox[1])) // 2 - 20
-    draw.text((x, y), "DAVE", font=font_dave, fill=GOLD)
-    
+    draw.text((x, y), "DAVE", font=font_dave, fill=text_color)
+
     # Small tagline
     font_tag = get_font(SERIF_ITALIC, 28)
     center_text(draw, "for Mayor", font_tag, 270, size, WHITE)
-    
-    img.save(f'{out_dir}/profile_picture.png')
-    
-    # Also save smaller sizes
-    for s_size in [200, 150, 100]:
-        resized = img.resize((s_size, s_size), Image.LANCZOS)
-        resized.save(f'{out_dir}/profile_picture_{s_size}.png')
-    
-    print(f"  Created: {s['name']}/profile_picture.png (+ 3 sizes)")
 
-def create_instagram_story(slogan_key):
+    img.save(f'{out_dir}/{filename}')
+
+    if not color_name:
+        # Also save smaller sizes for default version
+        for s_size in [200, 150, 100]:
+            resized = img.resize((s_size, s_size), Image.LANCZOS)
+            resized.save(f'{out_dir}/profile_picture_{s_size}.png')
+        print(f"  Created: {s['name']}/profile_picture.png (+ 3 sizes)")
+
+def create_instagram_story(slogan_key, color_name=None):
     """
     Instagram/TikTok Story - 1080x1920px (9:16 vertical)
     """
     s = SLOGANS[slogan_key]
-    out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
-    
+
+    if color_name:
+        colors = BUTTON_COLORS[color_name]
+        bg_color = colors['bg']
+        text_color = colors['text']
+        border_color = text_color
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/social_media_{s["name"]}')
+        filename = f'instagram_story_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        border_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'instagram_story.png'
+
     w, h = 1080, 1920
-    img = Image.new('RGB', (w, h), NAVY)
+    img = Image.new('RGB', (w, h), bg_color)
     draw = ImageDraw.Draw(img)
-    
-    # Gold border
-    draw.rectangle([30, 30, w-30, h-30], outline=GOLD, width=6)
-    
+
+    # Border
+    draw.rectangle([30, 30, w-30, h-30], outline=border_color, width=6)
+
     # DAVE - large
     font_dave = get_font(TYPEWRITER_BOLD, 280)
-    center_text(draw, "DAVE", font_dave, 500, w, GOLD)
-    
+    center_text(draw, "DAVE", font_dave, 500, w, text_color)
+
     # Slogan
     font_slogan = get_font(SERIF_ITALIC, 70)
     if s['line2']:
-        center_text(draw, s['line1'], font_slogan, 900, w, GOLD)
-        center_text(draw, s['line2'], font_slogan, 990, w, GOLD)
+        center_text(draw, s['line1'], font_slogan, 900, w, text_color)
+        center_text(draw, s['line2'], font_slogan, 990, w, text_color)
     else:
-        center_text(draw, s['line1'], font_slogan, 950, w, GOLD)
-    
+        center_text(draw, s['line1'], font_slogan, 950, w, text_color)
+
     # Call to action
     font_cta = get_font(SERIF_BOLD, 50)
     center_text(draw, "for MAYOR", font_cta, 1200, w, WHITE)
     center_text(draw, "Louisville 2026", font_cta, 1270, w, WHITE)
-    
+
     # Website
     font_web = get_font(SERIF_REGULAR, 60)
-    center_text(draw, "rundaverun.org", font_web, 1550, w, GOLD)
-    
-    img.save(f'{out_dir}/instagram_story.png')
-    print(f"  Created: {s['name']}/instagram_story.png")
+    center_text(draw, "rundaverun.org", font_web, 1550, w, text_color)
 
-def create_door_hanger(slogan_key):
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/instagram_story.png")
+
+def create_instagram_post(slogan_key, color_name=None):
+    """
+    Instagram Square Post - 1080x1080px (1:1 square)
+    """
+    s = SLOGANS[slogan_key]
+
+    if color_name:
+        colors = BUTTON_COLORS[color_name]
+        bg_color = colors['bg']
+        text_color = colors['text']
+        border_color = text_color
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/social_media_{s["name"]}')
+        filename = f'instagram_post_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        border_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'instagram_post.png'
+
+    w, h = 1080, 1080
+    img = Image.new('RGB', (w, h), bg_color)
+    draw = ImageDraw.Draw(img)
+
+    # Border
+    draw.rectangle([25, 25, w-25, h-25], outline=border_color, width=5)
+
+    # DAVE - large, centered
+    font_dave = get_font(TYPEWRITER_BOLD, 240)
+    center_text(draw, "DAVE", font_dave, 280, w, text_color)
+
+    # Underline
+    draw.line([(200, 560), (w-200, 560)], fill=text_color, width=4)
+
+    # Slogan
+    font_slogan = get_font(SERIF_ITALIC, 56)
+    if s['line2']:
+        center_text(draw, s['line1'], font_slogan, 620, w, text_color)
+        center_text(draw, s['line2'], font_slogan, 695, w, text_color)
+    else:
+        center_text(draw, s['line1'], font_slogan, 660, w, text_color)
+
+    # Website
+    font_web = get_font(SERIF_REGULAR, 44)
+    center_text(draw, "rundaverun.org", font_web, 900, w, text_color)
+
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/instagram_post.png")
+
+def create_twitter_header(slogan_key, color_name=None):
+    """
+    Twitter/X Header - 1500x500px (3:1 ratio)
+    """
+    s = SLOGANS[slogan_key]
+
+    if color_name:
+        colors = BUTTON_COLORS[color_name]
+        bg_color = colors['bg']
+        text_color = colors['text']
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/social_media_{s["name"]}')
+        filename = f'twitter_header_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'twitter_header.png'
+
+    w, h = 1500, 500
+    img = Image.new('RGB', (w, h), bg_color)
+    draw = ImageDraw.Draw(img)
+
+    # DAVE on left
+    font_dave = get_font(TYPEWRITER_BOLD, 200)
+    draw.text((80, 140), "DAVE", font=font_dave, fill=text_color)
+
+    # Slogan on right - smaller font for longer slogans
+    slogan_len = len(s['line1']) + (len(s['line2']) if s['line2'] else 0)
+    font_size = 42 if slogan_len > 40 else 52
+    font_slogan = get_font(SERIF_ITALIC, font_size)
+    if s['line2']:
+        draw.text((600, 160), s['line1'], font=font_slogan, fill=text_color)
+        draw.text((600, 220), s['line2'], font=font_slogan, fill=text_color)
+    else:
+        draw.text((600, 190), s['line1'], font=font_slogan, fill=text_color)
+
+    # Website
+    font_web = get_font(SERIF_REGULAR, 36)
+    draw.text((600, 340), "rundaverun.org", font=font_web, fill=WHITE if not color_name else text_color)
+
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/twitter_header.png")
+
+def create_door_hanger(slogan_key, color_name=None):
     """
     Door Hanger - 4x9 inches at 150 DPI (600x1350px)
     With door knob cutout indication
+    Best format: PNG at 150 DPI for local print shops
     """
     s = SLOGANS[slogan_key]
-    out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
-    
     w, h = 600, 1350
-    img = Image.new('RGB', (w, h), NAVY)
+
+    if color_name:
+        # Check for special pride/patriotic rendering
+        special_bg, special_text, is_special, border_width = get_special_colors(color_name, w, h)
+        if is_special:
+            bg_color = special_bg
+            text_color = special_text
+        else:
+            colors = BUTTON_COLORS[color_name]
+            bg_color = colors['bg']
+            text_color = colors['text']
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/print_materials_{s["name"]}')
+        filename = f'door_hanger_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'door_hanger.png'
+
+    img = Image.new('RGB', (w, h), bg_color)
     draw = ImageDraw.Draw(img)
-    
-    # Gold border
-    draw.rectangle([15, 15, w-15, h-15], outline=GOLD, width=4)
-    
+
+    # Special background rendering for pride/patriotic
+    if color_name == 'pride':
+        border_width = int(min(w, h) * 0.05)
+        draw_pride_background(img, draw, w, h, border_width)
+    elif color_name == 'patriotic':
+        draw_patriotic_background(img, draw, w, h)
+    else:
+        # Standard border
+        draw.rectangle([15, 15, w-15, h-15], outline=text_color, width=4)
+
     # Door knob hole indicator (circle at top)
     hole_y = 80
     hole_r = 50
-    draw.ellipse([w//2 - hole_r, hole_y - hole_r, w//2 + hole_r, hole_y + hole_r], 
-                 outline=GOLD, width=3)
-    draw.line([(w//2 - hole_r, hole_y), (w//2 + hole_r, hole_y)], fill=GOLD, width=2)
-    
+    draw.ellipse([w//2 - hole_r, hole_y - hole_r, w//2 + hole_r, hole_y + hole_r],
+                 outline=text_color, width=3)
+    draw.line([(w//2 - hole_r, hole_y), (w//2 + hole_r, hole_y)], fill=text_color, width=2)
+
     # DAVE
     font_dave = get_font(TYPEWRITER_BOLD, 130)
-    center_text(draw, "DAVE", font_dave, 180, w, GOLD)
-    
+    center_text(draw, "DAVE", font_dave, 180, w, text_color)
+
     # Slogan
-    draw_slogan(draw, slogan_key, 0, 350, 38, GOLD, w, center=True)
-    
+    font_slogan = get_font(SERIF_ITALIC, 38)
+    if s['line2']:
+        center_text(draw, s['line1'], font_slogan, 350, w, text_color)
+        center_text(draw, s['line2'], font_slogan, 395, w, text_color)
+    else:
+        center_text(draw, s['line1'], font_slogan, 370, w, text_color)
+
     # Divider
-    draw.line([(80, 500), (w-80, 500)], fill=GOLD, width=2)
-    
-    # Message
+    draw.line([(80, 500), (w-80, 500)], fill=text_color, width=2)
+
+    # Message - use contrasting color for body text
+    body_color = WHITE if bg_color != WHITE else (50, 50, 50)
     font_head = get_font(SERIF_BOLD, 32)
-    center_text(draw, "Sorry we missed you!", font_head, 540, w, WHITE)
-    
+    center_text(draw, "Sorry we missed you!", font_head, 540, w, body_color)
+
     font_body = get_font(SERIF_REGULAR, 26)
     messages = [
         "",
@@ -408,7 +728,7 @@ def create_door_hanger(slogan_key):
         "of Louisville in 2026.",
         "",
         "Key Priorities:",
-        "• 46 Mini Police Substations",
+        "• Mini Substation in Every ZIP Code",
         "• 18 Wellness Centers",
         "• Zero Tax Increases",
         "• Participatory Budgeting"
@@ -416,94 +736,159 @@ def create_door_hanger(slogan_key):
     y = 600
     for msg in messages:
         if msg:
-            center_text(draw, msg, font_body, y, w, WHITE)
+            center_text(draw, msg, font_body, y, w, body_color)
         y += 36
-    
+
     # Website at bottom
     font_web = get_font(SERIF_BOLD, 40)
-    center_text(draw, "rundaverun.org", font_web, h - 120, w, GOLD)
-    
-    img.save(f'{out_dir}/door_hanger.png')
-    print(f"  Created: {s['name']}/door_hanger.png")
+    center_text(draw, "rundaverun.org", font_web, h - 120, w, text_color)
 
-def create_flyer(slogan_key):
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/{filename}")
+
+def create_flyer(slogan_key, color_name=None):
     """
     Flyer/Handbill - 8.5x11 inches at 100 DPI (850x1100px)
+    Best format: PNG at 300 DPI or PDF for professional printing
     """
     s = SLOGANS[slogan_key]
-    out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
-    
     w, h = 850, 1100
-    img = Image.new('RGB', (w, h), NAVY)
+
+    if color_name:
+        # Check for special pride/patriotic rendering
+        special_bg, special_text, is_special, border_width = get_special_colors(color_name, w, h)
+        if is_special:
+            bg_color = special_bg
+            text_color = special_text
+        else:
+            colors = BUTTON_COLORS[color_name]
+            bg_color = colors['bg']
+            text_color = colors['text']
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/print_materials_{s["name"]}')
+        filename = f'flyer_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'flyer.png'
+
+    img = Image.new('RGB', (w, h), bg_color)
     draw = ImageDraw.Draw(img)
-    
-    # Gold border
-    draw.rectangle([20, 20, w-20, h-20], outline=GOLD, width=5)
-    
+
+    # Special background rendering for pride/patriotic
+    if color_name == 'pride':
+        border_width = int(min(w, h) * 0.05)
+        draw_pride_background(img, draw, w, h, border_width)
+    elif color_name == 'patriotic':
+        draw_patriotic_background(img, draw, w, h)
+    else:
+        # Standard border
+        draw.rectangle([20, 20, w-20, h-20], outline=text_color, width=5)
+
     # DAVE
     font_dave = get_font(TYPEWRITER_BOLD, 180)
-    center_text(draw, "DAVE", font_dave, 60, w, GOLD)
-    
+    center_text(draw, "DAVE", font_dave, 60, w, text_color)
+
     # Slogan
-    draw_slogan(draw, slogan_key, 0, 280, 50, GOLD, w, center=True)
-    
+    font_slogan = get_font(SERIF_ITALIC, 50)
+    if s['line2']:
+        center_text(draw, s['line1'], font_slogan, 280, w, text_color)
+        center_text(draw, s['line2'], font_slogan, 340, w, text_color)
+    else:
+        center_text(draw, s['line1'], font_slogan, 300, w, text_color)
+
     # Divider
-    draw.line([(100, 430), (w-100, 430)], fill=GOLD, width=3)
-    
-    # Main content
+    draw.line([(100, 430), (w-100, 430)], fill=text_color, width=3)
+
+    # Main content - use contrasting color for body
+    body_color = WHITE if bg_color != WHITE else (50, 50, 50)
     font_head = get_font(SERIF_BOLD, 40)
-    center_text(draw, "Independent for Mayor", font_head, 470, w, WHITE)
-    center_text(draw, "Louisville 2026", font_head, 520, w, WHITE)
-    
-    font_body = get_font(SERIF_REGULAR, 28)
+    center_text(draw, "Independent for Mayor", font_head, 470, w, body_color)
+    center_text(draw, "Louisville 2026", font_head, 520, w, body_color)
+
+    font_body = get_font(SERIF_REGULAR, 26)
     policies = [
         "",
         "A NEW APPROACH TO PUBLIC SAFETY:",
         "",
-        "✓ 46 Mini Police Substations",
+        "✓ Mini Substation in Every ZIP Code",
         "   One in every neighborhood",
         "",
-        "✓ 18 Community Wellness Centers", 
+        "✓ 18 Community Wellness Centers",
         "   Mental health & crisis response",
         "",
         "✓ Evidence-Based Policies",
         "   Proven in cities nationwide",
         "",
         "✓ Zero Tax Increases",
-        "   Within the existing $1.025B budget"
+        "   Within the existing $1.27B budget"
     ]
-    y = 580
+    y = 570
     for line in policies:
         if line:
-            center_text(draw, line, font_body, y, w, WHITE)
-        y += 34
-    
-    # Website
-    font_web = get_font(SERIF_BOLD, 48)
-    center_text(draw, "rundaverun.org", font_web, h - 100, w, GOLD)
-    
-    img.save(f'{out_dir}/flyer.png')
-    print(f"  Created: {s['name']}/flyer.png")
+            center_text(draw, line, font_body, y, w, body_color)
+        y += 30
 
-def create_volunteer_badge(slogan_key):
+    # Website
+    font_web = get_font(SERIF_BOLD, 44)
+    center_text(draw, "rundaverun.org", font_web, h - 80, w, text_color)
+
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/{filename}")
+
+def create_volunteer_badge(slogan_key, color_name=None):
     """
     Volunteer Badge - 3x4 inches at 150 DPI (450x600px)
     Name tag style badge
     """
     s = SLOGANS[slogan_key]
-    out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
-    
     w, h = 450, 600
+
+    if color_name:
+        # Check for special pride/patriotic rendering
+        special_bg, special_text, is_special, border_width = get_special_colors(color_name, w, h)
+        if is_special:
+            bg_color = special_bg
+            text_color = special_text
+        else:
+            colors = BUTTON_COLORS[color_name]
+            bg_color = colors['bg']
+            text_color = colors['text']
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/print_materials_{s["name"]}')
+        filename = f'volunteer_badge_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'volunteer_badge.png'
+
     img = Image.new('RGB', (w, h), WHITE)
     draw = ImageDraw.Draw(img)
-    
-    # Navy header
-    draw.rectangle([0, 0, w, 150], fill=NAVY)
-    
+
+    # Special header rendering for pride/patriotic
+    if color_name == 'pride':
+        # Rainbow header band
+        header_height = 150
+        segment_width = w // len(RAINBOW_COLORS)
+        for i, color in enumerate(RAINBOW_COLORS):
+            draw.rectangle([i * segment_width, 0, (i + 1) * segment_width, header_height], fill=color)
+        text_color = (117, 7, 135)  # Purple text
+    elif color_name == 'patriotic':
+        # Red/white/blue header
+        draw.rectangle([0, 0, w, 50], fill=PATRIOTIC_COLORS['red'])
+        draw.rectangle([0, 50, w, 100], fill=PATRIOTIC_COLORS['white'])
+        draw.rectangle([0, 100, w, 150], fill=PATRIOTIC_COLORS['blue'])
+        text_color = WHITE
+    else:
+        # Standard header with bg_color
+        draw.rectangle([0, 0, w, 150], fill=bg_color)
+
     # DAVE in header
     font_dave = get_font(TYPEWRITER_BOLD, 70)
-    center_text(draw, "DAVE", font_dave, 20, w, GOLD)
-    
+    center_text(draw, "DAVE", font_dave, 20, w, text_color)
+
     # Slogan small
     font_slogan = get_font(SERIF_ITALIC, 22)
     if s['line2']:
@@ -511,116 +896,171 @@ def create_volunteer_badge(slogan_key):
         center_text(draw, s['line2'], font_slogan, 125, w, WHITE)
     else:
         center_text(draw, s['line1'], font_slogan, 110, w, WHITE)
-    
+
     # "VOLUNTEER" label
     font_label = get_font(SERIF_BOLD, 36)
-    center_text(draw, "VOLUNTEER", font_label, 180, w, NAVY)
-    
+    center_text(draw, "VOLUNTEER", font_label, 180, w, bg_color)
+
     # Name area (blank for writing)
-    draw.rectangle([40, 250, w-40, 400], outline=NAVY, width=2)
+    draw.rectangle([40, 250, w-40, 400], outline=bg_color, width=2)
     font_name_label = get_font(SERIF_REGULAR, 20)
-    draw.text((50, 255), "NAME:", font=font_name_label, fill=NAVY)
-    
+    draw.text((50, 255), "NAME:", font=font_name_label, fill=bg_color)
+
     # Website at bottom
     font_web = get_font(SERIF_REGULAR, 28)
-    center_text(draw, "rundaverun.org", font_web, 500, w, NAVY)
-    
-    # Gold stripe at bottom
-    draw.rectangle([0, h-30, w, h], fill=GOLD)
-    
-    img.save(f'{out_dir}/volunteer_badge.png')
-    print(f"  Created: {s['name']}/volunteer_badge.png")
+    center_text(draw, "rundaverun.org", font_web, 500, w, bg_color)
 
-def create_table_banner(slogan_key):
+    # Stripe at bottom with text_color
+    draw.rectangle([0, h-30, w, h], fill=text_color)
+
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/volunteer_badge.png")
+
+def create_table_banner(slogan_key, color_name=None):
     """
     Table Banner - 6x2 feet at 50 DPI (3600x1200px)
     For event tables
+    VistaPrint/local print: PNG at 150 DPI recommended
     """
     s = SLOGANS[slogan_key]
-    out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
-    
     w, h = 3600, 1200
-    img = Image.new('RGB', (w, h), NAVY)
+
+    if color_name:
+        # Check for special pride/patriotic rendering
+        special_bg, special_text, is_special, border_width = get_special_colors(color_name, w, h)
+        if is_special:
+            bg_color = special_bg
+            text_color = special_text
+        else:
+            colors = BUTTON_COLORS[color_name]
+            bg_color = colors['bg']
+            text_color = colors['text']
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/print_materials_{s["name"]}')
+        filename = f'table_banner_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'table_banner.png'
+
+    img = Image.new('RGB', (w, h), bg_color)
     draw = ImageDraw.Draw(img)
-    
-    # Gold border
-    draw.rectangle([20, 20, w-20, h-20], outline=GOLD, width=8)
-    
+
+    # Special background rendering for pride/patriotic
+    if color_name == 'pride':
+        border_width = int(min(w, h) * 0.05)
+        draw_pride_background(img, draw, w, h, border_width)
+    elif color_name == 'patriotic':
+        draw_patriotic_background(img, draw, w, h)
+    else:
+        # Standard border
+        draw.rectangle([20, 20, w-20, h-20], outline=text_color, width=8)
+
     # DAVE - large
     font_dave = get_font(TYPEWRITER_BOLD, 500)
-    center_text(draw, "DAVE", font_dave, 150, w, GOLD)
-    
+    center_text(draw, "DAVE", font_dave, 150, w, text_color)
+
     # Slogan
     font_slogan = get_font(SERIF_ITALIC, 120)
     if s['line2']:
-        center_text(draw, s['line1'], font_slogan, 750, w, GOLD)
-        center_text(draw, s['line2'], font_slogan, 900, w, GOLD)
+        center_text(draw, s['line1'], font_slogan, 750, w, text_color)
+        center_text(draw, s['line2'], font_slogan, 900, w, text_color)
     else:
-        center_text(draw, s['line1'], font_slogan, 850, w, GOLD)
-    
-    # Website on sides
-    font_web = get_font(SERIF_REGULAR, 80)
-    draw.text((100, h - 150), "rundaverun.org", font=font_web, fill=WHITE)
-    bbox = draw.textbbox((0, 0), "rundaverun.org", font=font_web)
-    draw.text((w - 100 - (bbox[2] - bbox[0]), h - 150), "rundaverun.org", font=font_web, fill=WHITE)
-    
-    img.save(f'{out_dir}/table_banner.png')
-    print(f"  Created: {s['name']}/table_banner.png")
+        center_text(draw, s['line1'], font_slogan, 850, w, text_color)
 
-def create_popup_banner(slogan_key):
+    # Website on sides - use contrasting color
+    web_color = WHITE if bg_color != WHITE else (50, 50, 50)
+    font_web = get_font(SERIF_REGULAR, 80)
+    draw.text((100, h - 150), "rundaverun.org", font=font_web, fill=web_color)
+    bbox = draw.textbbox((0, 0), "rundaverun.org", font=font_web)
+    draw.text((w - 100 - (bbox[2] - bbox[0]), h - 150), "rundaverun.org", font=font_web, fill=web_color)
+
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/{filename}")
+
+def create_popup_banner(slogan_key, color_name=None):
     """
     Pop-up/Retractable Banner - 33x80 inches at 50 DPI (1650x4000px)
     Vertical standing banner
+    VistaPrint/local print: PNG at 150 DPI recommended
     """
     s = SLOGANS[slogan_key]
-    out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
-    
     w, h = 1650, 4000
-    img = Image.new('RGB', (w, h), NAVY)
+
+    if color_name:
+        # Check for special pride/patriotic rendering
+        special_bg, special_text, is_special, border_width = get_special_colors(color_name, w, h)
+        if is_special:
+            bg_color = special_bg
+            text_color = special_text
+        else:
+            colors = BUTTON_COLORS[color_name]
+            bg_color = colors['bg']
+            text_color = colors['text']
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/print_materials_{s["name"]}')
+        filename = f'popup_banner_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'popup_banner.png'
+
+    img = Image.new('RGB', (w, h), bg_color)
     draw = ImageDraw.Draw(img)
-    
-    # Gold border
-    draw.rectangle([30, 30, w-30, h-30], outline=GOLD, width=10)
-    
+
+    # Special background rendering for pride/patriotic
+    if color_name == 'pride':
+        border_width = int(min(w, h) * 0.03)  # Thinner for tall banner
+        draw_pride_background(img, draw, w, h, border_width)
+    elif color_name == 'patriotic':
+        draw_patriotic_background(img, draw, w, h)
+    else:
+        # Standard border
+        draw.rectangle([30, 30, w-30, h-30], outline=text_color, width=10)
+
     # DAVE at top
     font_dave = get_font(TYPEWRITER_BOLD, 400)
-    center_text(draw, "DAVE", font_dave, 200, w, GOLD)
-    
+    center_text(draw, "DAVE", font_dave, 200, w, text_color)
+
     # Slogan
     font_slogan = get_font(SERIF_ITALIC, 100)
     if s['line2']:
-        center_text(draw, s['line1'], font_slogan, 750, w, GOLD)
-        center_text(draw, s['line2'], font_slogan, 880, w, GOLD)
+        center_text(draw, s['line1'], font_slogan, 750, w, text_color)
+        center_text(draw, s['line2'], font_slogan, 880, w, text_color)
     else:
-        center_text(draw, s['line1'], font_slogan, 800, w, GOLD)
-    
-    # "for MAYOR"
+        center_text(draw, s['line1'], font_slogan, 800, w, text_color)
+
+    # "for MAYOR" - use contrasting color
+    body_color = WHITE if bg_color != WHITE else (50, 50, 50)
     font_mayor = get_font(SERIF_BOLD, 150)
-    center_text(draw, "for MAYOR", font_mayor, 1150, w, WHITE)
-    
+    center_text(draw, "for MAYOR", font_mayor, 1150, w, body_color)
+
     # Key points
     font_points = get_font(SERIF_REGULAR, 70)
     points = [
-        "46 Mini Police Substations",
+        "Mini Substation in Every ZIP Code",
         "18 Community Wellness Centers",
         "Evidence-Based Policies",
         "Zero Tax Increases"
     ]
     y = 1600
     for point in points:
-        center_text(draw, f"• {point}", font_points, y, w, WHITE)
+        center_text(draw, f"• {point}", font_points, y, w, body_color)
         y += 120
-    
+
     # Louisville 2026
     font_city = get_font(SERIF_BOLD, 100)
-    center_text(draw, "Louisville 2026", font_city, 2800, w, GOLD)
-    
+    center_text(draw, "Louisville 2026", font_city, 2800, w, text_color)
+
     # Website large at bottom
     font_web = get_font(SERIF_BOLD, 120)
-    center_text(draw, "rundaverun.org", font_web, 3500, w, GOLD)
-    
-    img.save(f'{out_dir}/popup_banner.png')
-    print(f"  Created: {s['name']}/popup_banner.png")
+    center_text(draw, "rundaverun.org", font_web, 3500, w, text_color)
+
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/{filename}")
 
 def create_qr_code():
     """
@@ -937,44 +1377,385 @@ def create_sticker_diecut(slogan_key):
     print(f"  Created: {s['name']}/sticker_rect.png")
 
 # =============================================================================
+# MERCHANDISE WITH COLOR VARIANTS (40 colors)
+# =============================================================================
+
+def create_yard_sign(slogan_key, color_name=None):
+    """
+    Yard Sign - 24x18 inches at 100 DPI (2400x1800px)
+    Standard corrugated plastic campaign sign
+    """
+    s = SLOGANS[slogan_key]
+    w, h = 2400, 1800
+
+    if color_name:
+        # Check for special pride/patriotic rendering
+        special_bg, special_text, is_special, border_width = get_special_colors(color_name, w, h)
+        if is_special:
+            bg_color = special_bg
+            text_color = special_text
+        else:
+            colors = BUTTON_COLORS[color_name]
+            bg_color = colors['bg']
+            text_color = colors['text']
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/print_materials_{s["name"]}')
+        filename = f'yard_sign_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        is_special = False
+        border_width = 0
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'yard_sign.png'
+
+    img = Image.new('RGB', (w, h), bg_color)
+    draw = ImageDraw.Draw(img)
+
+    # Special background rendering for pride/patriotic
+    if color_name == 'pride':
+        draw_pride_background(img, draw, w, h, border_width)
+    elif color_name == 'patriotic':
+        draw_patriotic_background(img, draw, w, h)
+    else:
+        # Standard border
+        border = 40
+        draw.rectangle([border, border, w-border, h-border], outline=text_color, width=8)
+
+    # DAVE - large centered
+    font_dave = get_font(TYPEWRITER_BOLD, 500)
+    center_text(draw, "DAVE", font_dave, 350, w, text_color)
+
+    # Underline
+    draw.rectangle([400, 900, w-400, 920], fill=text_color)
+
+    # Slogan
+    font_slogan = get_font(SERIF_ITALIC, 120)
+    if s['line2']:
+        center_text(draw, s['line1'], font_slogan, 1000, w, text_color)
+        center_text(draw, s['line2'], font_slogan, 1150, w, text_color)
+    else:
+        center_text(draw, s['line1'], font_slogan, 1050, w, text_color)
+
+    # Website
+    font_web = get_font(SERIF_BOLD, 100)
+    center_text(draw, "rundaverun.org", font_web, h - 250, w, text_color)
+
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/{filename}")
+
+
+def create_bumper_sticker(slogan_key, color_name=None):
+    """
+    Bumper Sticker - 11.5x3 inches at 150 DPI (1725x450px)
+    Standard automotive bumper sticker
+    """
+    s = SLOGANS[slogan_key]
+    w, h = 1725, 450
+
+    if color_name:
+        # Check for special pride/patriotic rendering
+        special_bg, special_text, is_special, border_width = get_special_colors(color_name, w, h)
+        if is_special:
+            bg_color = special_bg
+            text_color = special_text
+        else:
+            colors = BUTTON_COLORS[color_name]
+            bg_color = colors['bg']
+            text_color = colors['text']
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/print_materials_{s["name"]}')
+        filename = f'bumper_sticker_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'bumper_sticker.png'
+
+    img = Image.new('RGB', (w, h), bg_color)
+    draw = ImageDraw.Draw(img)
+
+    # Special background rendering for pride/patriotic
+    if color_name == 'pride':
+        border_width = int(min(w, h) * 0.05)
+        draw_pride_background(img, draw, w, h, border_width)
+    elif color_name == 'patriotic':
+        draw_patriotic_background(img, draw, w, h)
+    else:
+        # Standard border
+        draw.rectangle([8, 8, w-8, h-8], outline=text_color, width=4)
+
+    # DAVE on left
+    font_dave = get_font(TYPEWRITER_BOLD, 180)
+    draw.text((50, 120), "DAVE", font=font_dave, fill=text_color)
+
+    # Vertical divider
+    draw.rectangle([520, 60, 528, h-60], fill=text_color)
+
+    # Slogan on right
+    font_slogan = get_font(SERIF_ITALIC, 55)
+    if s['line2']:
+        draw.text((580, 120), s['line1'], font=font_slogan, fill=text_color)
+        draw.text((580, 190), s['line2'], font=font_slogan, fill=text_color)
+    else:
+        draw.text((580, 150), s['line1'], font=font_slogan, fill=text_color)
+
+    # Website
+    font_web = get_font(SERIF_REGULAR, 45)
+    draw.text((580, 300), "rundaverun.org", font=font_web, fill=text_color)
+
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/{filename}")
+
+
+def create_car_magnet(slogan_key, color_name=None):
+    """
+    Car Magnet - 12x12 inch oval at 100 DPI (1200x1200px with oval shape)
+    Magnetic sign for vehicles
+    """
+    s = SLOGANS[slogan_key]
+
+    if color_name:
+        colors = BUTTON_COLORS[color_name]
+        bg_color = colors['bg']
+        text_color = colors['text']
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/merchandise_{s["name"]}')
+        filename = f'car_magnet_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'car_magnet.png'
+
+    size = 1200
+    img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    # Oval background
+    draw.ellipse([50, 150, size-50, size-150], fill=bg_color)
+    draw.ellipse([70, 170, size-70, size-170], outline=text_color, width=6)
+
+    # DAVE
+    font_dave = get_font(TYPEWRITER_BOLD, 280)
+    center_text(draw, "DAVE", font_dave, 300, size, text_color)
+
+    # Slogan
+    font_slogan = get_font(SERIF_ITALIC, 65)
+    if s['line2']:
+        center_text(draw, s['line1'], font_slogan, 620, size, text_color)
+        center_text(draw, s['line2'], font_slogan, 700, size, text_color)
+    else:
+        center_text(draw, s['line1'], font_slogan, 660, size, text_color)
+
+    # Website
+    font_web = get_font(SERIF_REGULAR, 50)
+    center_text(draw, "rundaverun.org", font_web, 820, size, text_color)
+
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/{filename}")
+
+
+def create_window_cling(slogan_key, color_name=None):
+    """
+    Window Cling - 6x6 inches at 150 DPI (900x900px)
+    Static cling for windows/glass
+    """
+    s = SLOGANS[slogan_key]
+
+    if color_name:
+        colors = BUTTON_COLORS[color_name]
+        bg_color = colors['bg']
+        text_color = colors['text']
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/merchandise_{s["name"]}')
+        filename = f'window_cling_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'window_cling.png'
+
+    size = 900
+    img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    # Rounded square background
+    draw.rounded_rectangle([20, 20, size-20, size-20], radius=60, fill=bg_color)
+    draw.rounded_rectangle([35, 35, size-35, size-35], radius=50, outline=text_color, width=5)
+
+    # DAVE
+    font_dave = get_font(TYPEWRITER_BOLD, 220)
+    center_text(draw, "DAVE", font_dave, 200, size, text_color)
+
+    # Underline
+    draw.rectangle([150, 450, size-150, 460], fill=text_color)
+
+    # Slogan
+    font_slogan = get_font(SERIF_ITALIC, 55)
+    if s['line2']:
+        center_text(draw, s['line1'], font_slogan, 500, size, text_color)
+        center_text(draw, s['line2'], font_slogan, 570, size, text_color)
+    else:
+        center_text(draw, s['line1'], font_slogan, 530, size, text_color)
+
+    # Website
+    font_web = get_font(SERIF_REGULAR, 50)
+    center_text(draw, "rundaverun.org", font_web, 720, size, text_color)
+
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/{filename}")
+
+
+def create_lapel_pin(slogan_key, color_name=None):
+    """
+    Lapel Pin Design - 1 inch at 300 DPI (300x300px)
+    Round enamel pin design
+    """
+    s = SLOGANS[slogan_key]
+
+    if color_name:
+        colors = BUTTON_COLORS[color_name]
+        bg_color = colors['bg']
+        text_color = colors['text']
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/merchandise_{s["name"]}')
+        filename = f'lapel_pin_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'lapel_pin.png'
+
+    size = 300
+    img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    # Circle with metallic edge effect
+    draw.ellipse([5, 5, size-5, size-5], fill=(192, 192, 192))  # Silver edge
+    draw.ellipse([12, 12, size-12, size-12], fill=bg_color)
+    draw.ellipse([18, 18, size-18, size-18], outline=text_color, width=2)
+
+    # DAVE
+    font_dave = get_font(TYPEWRITER_BOLD, 70)
+    center_text(draw, "DAVE", font_dave, 90, size, text_color)
+
+    # 2026
+    font_year = get_font(SERIF_BOLD, 40)
+    center_text(draw, "2026", font_year, 175, size, text_color)
+
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/{filename}")
+
+
+def create_wristband(slogan_key, color_name=None):
+    """
+    Wristband Design - silicone bracelet template (800x150px strip)
+    Debossed text style
+    """
+    s = SLOGANS[slogan_key]
+
+    if color_name:
+        colors = BUTTON_COLORS[color_name]
+        bg_color = colors['bg']
+        text_color = colors['text']
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/merchandise_{s["name"]}')
+        filename = f'wristband_{color_name}.png'
+    else:
+        bg_color = NAVY
+        text_color = GOLD
+        out_dir = ensure_dir(f'{OUTPUT_BASE}/{s["name"]}')
+        filename = 'wristband.png'
+
+    w, h = 800, 150
+    img = Image.new('RGB', (w, h), bg_color)
+    draw = ImageDraw.Draw(img)
+
+    # DAVE on left
+    font_dave = get_font(TYPEWRITER_BOLD, 80)
+    draw.text((30, 30), "DAVE", font=font_dave, fill=text_color)
+
+    # Dot separator
+    draw.ellipse([280, 60, 300, 80], fill=text_color)
+
+    # Short slogan
+    font_slogan = get_font(SERIF_ITALIC, 35)
+    short_text = s['short'] if len(s['short']) < 25 else s['line1'][:20]
+    draw.text((330, 50), short_text, font=font_slogan, fill=text_color)
+
+    # Website
+    font_web = get_font(SERIF_REGULAR, 28)
+    draw.text((620, 55), "2026", font=font_web, fill=text_color)
+
+    img.save(f'{out_dir}/{filename}')
+    if not color_name:
+        print(f"  Created: {s['name']}/{filename}")
+
+
+def generate_merchandise_colors(slogan_key):
+    """Generate all merchandise in all 40 color variants"""
+    s = SLOGANS[slogan_key]
+    print(f"\n  Generating merchandise in 40 colors for {s['name']}...")
+
+    count = 0
+    for color_name in BUTTON_COLORS:
+        create_yard_sign(slogan_key, color_name)
+        create_bumper_sticker(slogan_key, color_name)
+        create_car_magnet(slogan_key, color_name)
+        create_window_cling(slogan_key, color_name)
+        create_lapel_pin(slogan_key, color_name)
+        create_wristband(slogan_key, color_name)
+        count += 6
+
+    print(f"  Created {count} merchandise files ({len(BUTTON_COLORS)} colors × 6 types)")
+
+
+# =============================================================================
 # BUTTON GENERATOR
 # =============================================================================
 
-# 33 College-style color schemes
+# 40 Color schemes for campaign materials
 BUTTON_COLORS = {
     'black_white': {'bg': (30, 30, 30), 'text': (255, 255, 255)},
+    'black_gold': {'bg': (0, 0, 0), 'text': (255, 199, 44)},
     'brown_cream': {'bg': (78, 54, 41), 'text': (245, 235, 220)},
-    'navy_gold': {'bg': (0, 32, 91), 'text': (255, 199, 44)},
-    'purple_gold': {'bg': (75, 0, 130), 'text': (255, 215, 0)},
-    'teal_white': {'bg': (0, 102, 102), 'text': (255, 255, 255)},
+    'burgundy_gold': {'bg': (128, 0, 32), 'text': (255, 215, 0)},
+    'cherry_red_white': {'bg': (196, 30, 58), 'text': (255, 255, 255)},
+    'charcoal_gold': {'bg': (54, 69, 79), 'text': (255, 215, 0)},
+    'cream_brick': {'bg': (245, 235, 220), 'text': (139, 69, 19)},
     'crimson_cream': {'bg': (153, 0, 0), 'text': (245, 235, 220)},
     'crimson_white': {'bg': (153, 0, 0), 'text': (255, 255, 255)},
+    'forest_green_gold': {'bg': (34, 139, 34), 'text': (255, 215, 0)},
+    'gray_blue': {'bg': (128, 128, 128), 'text': (135, 206, 235)},
     'green_gold': {'bg': (0, 100, 0), 'text': (255, 215, 0)},
     'green_white': {'bg': (0, 100, 0), 'text': (255, 255, 255)},
-    'red_white': {'bg': (200, 16, 46), 'text': (255, 255, 255)},
-    'red_black': {'bg': (200, 16, 46), 'text': (0, 0, 0)},
-    'orange_white': {'bg': (255, 130, 0), 'text': (255, 255, 255)},
-    'orange_black': {'bg': (255, 130, 0), 'text': (0, 0, 0)},
-    'yellow_black': {'bg': (255, 215, 0), 'text': (0, 0, 0)},
-    'pink_white': {'bg': (255, 105, 180), 'text': (255, 255, 255)},
-    'maroon_white': {'bg': (128, 0, 0), 'text': (255, 255, 255)},
-    'royalblue_white': {'bg': (0, 35, 102), 'text': (255, 255, 255)},
+    'hot_pink_white': {'bg': (255, 20, 147), 'text': (255, 255, 255)},
     'kelly_green_white': {'bg': (0, 128, 0), 'text': (255, 255, 255)},
+    'lavender_white': {'bg': (200, 162, 200), 'text': (255, 255, 255)},
+    'deep_navy_gold': {'bg': (0, 32, 91), 'text': (255, 199, 44)},
+    'gold_navy': {'bg': (255, 199, 44), 'text': (0, 32, 91)},
+    'maroon_white': {'bg': (128, 0, 0), 'text': (255, 255, 255)},
+    'mint_white': {'bg': (62, 180, 137), 'text': (255, 255, 255)},
+    'navy_gold': {'bg': (0, 32, 91), 'text': (255, 199, 44)},
     'olive_tan': {'bg': (85, 107, 47), 'text': (210, 180, 140)},
-    'silver_black': {'bg': (192, 192, 192), 'text': (0, 0, 0)},
-    'gray_blue': {'bg': (128, 128, 128), 'text': (135, 206, 235)},
+    'orange_black': {'bg': (255, 130, 0), 'text': (0, 0, 0)},
+    'orange_white': {'bg': (255, 130, 0), 'text': (255, 255, 255)},
+    'patriotic': {'bg': (191, 10, 48), 'text': (255, 255, 255)},
+    'pink_white': {'bg': (255, 105, 180), 'text': (255, 255, 255)},
+    'pride': {'bg': (138, 43, 226), 'text': (255, 215, 0)},
+    'purple_black': {'bg': (75, 0, 130), 'text': (0, 0, 0)},
+    'purple_gold': {'bg': (75, 0, 130), 'text': (255, 215, 0)},
+    'red_black': {'bg': (200, 16, 46), 'text': (0, 0, 0)},
+    'red_white': {'bg': (200, 16, 46), 'text': (255, 255, 255)},
+    'royalblue_white': {'bg': (0, 35, 102), 'text': (255, 255, 255)},
     'scarlet_gray': {'bg': (200, 16, 46), 'text': (128, 128, 128)},
-    'white_navy': {'bg': (255, 255, 255), 'text': (0, 32, 91)},
-    'cream_brick': {'bg': (245, 235, 220), 'text': (139, 69, 19)},
-    'tan_white': {'bg': (210, 180, 140), 'text': (255, 255, 255)},
-    'cardinal_red_white': {'bg': (196, 30, 58), 'text': (255, 255, 255)},
-    'uk_blue_white': {'bg': (0, 51, 160), 'text': (255, 255, 255)},
-    'louisville_blue_gold': {'bg': (0, 32, 91), 'text': (255, 199, 44)},
-    'louisville_gold_blue': {'bg': (255, 199, 44), 'text': (0, 32, 91)},
-    'forest_green_gold': {'bg': (34, 139, 34), 'text': (255, 215, 0)},
-    'burgundy_gold': {'bg': (128, 0, 32), 'text': (255, 215, 0)},
-    'charcoal_gold': {'bg': (54, 69, 79), 'text': (255, 215, 0)},
+    'silver_black': {'bg': (192, 192, 192), 'text': (0, 0, 0)},
     'slate_white': {'bg': (112, 128, 144), 'text': (255, 255, 255)},
+    'tan_white': {'bg': (210, 180, 140), 'text': (255, 255, 255)},
+    'teal_white': {'bg': (0, 102, 102), 'text': (255, 255, 255)},
+    'cobalt_white': {'bg': (0, 51, 160), 'text': (255, 255, 255)},
+    'white_navy': {'bg': (255, 255, 255), 'text': (0, 32, 91)},
+    'yellow_black': {'bg': (255, 215, 0), 'text': (0, 0, 0)},
 }
 
 BUTTON_SIZES = [400, 320, 200, 128]
@@ -1093,9 +1874,43 @@ def generate_buttons(slogan_key):
 # MAIN EXECUTION
 # =============================================================================
 
+def generate_print_materials_colors(slogan_key):
+    """
+    Generate all print materials in all 40 color variants for a slogan.
+    For VistaPrint, local print shops, or home printing.
+
+    Items generated (8 types × 40 colors = 320 files per slogan):
+    - Palm Card (4x6", 600x900px) - for canvassing
+    - Flyer (8.5x11", 850x1100px) - general handout
+    - Door Hanger (4x9", 600x1350px) - door-to-door
+    - Yard Sign (24x18", 2400x1800px) - lawn display
+    - Bumper Sticker (11.5x3", 1725x450px) - vehicle
+    - Volunteer Badge (3x4", 450x600px) - name tag
+    - Table Banner (6x2', 3600x1200px) - event tables
+    - Pop-up Banner (33x80", 1650x4000px) - standing display
+    """
+    s = SLOGANS[slogan_key]
+    print(f"\n[PRINT MATERIALS - {s['name'].upper()}]")
+    count = 0
+
+    for color_name in BUTTON_COLORS:
+        create_palm_cards(slogan_key, color_name)
+        create_flyer(slogan_key, color_name)
+        create_door_hanger(slogan_key, color_name)
+        create_yard_sign(slogan_key, color_name)
+        create_bumper_sticker(slogan_key, color_name)
+        create_volunteer_badge(slogan_key, color_name)
+        create_table_banner(slogan_key, color_name)
+        create_popup_banner(slogan_key, color_name)
+        count += 8
+
+    print(f"  Created {count} files ({len(BUTTON_COLORS)} colors × 8 types)")
+    return count
+
+
 def generate_all():
     """Generate all materials for all slogans"""
-    
+
     # Initialize fonts
     global TYPEWRITER_BOLD, SERIF_ITALIC, SERIF_REGULAR, SERIF_BOLD
     TYPEWRITER_BOLD = find_font(TYPEWRITER_PATHS)
@@ -1127,6 +1942,8 @@ def generate_all():
         create_linkedin_banner(key)
         create_profile_picture(key)
         create_instagram_story(key)
+        create_instagram_post(key)
+        create_twitter_header(key)
         create_door_hanger(key)
         create_flyer(key)
         create_volunteer_badge(key)
@@ -1142,7 +1959,25 @@ def generate_all():
         
         # Generate buttons
         generate_buttons(key)
-    
+
+    # Generate social media in all 40 color schemes
+    print("\n" + "=" * 70)
+    print("GENERATING SOCIAL MEDIA IN ALL 40 COLOR SCHEMES")
+    print("=" * 70)
+    for key in SLOGANS:
+        s = SLOGANS[key]
+        print(f"\n[SOCIAL MEDIA - {s['name'].upper()}]")
+        count = 0
+        for color_name in BUTTON_COLORS:
+            create_facebook_cover(key, color_name)
+            create_linkedin_banner(key, color_name)
+            create_profile_picture(key, color_name)
+            create_instagram_story(key, color_name)
+            create_instagram_post(key, color_name)
+            create_twitter_header(key, color_name)
+            count += 6
+        print(f"  Created {count} files ({len(BUTTON_COLORS)} colors × 6 types)")
+
     print("\n" + "=" * 70)
     print("GENERATION COMPLETE!")
     print("=" * 70)
@@ -1151,11 +1986,14 @@ def generate_all():
     print("  - weird_enough_to_care/     (materials)")
     print("  - biggest_room/             (materials)")
     print("  - mayor_that_listens/       (materials)")
+    print("  - social_media_weird_enough_to_care/  (40 color schemes)")
+    print("  - social_media_biggest_room/          (40 color schemes)")
+    print("  - social_media_mayor_that_listens/    (40 color schemes)")
     print("  - buttons_weird_enough_to_care/")
     print("  - buttons_biggest_room/")
     print("  - buttons_mayor_that_listens/")
     print("  - shared/                   (QR codes)")
-    print("\nTotal: ~500 files")
+    print(f"\nTotal: ~{500 + 3*40*4} files (including {3*40*4} social media color variants)")
 
 if __name__ == "__main__":
     generate_all()
