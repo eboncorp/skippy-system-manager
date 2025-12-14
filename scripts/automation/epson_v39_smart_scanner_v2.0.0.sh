@@ -253,7 +253,7 @@ perform_ocr_naming() {
         fi
 
         if ! $ocr_successful && command -v convert >/dev/null 2>&1 && command -v tesseract >/dev/null 2>&1; then
-            convert -density 300 "$input_file[0]" "$SESSION_DIR/temp/temp_page.png" 2>/dev/null
+            convert -density 300 "${input_file}[0]" "$SESSION_DIR/temp/temp_page.png" 2>/dev/null
             if [[ -f "$SESSION_DIR/temp/temp_page.png" ]]; then
                 tesseract "$SESSION_DIR/temp/temp_page.png" "$SESSION_DIR/temp/ocr_result" -l "$OCR_LANG" 2>/dev/null
                 if [[ -f "$SESSION_DIR/temp/ocr_result.txt" ]]; then

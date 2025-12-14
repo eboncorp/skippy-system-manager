@@ -1,4 +1,4 @@
-#\!/bin/bash
+#!/bin/bash
 # Service health check with alerts
 
 CRITICAL_SERVICES=("docker" "ssh")

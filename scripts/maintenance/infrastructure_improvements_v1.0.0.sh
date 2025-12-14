@@ -1,4 +1,4 @@
-#\!/bin/bash
+#!/bin/bash
 # NexusController Infrastructure Improvements
 
 echo "🔧 IMPLEMENTING INFRASTRUCTURE IMPROVEMENTS"
@@ -52,7 +52,7 @@ sudo systemctl enable fail2ban
 echo "📊 Setting up monitoring alerts..."
 mkdir -p /home/dave/monitoring
 cat > /home/dave/monitoring/check_services.sh << 'MONITOR_EOF'
-#\!/bin/bash
+#!/bin/bash
 # Service health check with alerts
 
 CRITICAL_SERVICES=("docker" "ssh")
