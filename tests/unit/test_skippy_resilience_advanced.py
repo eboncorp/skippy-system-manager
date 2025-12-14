@@ -507,6 +507,68 @@ class TestMetricsPersistence:
             states = persistence.load_circuit_breaker_states()
             assert states == {}
 
+    def test_error_handling_save_traces(self):
+        """Test error handling on save_request_traces failure."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            persistence = MetricsPersistence(tmpdir)
+            traces = [{"request_id": "1", "service": "svc"}]
+
+            # Mock open to raise exception
+            with patch('builtins.open', side_effect=IOError("Write failed")):
+                # Should not raise, just log
+                persistence.save_request_traces(traces)
+
+    def test_error_handling_save_health(self):
+        """Test error handling on save_health_snapshot failure."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            persistence = MetricsPersistence(tmpdir)
+
+            with patch('builtins.open', side_effect=PermissionError("No write")):
+                # Should not raise, just log
+                persistence.save_health_snapshot({"status": "ok"})
+
+    def test_error_handling_save_alert(self):
+        """Test error handling on save_alert failure."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            persistence = MetricsPersistence(tmpdir)
+
+            with patch('builtins.open', side_effect=IOError("Write failed")):
+                # Should not raise, just log
+                persistence.save_alert({"title": "test"})
+
+    def test_error_handling_get_recent_alerts(self):
+        """Test error handling on get_recent_alerts failure."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            persistence = MetricsPersistence(tmpdir)
+
+            # Create alerts file but mock open to fail on read
+            alerts_file = Path(tmpdir) / "alerts.jsonl"
+            alerts_file.write_text('{"title": "test"}\n')
+
+            with patch('builtins.open', side_effect=IOError("Read failed")):
+                alerts = persistence.get_recent_alerts()
+                assert alerts == []
+
+    def test_error_handling_cleanup(self):
+        """Test error handling on _cleanup_old_files failure."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            persistence = MetricsPersistence(tmpdir)
+
+            # Mock glob to raise exception
+            with patch.object(Path, 'glob', side_effect=OSError("Glob failed")):
+                # Should not raise, just log
+                persistence._cleanup_old_files("*.json", hours=24)
+
+    def test_error_handling_get_summary(self):
+        """Test error handling on get_metrics_summary failure."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            persistence = MetricsPersistence(tmpdir)
+
+            # Mock iterdir to raise exception
+            with patch.object(Path, 'iterdir', side_effect=OSError("Dir failed")):
+                summary = persistence.get_metrics_summary()
+                assert "error" in summary
+
 
 # =============================================================================
 # CACHE ENTRY TESTS
@@ -758,6 +820,18 @@ class TestGracefulCache:
             t.join()
 
         assert len(errors) == 0
+
+    def test_evict_oldest_empty_cache(self):
+        """Test _evict_oldest does nothing when cache is empty."""
+        cache = GracefulCache()
+        # Cache is empty
+        assert len(cache.cache) == 0
+
+        # Call _evict_oldest on empty cache - should not raise
+        cache._evict_oldest()
+
+        # Cache still empty
+        assert len(cache.cache) == 0
 
 
 # =============================================================================
