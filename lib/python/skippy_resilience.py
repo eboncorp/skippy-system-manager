@@ -257,10 +257,11 @@ class CircuitBreaker:
             result = func(*args, **kwargs)
             self._on_success()
             return result
-        except self.config.excluded_exceptions:
-            # Don't count excluded exceptions as failures
-            raise
         except Exception as e:
+            # Check if this exception should be excluded from failure counting
+            if self.config.excluded_exceptions and isinstance(e, self.config.excluded_exceptions):
+                # Don't count excluded exceptions as failures
+                raise
             self._on_failure()
             raise
 

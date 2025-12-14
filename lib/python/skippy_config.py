@@ -391,7 +391,7 @@ def validate_environment_variables() -> Dict[str, Any]:
 
     # Check required variables
     for var_config in required_vars:
-        value = os.getenv(var_config.name, var_config.default)
+        value = os.getenv(str(var_config.name), var_config.default)
 
         if var_config.required and not value:
             errors.append(f"Required environment variable '{var_config.name}' is not set")
@@ -416,7 +416,7 @@ def validate_environment_variables() -> Dict[str, Any]:
 
     # Check optional variables
     for var_config in optional_vars:
-        value = os.getenv(var_config.name)
+        value = os.getenv(str(var_config.name))
 
         if value:
             valid = True
