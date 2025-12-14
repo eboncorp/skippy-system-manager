@@ -11,6 +11,9 @@ development/tests/results/
 # Work sessions (preserve locally, don't commit)
 work/
 
+# Quarantine files (held for review, don't commit)
+documents/quarantine/
+
 # Temporary files
 *.tmp
 *.swp
