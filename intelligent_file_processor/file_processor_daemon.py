@@ -200,6 +200,19 @@ class FileProcessorDaemon:
                     file_path,
                     reason=f"Low confidence ({confidence}%)"
                 )
+
+                # Log quarantine to database
+                if self.database:
+                    try:
+                        self.database.log_quarantine(
+                            file_path,
+                            f"Low confidence ({confidence}%)",
+                            {'category': category, 'confidence': confidence}
+                        )
+                        self.logger.debug(f"  Logged quarantine to database")
+                    except Exception as e:
+                        self.logger.error(f"Database quarantine logging error: {e}")
+
                 self._notify(f"Quarantined: {Path(file_path).name}",
                            f"Confidence only {confidence}% - review needed")
                 return

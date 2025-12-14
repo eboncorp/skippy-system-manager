@@ -37,7 +37,9 @@ class Database:
 
     def _connect(self):
         """Connect to database"""
-        self.conn = sqlite3.connect(str(self.db_path))
+        # check_same_thread=False allows the connection to be used from multiple threads
+        # This is needed because file watcher callbacks run in a different thread
+        self.conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
         self.conn.row_factory = sqlite3.Row  # Return dict-like rows
         self.logger.debug(f"Connected to database: {self.db_path}")
 

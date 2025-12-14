@@ -7,7 +7,6 @@ Main entry point - watches folders and processes files automatically
 import sys
 import time
 import logging
-from logging.handlers import RotatingFileHandler
 import argparse
 from pathlib import Path
 import subprocess
@@ -36,7 +35,7 @@ except ImportError:
     DB_AVAILABLE = False
 
 try:
-    from core.ai_classifier import AIClassifier
+    from ai_classifier import AIClassifier
     AI_AVAILABLE = True
 except ImportError:
     AI_AVAILABLE = False
@@ -52,15 +51,15 @@ class FileProcessorDaemon:
         Args:
             config_path: Path to configuration file
         """
-        # Setup basic logging (console only)
+        # Setup logging
         self.setup_logging()
 
         # Load configuration
         self.config = ConfigLoader(config_path)
         self.logger.info("Configuration loaded successfully")
 
-        # Configure file logging based on config
-        self.configure_file_logging()
+        # Setup file logging now that config is available
+        self._setup_file_logging()
 
         # Initialize Phase 2 components (optional)
         self.ocr_engine = None
@@ -103,75 +102,50 @@ class FileProcessorDaemon:
         self.logger.info("Intelligent File Processor initialized")
 
     def setup_logging(self):
-        """Setup logging configuration (console only initially)"""
-        # Create logger
-        self.logger = logging.getLogger(__name__)
-
-        # Prevent duplicate handlers if called multiple times
-        if self.logger.handlers:
-            return
-
-        # Set log level to INFO initially (will be updated from config if available)
-        log_level = logging.INFO
-
-        # Create formatter
-        formatter = logging.Formatter(
-            fmt='%(asctime)s [%(levelname)s] %(message)s',
+        """Setup basic console logging (file logging added after config loads)"""
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s [%(levelname)s] %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S'
         )
+        self.logger = logging.getLogger(__name__)
 
-        # Always add console handler
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(formatter)
-        self.logger.addHandler(console_handler)
+    def _setup_file_logging(self):
+        """Add file logging based on configuration"""
+        from logging.handlers import RotatingFileHandler
 
-        # Set initial log level
-        self.logger.setLevel(log_level)
-
-    def configure_file_logging(self):
-        """Configure file logging based on config (called after config is loaded)"""
-        # Get logging configuration
         log_file = self.config.get('logging.file')
+        if not log_file:
+            self.logger.debug("No log file configured, using console only")
+            return
+
+        # Get config values
         log_level_str = self.config.get('logging.level', 'INFO')
-        max_size_mb = self.config.get('logging.max_size_mb', 50)
+        log_level = getattr(logging, log_level_str.upper(), logging.INFO)
+        max_bytes = self.config.get('logging.max_size_mb', 50) * 1024 * 1024
         backup_count = self.config.get('logging.backup_count', 5)
 
-        # Update log level
-        try:
-            log_level = getattr(logging, log_level_str.upper())
-            self.logger.setLevel(log_level)
-        except (AttributeError, ValueError):
-            self.logger.warning(f"Invalid log level '{log_level_str}', using INFO")
-            self.logger.setLevel(logging.INFO)
+        # Ensure log directory exists
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Add file handler if log file is configured
-        if log_file:
-            try:
-                # Create log directory if it doesn't exist
-                log_path = Path(log_file)
-                log_path.parent.mkdir(parents=True, exist_ok=True)
+        # Create rotating file handler
+        file_handler = RotatingFileHandler(
+            log_file,
+            maxBytes=max_bytes,
+            backupCount=backup_count
+        )
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s [%(levelname)s] %(name)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        ))
 
-                # Create rotating file handler
-                max_bytes = max_size_mb * 1024 * 1024  # Convert MB to bytes
-                file_handler = RotatingFileHandler(
-                    log_file,
-                    maxBytes=max_bytes,
-                    backupCount=backup_count
-                )
+        # Add handler and update level
+        self.logger.addHandler(file_handler)
+        self.logger.setLevel(log_level)
+        logging.getLogger().setLevel(log_level)
 
-                # Use same formatter as console
-                formatter = logging.Formatter(
-                    fmt='%(asctime)s [%(levelname)s] %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S'
-                )
-                file_handler.setFormatter(formatter)
-
-                # Add file handler to logger
-                self.logger.addHandler(file_handler)
-                self.logger.info(f"File logging enabled: {log_file}")
-
-            except Exception as e:
-                self.logger.error(f"Failed to setup file logging: {e}")
+        self.logger.info(f"File logging enabled: {log_file} (max {self.config.get('logging.max_size_mb', 50)}MB, {backup_count} backups)")
 
     def process_file(self, file_path: str):
         """
@@ -226,6 +200,19 @@ class FileProcessorDaemon:
                     file_path,
                     reason=f"Low confidence ({confidence}%)"
                 )
+
+                # Log quarantine to database
+                if self.database:
+                    try:
+                        self.database.log_quarantine(
+                            file_path,
+                            f"Low confidence ({confidence}%)",
+                            {'category': category, 'confidence': confidence}
+                        )
+                        self.logger.debug(f"  Logged quarantine to database")
+                    except Exception as e:
+                        self.logger.error(f"Database quarantine logging error: {e}")
+
                 self._notify(f"Quarantined: {Path(file_path).name}",
                            f"Confidence only {confidence}% - review needed")
                 return

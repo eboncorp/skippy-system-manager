@@ -3,19 +3,19 @@
 
 # Input folders to watch
 watch_folders:
-  - path: /home/dave/skippy/Downloads
+  - path: /home/dave/skippy/operations/downloads
     enabled: true
     recursive: false
 
-  - path: /home/dave/skippy/claude/downloads
+  - path: /home/dave/skippy/operations/claude/downloads
     enabled: true
     recursive: false
 
-  - path: /home/dave/skippy/claude/uploads
+  - path: /home/dave/skippy/operations/claude/uploads
     enabled: true
     recursive: false
 
-  - path: /home/dave/Scans/Incoming
+  - path: /home/dave/skippy/operations/scans/incoming
     enabled: true
     recursive: false
 
@@ -77,12 +77,12 @@ notifications:
 # Logging
 logging:
   level: INFO  # DEBUG, INFO, WARNING, ERROR
-  file: /home/dave/skippy/logs/file_processor.log
+  file: /home/dave/skippy/system/logs_main/file_processor.log
   max_size_mb: 50
   backup_count: 5
 
   # Log every action to database for learning
-  database: /home/dave/skippy/logs/file_processor.db
+  database: /home/dave/skippy/system/logs_main/file_processor.db
 
 # Learning system
 learning:
