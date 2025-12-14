@@ -175,8 +175,8 @@ case "${1:-}" in
         
     "--check")
         echo "Checking Google Drive Manager GUI prerequisites..."
-        
-        local all_good=true
+
+        all_good=true
         
         if ! check_python; then
             all_good=false

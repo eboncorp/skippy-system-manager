@@ -1,4 +1,4 @@
-#\!/bin/bash
+#!/bin/bash
 # Hardware-Optimized Security & Networking for Dell Latitude 3520
 # Intel Celeron 6305, 16GB RAM, 512GB NVMe, WiFi + Ethernet
 
@@ -72,7 +72,7 @@ ethernet.cloned-mac-address=random
 [device]
 # Disable autoconnect to unknown networks
 wifi.scan-rand-mac-address=yes
-NET_EOF
+WIFI_EOF
 
 # Phase 3: Hardware-Specific Performance Tuning
 echo "⚡ Phase 3: CPU & Memory Optimization"

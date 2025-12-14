@@ -1,4 +1,4 @@
-#\!/bin/bash
+#!/bin/bash
 # NexusController Complete Infrastructure Status
 
 echo "=========================================="

@@ -1,4 +1,4 @@
-#\!/bin/bash
+#!/bin/bash
 # YubiKey Final Setup - Run when YubiKey arrives
 # Integrates hardware authentication with existing session control
 
@@ -95,7 +95,7 @@ sudo chmod +x /usr/local/bin/check_claude_session.sh
 
 # Step 6: Create management commands
 cat > /home/dave/yubikey_status << 'EOF'
-#\!/bin/bash
+#!/bin/bash
 echo "🔑 YubiKey Authentication Status"
 echo "================================"
 echo "YubiKey ID: $(cat /etc/yubico/authorized_yubikeys 2>/dev/null | cut -d: -f2 || echo 'Not configured')"
@@ -106,3 +106,7 @@ echo "Authentication modes:"
 echo "1. Session active: Passwordless access"
 echo "2. No session + YubiKey present: YubiKey required"
 echo "3. No session + No YubiKey: Password required"
+EOF
+
+chmod +x /home/dave/yubikey_status
+echo "✅ YubiKey setup complete!"
