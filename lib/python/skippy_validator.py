@@ -391,8 +391,8 @@ class SkippyValidator:
         if not re.match(email_pattern, email):
             raise ValidationError(f"Invalid email format: {email}")
 
-        # Check for dangerous characters
-        if any(char in email for char in ['<', '>', '"', "'", ';', '&']):
+        # Check for dangerous characters (defense in depth - regex already blocks these)
+        if any(char in email for char in ['<', '>', '"', "'", ';', '&']):  # pragma: no cover
             raise ValidationError("Email contains dangerous characters")
 
         return email

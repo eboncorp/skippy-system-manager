@@ -550,6 +550,30 @@ class TestLoadConfigWithValidation:
 
         assert len(exc_info.value.errors) > 0
 
+    def test_load_config_logs_warnings(self, monkeypatch, tmp_path, caplog):
+        """Test load_config_with_validation logs warnings."""
+        import logging
+
+        # Create valid paths
+        scripts_path = tmp_path / "scripts"
+        scripts_path.mkdir()
+        logs_path = tmp_path / "logs"
+        logs_path.mkdir()
+
+        monkeypatch.setenv("SKIPPY_BASE_PATH", str(tmp_path))
+        monkeypatch.setenv("SKIPPY_SCRIPTS_PATH", str(scripts_path))
+        monkeypatch.setenv("SKIPPY_LOGS_PATH", str(logs_path))
+        # Disable audit logging to trigger a warning
+        monkeypatch.setenv("AUDIT_LOGGING", "false")
+
+        with caplog.at_level(logging.WARNING, logger="lib.python.skippy_config"):
+            config = load_config_with_validation()
+
+        assert config is not None
+        # Should have logged warning about audit logging being disabled
+        assert any("audit logging" in record.message.lower()
+                   for record in caplog.records)
+
 
 # =============================================================================
 # GENERATE CONFIG TEMPLATE TESTS
