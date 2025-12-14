@@ -252,9 +252,9 @@ class TestRetryWithBackoff:
 class TestAsyncRetryWithBackoff:
     """Tests for async_retry_with_backoff decorator."""
 
-    def test_async_successful_on_first_attempt(self):
+    @pytest.mark.asyncio
+    async def test_async_successful_on_first_attempt(self):
         """Test async function that succeeds on first attempt."""
-        import asyncio
         call_count = 0
 
         @async_retry_with_backoff(max_attempts=3, base_delay=0.01)
@@ -263,13 +263,13 @@ class TestAsyncRetryWithBackoff:
             call_count += 1
             return "success"
 
-        result = asyncio.get_event_loop().run_until_complete(async_succeeds())
+        result = await async_succeeds()
         assert result == "success"
         assert call_count == 1
 
-    def test_async_retry_and_succeed(self):
+    @pytest.mark.asyncio
+    async def test_async_retry_and_succeed(self):
         """Test async function that fails then succeeds."""
-        import asyncio
         call_count = 0
 
         @async_retry_with_backoff(max_attempts=3, base_delay=0.01)
@@ -280,13 +280,13 @@ class TestAsyncRetryWithBackoff:
                 raise ValueError(f"Attempt {call_count}")
             return "success"
 
-        result = asyncio.get_event_loop().run_until_complete(async_eventually_succeeds())
+        result = await async_eventually_succeeds()
         assert result == "success"
         assert call_count == 3
 
-    def test_async_all_attempts_fail(self):
+    @pytest.mark.asyncio
+    async def test_async_all_attempts_fail(self):
         """Test async function that fails all attempts."""
-        import asyncio
         call_count = 0
 
         @async_retry_with_backoff(max_attempts=3, base_delay=0.01)
@@ -296,14 +296,14 @@ class TestAsyncRetryWithBackoff:
             raise ValueError("Always fails")
 
         with pytest.raises(RetryError) as exc_info:
-            asyncio.get_event_loop().run_until_complete(async_always_fails())
+            await async_always_fails()
 
         assert exc_info.value.attempts == 3
         assert call_count == 3
 
-    def test_async_on_retry_callback(self):
+    @pytest.mark.asyncio
+    async def test_async_on_retry_callback(self):
         """Test async on_retry callback."""
-        import asyncio
         retry_calls = []
 
         def on_retry_handler(exc, attempt):
@@ -323,7 +323,7 @@ class TestAsyncRetryWithBackoff:
                 raise ValueError("fail")
             return "success"
 
-        result = asyncio.get_event_loop().run_until_complete(async_fails_twice())
+        result = await async_fails_twice()
         assert result == "success"
         assert len(retry_calls) == 2
 
