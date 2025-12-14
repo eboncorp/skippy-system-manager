@@ -709,8 +709,6 @@ class TestRateLimiter:
 
     def test_rate_limiter_detects_exceeded(self):
         """Test rate limiter detects when limit is exceeded."""
-        # Note: The actual waiting test is skipped due to recursive lock issue
-        # in the RateLimiter._wait_if_needed implementation
         limiter = RateLimiter(max_calls=2, period=60.0)
 
         @limiter
@@ -723,6 +721,49 @@ class TestRateLimiter:
 
         # After 2 calls, remaining should be 0
         assert limiter.get_remaining_calls() == 0
+
+    def test_rate_limiter_waits_when_exceeded(self):
+        """Test rate limiter waits when limit is exceeded."""
+        # Use short period so test doesn't take too long
+        limiter = RateLimiter(max_calls=2, period=0.1)
+
+        call_times = []
+
+        @limiter
+        def func():
+            call_times.append(time.time())
+            return True
+
+        # First 2 calls should be immediate
+        func()
+        func()
+
+        # Third call should wait until period expires
+        func()
+
+        assert len(call_times) == 3
+        # The third call should have waited (gap > period)
+        gap = call_times[2] - call_times[1]
+        assert gap >= 0.05  # Should have waited at least some time
+
+    def test_rate_limiter_cleans_old_calls(self):
+        """Test rate limiter removes old calls from tracking."""
+        limiter = RateLimiter(max_calls=2, period=0.05)
+
+        @limiter
+        def func():
+            return True
+
+        # Make calls
+        func()
+        func()
+
+        # Wait for period to expire
+        time.sleep(0.1)
+
+        # Old calls should be cleaned, new calls should work
+        func()
+        assert len(limiter.calls) == 1  # Only the new call
 
     def test_preserves_function_metadata(self):
         """Test decorator preserves function metadata."""
@@ -805,6 +846,26 @@ class TestSafeJsonParse:
         """Test whitespace-only string returns default."""
         result = safe_json_parse("   ", default={"ws": True})
         assert result == {"ws": True}
+
+    def test_parse_type_error_returns_default(self):
+        """Test TypeError in json.loads returns default."""
+        from unittest.mock import patch
+
+        # Mock json.loads to raise TypeError
+        with patch('skippy_resilience.json.loads') as mock_loads:
+            mock_loads.side_effect = TypeError("Mock type error")
+            result = safe_json_parse('{"valid": "json"}', default={"type_error": True})
+            assert result == {"type_error": True}
+
+    def test_parse_type_error_raises_when_requested(self):
+        """Test TypeError in json.loads raises when raise_on_error=True."""
+        from unittest.mock import patch
+
+        # Mock json.loads to raise TypeError
+        with patch('skippy_resilience.json.loads') as mock_loads:
+            mock_loads.side_effect = TypeError("Mock type error")
+            with pytest.raises(TypeError):
+                safe_json_parse('{"valid": "json"}', raise_on_error=True)
 
 
 # =============================================================================
