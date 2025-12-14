@@ -30,10 +30,11 @@ class TestSSHConnectivity:
         ebon_password = os.getenv("EBON_PASSWORD")
 
         # Parse user@host
-        if "@" in ebon_host:
-            username, hostname = ebon_host.split("@")
-        else:
+        if "@" not in ebon_host:
             pytest.skip("EBON_HOST format invalid")
+            return  # Unreachable, but helps pylint understand control flow
+
+        username, hostname = ebon_host.split("@")
 
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -63,10 +64,11 @@ class TestSSHConnectivity:
         if not ssh_key_path:
             pytest.skip("SSH_PRIVATE_KEY not configured")
 
-        if "@" in ebon_host:
-            username, hostname = ebon_host.split("@")
-        else:
+        if "@" not in ebon_host:
             pytest.skip("EBON_HOST format invalid")
+            return  # Unreachable, but helps pylint understand control flow
+
+        username, hostname = ebon_host.split("@")
 
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
