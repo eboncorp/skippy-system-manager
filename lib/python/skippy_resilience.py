@@ -104,7 +104,7 @@ def retry_with_backoff(
                     time.sleep(delay)
 
             # Should never reach here, but just in case
-            raise RetryError(
+            raise RetryError(  # pragma: no cover
                 f"Unexpected retry loop exit for {func.__name__}",
                 attempts=max_attempts,
                 last_exception=last_exception
@@ -166,7 +166,7 @@ def async_retry_with_backoff(
 
                     await asyncio.sleep(delay)
 
-            raise RetryError(
+            raise RetryError(  # pragma: no cover
                 f"Unexpected retry loop exit for {func.__name__}",
                 attempts=max_attempts,
                 last_exception=last_exception
@@ -282,7 +282,7 @@ class CircuitBreaker:
         if self.state == CircuitState.HALF_OPEN:
             return self.half_open_calls < self.config.half_open_max_calls
 
-        return False
+        return False  # pragma: no cover - all enum states handled above
 
     def _on_success(self):
         """Handle successful execution."""
@@ -390,7 +390,7 @@ class RateLimiter:
         self.max_calls = max_calls
         self.period = period
         self.calls: deque = deque()
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()  # RLock for recursive _wait_if_needed calls
 
     def __call__(self, func: Callable) -> Callable:
         """Decorator to wrap function with rate limiting."""
