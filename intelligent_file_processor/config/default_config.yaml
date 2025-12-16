@@ -3,6 +3,10 @@
 
 # Input folders to watch
 watch_folders:
+  - path: /home/dave/Downloads
+    enabled: true
+    recursive: false
+
   - path: /home/dave/skippy/operations/downloads
     enabled: true
     recursive: false
