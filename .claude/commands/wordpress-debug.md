@@ -1,221 +1,200 @@
 ---
-description: Automated WordPress diagnostic - identifies issues in 15 layers
-argument-hint: "[optional: specific issue like 'mobile' or '500 error']"
-allowed-tools: ["Bash", "Read", "Grep", "WebFetch"]
+description: Automated WordPress diagnostic - runs 20-layer analysis and identifies issues
+argument-hint: "[environment: local|production] [options: --quick|--layer N]"
+allowed-tools: ["Bash", "Read", "Grep", "WebFetch", "mcp__general-server__wp_cli_command", "mcp__general-server__screenshot_capture"]
 ---
 
 # WordPress Debug Command
 
-Comprehensive 15-layer diagnostic for WordPress issues. Reduces 2-3 hour debug sessions to 15-30 minutes.
+Comprehensive 20-layer diagnostic for WordPress issues. Reduces 2-3 hour debug sessions to 15-30 minutes.
 
 ## Quick Start
 
-Run all diagnostics:
+**Run this command to execute the unified diagnostic:**
+
 ```bash
-WP_PATH="/home/dave/skippy/rundaverun_local_site/app/public"
-SITE_URL="http://rundaverun-local-complete-022655.local"
+# Set environment
+ENVIRONMENT="${1:-local}"
+OPTIONS="${2:-}"
+
+# Create session directory
+SESSION_DIR="/home/dave/skippy/work/wordpress/$(date +%Y%m%d_%H%M%S)_debug_${ENVIRONMENT}"
+mkdir -p "$SESSION_DIR"
+
+# Run unified 20-layer diagnostic
+bash /home/dave/skippy/scripts/wordpress/wp_unified_diagnostic_v3.0.0.sh "$ENVIRONMENT" $OPTIONS 2>&1 | tee "$SESSION_DIR/diagnostic_output.log"
+
+echo ""
+echo "Session directory: $SESSION_DIR"
+echo "Full report: $SESSION_DIR/diagnostic_report.md"
 ```
 
-## 15-Layer Diagnostic Framework
+## Environment Configuration
 
-### Layer 1: WordPress Core Health
+| Environment | Site URL | WP Path |
+|-------------|----------|---------|
+| `local` | http://rundaverun-local-complete-022655.local | /home/dave/skippy/websites/rundaverun/local_site/rundaverun_local_site/app/public |
+| `production` | https://rundaverun.org | Via SSH to GoDaddy |
+
+## Command Options
+
+| Option | Description |
+|--------|-------------|
+| `--quick` | Run only layers 1-10 (fast mode, ~2 min) |
+| `--full` | Run all 20 layers (default, ~5 min) |
+| `--layer N` | Run only layer N |
+| `--skip N` | Skip layer N |
+
+## 20-Layer Diagnostic Framework
+
+### Core Layers (1-10) - Always Run
+
+| Layer | Check | Quick Fix |
+|-------|-------|-----------|
+| 1 | System Environment | PHP version, disk space, memory |
+| 2 | WordPress Core | `wp core verify-checksums` |
+| 3 | Database Integrity | `wp db check` |
+| 4 | Plugin Health | `wp plugin list --status=active` |
+| 5 | Theme Integrity | `wp theme list` |
+| 6 | Content Structure | Page/post counts, empty pages |
+| 7 | Shortcodes/Hooks | Registered shortcodes, cron |
+| 8 | Performance | Autoload size, transients |
+| 9 | Security | File permissions, users |
+| 10 | Error Logs | debug.log analysis |
+
+### Extended Layers (11-15) - Quality
+
+| Layer | Check | Quick Fix |
+|-------|-------|-----------|
+| 11 | Link Integrity | Broken internal links |
+| 12 | SEO Metadata | Title, description, OG tags |
+| 13 | Accessibility | WCAG 2.1 AA compliance |
+| 14 | Image Optimization | Large images, WebP usage |
+| 15 | JavaScript | Syntax errors, eval usage |
+
+### Infrastructure Layers (16-20) - Production
+
+| Layer | Check | Quick Fix |
+|-------|-------|-----------|
+| 16 | REST API | Endpoint health |
+| 17 | SSL/DNS/CDN | Certificate, DNS, headers |
+| 18 | Form Testing | CF7 forms, newsletter |
+| 19 | Email Config | SMTP setup |
+| 20 | Production Remote | SSH diagnostics |
+
+## Issue-Specific Quick Fixes
+
+### 404 Not Found
 ```bash
-echo "=== Layer 1: WordPress Core Health ==="
-wp --path="$WP_PATH" core verify-checksums 2>&1 || echo "Core files modified"
-wp --path="$WP_PATH" core version
-wp --path="$WP_PATH" db check 2>&1 | tail -5
+WP_PATH="/home/dave/skippy/websites/rundaverun/local_site/rundaverun_local_site/app/public"
+wp --path="$WP_PATH" --allow-root rewrite flush
+wp --path="$WP_PATH" --allow-root option get permalink_structure
 ```
 
-### Layer 2: Theme Status
+### 500 Internal Server Error
 ```bash
-echo "=== Layer 2: Theme Status ==="
-wp --path="$WP_PATH" theme list --status=active --format=table
-wp --path="$WP_PATH" theme status astra-child 2>&1
-ls -la "$WP_PATH/wp-content/themes/astra-child/"
-```
+# Check recent errors
+tail -50 "$WP_PATH/wp-content/debug.log" | grep -E "Fatal|Error"
 
-### Layer 3: Plugin Status
-```bash
-echo "=== Layer 3: Plugin Status ==="
-wp --path="$WP_PATH" plugin list --format=table
-wp --path="$WP_PATH" plugin list --status=active --field=name
-```
-
-### Layer 4: PHP Errors
-```bash
-echo "=== Layer 4: PHP Errors ==="
-if [ -f "$WP_PATH/wp-content/debug.log" ]; then
-  tail -50 "$WP_PATH/wp-content/debug.log" | grep -E "Fatal|Error|Warning" | tail -20
-else
-  echo "Debug log not found - check WP_DEBUG settings"
-fi
-```
-
-### Layer 5: Database Connection
-```bash
-echo "=== Layer 5: Database Connection ==="
-wp --path="$WP_PATH" db query "SELECT 1" 2>&1 && echo "DB connection OK"
-wp --path="$WP_PATH" db size --tables --format=table | head -15
-```
-
-### Layer 6: URL/Rewrite Issues
-```bash
-echo "=== Layer 6: URL/Rewrite Status ==="
-wp --path="$WP_PATH" option get siteurl
-wp --path="$WP_PATH" option get home
-wp --path="$WP_PATH" rewrite list --format=table | head -10
-```
-
-### Layer 7: HTTP Response Check
-```bash
-echo "=== Layer 7: HTTP Response Check ==="
-for path in "/" "/about/" "/contact/" "/neighborhoods/"; do
-  STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$SITE_URL$path" 2>/dev/null)
-  echo "$path: HTTP $STATUS"
-done
-```
-
-### Layer 8: CSS/JS Loading
-```bash
-echo "=== Layer 8: CSS/JS Assets ==="
-curl -s "$SITE_URL/" | grep -oE 'href="[^"]+\.css[^"]*"' | head -10
-curl -s "$SITE_URL/" | grep -oE 'src="[^"]+\.js[^"]*"' | head -10
-```
-
-### Layer 9: Cache Status
-```bash
-echo "=== Layer 9: Cache Status ==="
-wp --path="$WP_PATH" cache flush 2>&1
-ls -la "$WP_PATH/wp-content/cache/" 2>/dev/null || echo "No cache directory"
-```
-
-### Layer 10: File Permissions
-```bash
-echo "=== Layer 10: File Permissions ==="
-stat -c "%a %U:%G %n" "$WP_PATH/wp-config.php"
-stat -c "%a %U:%G %n" "$WP_PATH/wp-content/"
-stat -c "%a %U:%G %n" "$WP_PATH/wp-content/uploads/"
-```
-
-### Layer 11: wp-config.php Settings
-```bash
-echo "=== Layer 11: wp-config Settings ==="
-grep -E "WP_DEBUG|SCRIPT_DEBUG|WP_DEBUG_LOG|WP_DEBUG_DISPLAY" "$WP_PATH/wp-config.php"
-grep -E "define.*DISALLOW|define.*FS_METHOD" "$WP_PATH/wp-config.php"
-```
-
-### Layer 12: .htaccess Status
-```bash
-echo "=== Layer 12: .htaccess Status ==="
-if [ -f "$WP_PATH/.htaccess" ]; then
-  cat "$WP_PATH/.htaccess"
-else
-  echo "No .htaccess found"
-fi
-```
-
-### Layer 13: Memory Limits
-```bash
-echo "=== Layer 13: Memory Limits ==="
-grep -E "memory_limit|max_execution|upload_max" "$WP_PATH/wp-config.php" 2>/dev/null
-wp --path="$WP_PATH" eval "echo 'PHP memory_limit: ' . ini_get('memory_limit');" 2>/dev/null
-```
-
-### Layer 14: mu-plugins Check
-```bash
-echo "=== Layer 14: Must-Use Plugins ==="
-ls -la "$WP_PATH/wp-content/mu-plugins/" 2>/dev/null || echo "No mu-plugins directory"
-```
-
-### Layer 15: Recent Changes
-```bash
-echo "=== Layer 15: Recent Changes ==="
-find "$WP_PATH/wp-content/themes/astra-child" -mtime -1 -type f 2>/dev/null | head -10
-find "$WP_PATH/wp-content/plugins" -mtime -1 -type f 2>/dev/null | head -10
-```
-
-## Issue-Specific Diagnostics
-
-### Mobile Issues
-```bash
-echo "=== Mobile-Specific Checks ==="
-grep -r "max-width: 768px\|@media.*mobile" "$WP_PATH/wp-content/themes/astra-child/style.css" | head -20
-curl -A "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)" -s "$SITE_URL/" | grep -E "viewport|mobile" | head -5
-```
-
-### 500 Error
-```bash
-echo "=== 500 Error Investigation ==="
-tail -100 "$WP_PATH/wp-content/debug.log" 2>/dev/null | grep -E "Fatal|Error" | tail -20
-wp --path="$WP_PATH" plugin deactivate --all --skip-plugins 2>&1
-wp --path="$WP_PATH" theme activate twentytwentyfour --skip-themes 2>&1
+# Isolate plugin issue
+wp --path="$WP_PATH" --allow-root plugin deactivate --all
+wp --path="$WP_PATH" --allow-root plugin activate dave-biggers-policy-manager
 ```
 
 ### White Screen of Death
 ```bash
-echo "=== WSOD Investigation ==="
-wp --path="$WP_PATH" eval "echo 'PHP OK';" 2>&1
-wp --path="$WP_PATH" config set WP_DEBUG true --raw 2>&1
-wp --path="$WP_PATH" config set WP_DEBUG_LOG true --raw 2>&1
+# Enable debug
+wp --path="$WP_PATH" --allow-root config set WP_DEBUG true --raw
+wp --path="$WP_PATH" --allow-root config set WP_DEBUG_LOG true --raw
+
+# Check for fatal
+tail -20 "$WP_PATH/wp-content/debug.log"
 ```
 
-### CSS Not Loading
+### CSS/JS Not Loading
 ```bash
-echo "=== CSS Investigation ==="
-wp --path="$WP_PATH" option get stylesheet
-ls -la "$WP_PATH/wp-content/themes/astra-child/style.css"
-grep "Version:" "$WP_PATH/wp-content/themes/astra-child/style.css"
-curl -sI "$SITE_URL/wp-content/themes/astra-child/style.css" | head -10
+# Check asset paths
+curl -sI "$SITE_URL/wp-content/themes/astra-child/style.css" | head -5
+
+# Flush caches
+wp --path="$WP_PATH" --allow-root cache flush
+wp --path="$WP_PATH" --allow-root transient delete --all
+```
+
+### REST API Issues
+```bash
+# Test REST API
+curl -s "$SITE_URL/wp-json/" | jq '.name, .url'
+curl -s "$SITE_URL/wp-json/wp/v2/pages?per_page=1" | jq 'length'
 ```
 
 ## Production Diagnostics
 
-For production site (rundaverun.org):
-```bash
-PROD_CMD='SSH_AUTH_SOCK="" ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i ~/.ssh/godaddy_rundaverun git_deployer_f44cc3416a_545525@bp6.0cf.myftpupload.com'
+For production site (rundaverun.org) via SSH:
 
-# Run any wp command on production
-$PROD_CMD "cd html && wp core version"
-$PROD_CMD "cd html && wp plugin list --status=active"
-$PROD_CMD "cd html && tail -50 wp-content/debug.log 2>/dev/null"
+```bash
+# SSH command template
+SSH_CMD='SSH_AUTH_SOCK="" ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i ~/.ssh/godaddy_rundaverun git_deployer_f44cc3416a_545525@bp6.0cf.myftpupload.com'
+
+# Check WordPress version
+$SSH_CMD "cd html && wp core version --allow-root"
+
+# Check plugins
+$SSH_CMD "cd html && wp plugin list --status=active --allow-root"
+
+# Check recent errors
+$SSH_CMD "cd html && tail -50 wp-content/debug.log 2>/dev/null | grep -E 'Fatal|Error'"
+
+# Flush caches
+$SSH_CMD "cd html && wp cache flush --allow-root && wp transient delete --all --allow-root && wp rewrite flush --allow-root"
 ```
 
-## Quick Fix Commands
+## Cache Flush Checklist
 
-### Flush Everything
+After any fix, flush all caches:
+
 ```bash
-wp --path="$WP_PATH" cache flush
-wp --path="$WP_PATH" rewrite flush
-wp --path="$WP_PATH" transient delete --all
+# WordPress caches
+wp --path="$WP_PATH" --allow-root cache flush
+wp --path="$WP_PATH" --allow-root transient delete --all
+wp --path="$WP_PATH" --allow-root rewrite flush
+
+# If using Autoptimize
+wp --path="$WP_PATH" --allow-root option delete autoptimize_cache
+
+# Browser: Hard refresh (Ctrl+Shift+R)
+# CDN: May need manual purge from GoDaddy panel
 ```
 
-### Reset Permissions
-```bash
-find "$WP_PATH" -type d -exec chmod 755 {} \;
-find "$WP_PATH" -type f -exec chmod 644 {} \;
-chmod 600 "$WP_PATH/wp-config.php"
-```
-
-### Enable Debug Mode
-```bash
-wp --path="$WP_PATH" config set WP_DEBUG true --raw
-wp --path="$WP_PATH" config set WP_DEBUG_LOG true --raw
-wp --path="$WP_PATH" config set WP_DEBUG_DISPLAY false --raw
-```
-
-## Output
+## Output Format
 
 After running diagnostics, provide:
-1. **Summary** - What layers passed/failed
-2. **Root Cause** - Most likely issue
-3. **Fix** - Specific commands to resolve
-4. **Prevention** - How to avoid in future
 
-## Session Directory
+1. **Summary** - Pass/Fail counts, health score
+2. **Critical Issues** - Must fix before deployment
+3. **Warnings** - Should fix when possible
+4. **Recommendations** - Best practices
+5. **Session Directory** - Location of full report
 
-Always save diagnostic output:
-```bash
-SESSION_DIR="/home/dave/skippy/work/wordpress/$(date +%Y%m%d_%H%M%S)_debug"
-mkdir -p "$SESSION_DIR"
-# Run diagnostics and save to $SESSION_DIR/diagnostic_report.md
+## Related Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `wp_unified_diagnostic_v3.0.0.sh` | Main 20-layer diagnostic |
+| `pre_deployment_validator_v1.0.0.sh` | Pre-deploy checks |
+| `deployment_verification_v1.0.0.sh` | Post-deploy verification |
+| `wordpress_color_contrast_checker_v1.2.0.sh` | WCAG contrast |
+| `wp_mobile_responsive_checker_v1.0.0.sh` | Mobile testing |
+
+## Session Directory Pattern
+
+All debug sessions create a work directory:
+
 ```
+/home/dave/skippy/work/wordpress/YYYYMMDD_HHMMSS_debug_{environment}/
+├── diagnostic_output.log    # Console output
+├── diagnostic_report.md     # Full markdown report
+└── screenshots/             # If visual testing enabled
+```
+
+**NEVER use /tmp/** - files are lost on reboot.
