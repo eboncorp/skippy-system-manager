@@ -4,7 +4,7 @@
 set -e
 
 SITE_URL="https://rundaverun.org"
-APP_PASSWORD="3KFsODJfAGjS1pzzQ7LGxySN"
+WP_AUTH_TOKEN="REDACTED"  # Archived - use environment variables instead
 USERNAME="dave"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -23,7 +23,7 @@ echo ""
 
 # Test 2: REST API Authentication
 echo "2️⃣ Testing REST API authentication..."
-RESPONSE=$(curl -s -u "$USERNAME:$APP_PASSWORD" "$SITE_URL/wp-json/wp/v2/users/me")
+RESPONSE=$(curl -s -u "$USERNAME:$WP_AUTH_TOKEN" "$SITE_URL/wp-json/wp/v2/users/me")
 if echo "$RESPONSE" | grep -q '"id"'; then
     echo "   ✅ REST API authentication working"
     USER_ID=$(echo "$RESPONSE" | grep -o '"id":[0-9]*' | cut -d: -f2)

@@ -42,7 +42,10 @@
 # Configuration
 SITE_URL="${1:-http://localhost}"
 WP_PATH="${2:-.}"
-REPORT_FILE="/tmp/wp_diagnostic_$(date +%Y%m%d_%H%M%S).txt"
+# Create session directory (never use /tmp/ - files lost on reboot)
+SESSION_DIR="/home/dave/skippy/work/wordpress/$(date +%Y%m%d_%H%M%S)_diagnostic"
+mkdir -p "$SESSION_DIR"
+REPORT_FILE="$SESSION_DIR/wp_diagnostic_report.txt"
 ISSUES_FOUND=0
 WARNINGS_FOUND=0
 
