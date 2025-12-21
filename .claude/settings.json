@@ -45,7 +45,7 @@
       "Bash(git -C /home/dave/skippy branch:*)",
       "Bash(git -C /home/dave/skippy diff:*)",
       "Bash(git -C /home/dave/skippy fetch:*)",
-      "Bash(timeout * git:*)",
+      "Bash(timeout :* git:*)",
       "Bash(wp --path=/home/dave/skippy/websites/rundaverun/local_site/app/public:*)",
       "Bash(/home/dave/skippy/bin/wp:*)",
       "Bash(wp post list:*)",
