@@ -1,7 +1,7 @@
 # Skippy System Manager - Claude Code Instructions
 
-**Version:** 2.1.0
-**Last Updated:** 2025-11-26
+**Version:** 2.2.0
+**Last Updated:** 2025-12-21
 **Status:** Production Ready
 
 ---
@@ -19,9 +19,11 @@ Skippy System Manager is a comprehensive automation and management suite for:
 
 | Category | Count |
 |----------|-------|
-| Scripts | 319+ (Python: 156, Bash: 163) |
-| MCP Tools | 52+ across 6 categories |
-| Slash Commands | 27 custom commands |
+| Scripts | 1,600+ (Python: 1,399, Bash: 213) |
+| MCP Tools | 82+ across 6 categories |
+| Slash Commands | 32 custom commands |
+| Skills | 89 |
+| Rules | 24 |
 | Test Suites | Unit, Integration, Security, WordPress |
 | CI/CD Jobs | 8 automated pipeline stages |
 
@@ -32,12 +34,12 @@ Skippy System Manager is a comprehensive automation and management suite for:
 ```
 skippy-system-manager/
 ├── .claude/                    # Claude Code configuration
-│   ├── commands/               # 27 slash commands
+│   ├── commands/               # 32 slash commands
 │   ├── hooks/                  # Pre/post execution hooks
 │   ├── workflows/              # Documented workflows
 │   ├── protocols/              # Standard procedures
 │   └── settings.json           # Claude Code settings
-├── scripts/                    # 319+ automation scripts
+├── scripts/                    # 1,600+ automation scripts
 │   ├── automation/             # General automation (27 scripts)
 │   ├── backup/                 # Backup operations (9 scripts)
 │   ├── data_processing/        # Data tools
@@ -51,7 +53,7 @@ skippy-system-manager/
 │   └── legacy_system_managers/ # Legacy scripts (maintenance mode)
 ├── bin/                        # CLI tools (PATH executable)
 ├── mcp-servers/                # MCP server implementations
-│   ├── general-server/         # Main MCP server (52+ tools)
+│   ├── general-server/         # Main MCP server (82+ tools)
 │   └── wordpress-validator/    # WordPress validation
 ├── tests/                      # Test framework
 │   ├── unit/                   # Unit tests
@@ -203,7 +205,7 @@ pytest tests/security/ -v -m security
 
 ## MCP Server Integration
 
-### Available Tools (52+)
+### Available Tools (82+)
 
 **Google Drive (13 tools):**
 - File management, uploads, sharing, organization
@@ -299,8 +301,9 @@ EOF
 
 | Topic | CORRECT Value | WRONG Values |
 |-------|---------------|--------------|
-| Total Budget | $81M | $110.5M, $110M |
-| Wellness ROI | $2-3 per $1 | $1.80, $1.8 |
+| Total Budget | $1.2 billion | $81M, $110.5M |
+| Mini Substations | 63 total | 46 |
+| Wellness ROI | $5.60 per $1 | $2-3, $1.80 |
 | JCPS Reading | 34-35% | 44%, 45% |
 | JCPS Math | 27-28% | 41%, 40% |
 
