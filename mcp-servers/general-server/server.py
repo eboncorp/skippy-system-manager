@@ -7108,20 +7108,21 @@ def facts_validate(text: str) -> str:
         JSON with validation results and any issues found
     """
     try:
+        # Authoritative facts from QUICK_FACTS_SHEET.md (updated 2025-12-21)
         authoritative_facts = {
             "total_budget": {
-                "correct": "$1.27 billion",
-                "wrong": ["$81M", "$81 million", "$110.5M", "$110M"],
+                "correct": "$1.2 billion",
+                "wrong": ["$81M", "$81 million", "$110.5M", "$110M", "$1.025B"],
                 "topic": "Total Budget"
             },
             "wellness_roi": {
-                "correct": "$1.80 per $1 spent",
-                "wrong": ["$2-3", "$2-$3", "2-3 per", "$2 to $3"],
+                "correct": "$5.60 per $1 spent",
+                "wrong": ["$2-3", "$2-$3", "2-3 per", "$2 to $3", "$1.80", "$1.8 per"],
                 "topic": "Wellness Center ROI"
             },
             "mini_substations": {
-                "correct": "46 substations",
-                "wrong": ["42 substations", "40 substations", "50 substations"],
+                "correct": "63 substations",
+                "wrong": ["46 substations", "46 mini", "42 substations", "40 substations", "50 substations"],
                 "topic": "Mini Police Substations"
             },
             "wellness_centers": {
@@ -7129,25 +7130,30 @@ def facts_validate(text: str) -> str:
                 "wrong": ["15 centers", "20 centers", "12 centers"],
                 "topic": "Wellness Centers"
             },
-            "police_budget": {
-                "correct": "$245.9M",
-                "wrong": ["$200M", "$250M", "$300M"],
-                "topic": "Police Budget"
+            "crime_reduction_substations": {
+                "correct": "20-30% reduction",
+                "wrong": ["35% crime reduction", "40% reduction", "50% reduction"],
+                "topic": "Crime Reduction (Community Policing)"
             },
-            "crime_reduction_goal": {
+            "crime_reduction_youth": {
                 "correct": "35% reduction",
                 "wrong": ["40% reduction", "50% reduction", "25% reduction"],
-                "topic": "Crime Reduction Goal"
+                "topic": "Crime Reduction (Youth Programs)"
             },
-            "participatory_budget": {
-                "correct": "$15M",
-                "wrong": ["$10M", "$20M", "$5M"],
-                "topic": "Participatory Budgeting"
+            "er_visit_reduction": {
+                "correct": "35% reduction",
+                "wrong": ["40% reduction", "50% reduction", "25% reduction"],
+                "topic": "ER Visit Reduction"
             },
-            "new_jobs": {
-                "correct": "400+ new jobs",
-                "wrong": ["200 jobs", "500 jobs", "300 jobs"],
-                "topic": "New Jobs Created"
+            "jcps_reading": {
+                "correct": "34-35%",
+                "wrong": ["44%", "45%", "40%"],
+                "topic": "JCPS Reading Proficiency"
+            },
+            "jcps_math": {
+                "correct": "27-28%",
+                "wrong": ["41%", "40%", "35%"],
+                "topic": "JCPS Math Proficiency"
             }
         }
 
@@ -7206,18 +7212,22 @@ def facts_lookup(topic: str) -> str:
         JSON with the authoritative fact and context
     """
     try:
+        # Facts from QUICK_FACTS_SHEET.md (updated 2025-12-21)
         facts_db = {
-            "budget": {"value": "$1.27 billion", "context": "Same as Mayor Greenberg's approved 2025-2026 budget", "notes": "No new taxes, balanced and realistic"},
-            "total_budget": {"value": "$1.025B operating", "breakdown": {"public_safety": "$395.2M (31.2%)", "community_investment": "$210M (16.6%)", "infrastructure": "$241M (19.0%)"}},
-            "roi": {"value": "$1.80 saved for every $1 spent", "context": "Wellness center return on investment", "evidence": "35% reduction in ER visits"},
-            "substations": {"value": "46 mini police substations", "deployment": "12 in Year 1, 24 total Year 2, 36 Year 3, all 46 by Year 4", "cost": "$650K per station annually"},
-            "wellness": {"value": "18 community wellness centers", "deployment": "6 per year over 3 years", "cost": "$2.5M per center annually"},
-            "police": {"value": "$245.9M", "context": "Same as Greenberg's police budget - deployment is smarter, not less"},
-            "crime": {"value": "35% reduction goal over 4 years", "evidence": "Based on 50+ cities using similar models"},
-            "jobs": {"value": "400+ new positions created", "breakdown": {"wellness_staff": "~180", "youth_workers": "~200", "facilitators": "~25"}},
-            "participatory": {"value": "$15M across all districts", "context": "Community decides spending priorities"},
-            "youth": {"value": "$55M consolidated", "breakdown": {"after_school": "$15M", "summer_jobs": "$12M (3,000 positions)", "mentorship": "$8M"}},
-            "mental_health": {"value": "10 mobile crisis teams", "context": "Social worker + officer pairs, 24/7 coverage", "cost": "$7M annually"}
+            "budget": {"value": "$1.2 billion", "context": "Total budget for comprehensive public safety plan", "notes": "Balanced and realistic"},
+            "total_budget": {"value": "$1.2 billion", "notes": "Total comprehensive budget"},
+            "roi": {"value": "$5.60 saved for every $1 spent", "context": "Wellness center return on investment", "evidence": "35% reduction in ER visits"},
+            "wellness_roi": {"value": "$5.60 per $1", "context": "For every $1 spent on wellness centers, $5.60 is saved"},
+            "substations": {"value": "63 mini police substations", "deployment": "12 in Year 1, expanding to all 63 over 4 years", "cost": "Per station annually"},
+            "mini_substations": {"value": "63 total", "year_1": "12 substations"},
+            "wellness": {"value": "18 community wellness centers", "deployment": "6 per year over 3 years", "cost": "Per center annually"},
+            "wellness_centers": {"value": "18 total", "deployment": "6 centers per year × 3 years"},
+            "crime_reduction": {"value": "20-30% for community policing, 35% for youth programs", "context": "Evidence-based projections"},
+            "jcps_reading": {"value": "34-35% proficiency", "context": "Current JCPS reading proficiency rate"},
+            "jcps_math": {"value": "27-28% proficiency", "context": "Current JCPS math proficiency rate"},
+            "er_reduction": {"value": "35% reduction", "context": "ER visit reduction from wellness centers"},
+            "youth": {"value": "Youth investment programs", "impact": "35% crime reduction through youth programs"},
+            "mental_health": {"value": "Mobile crisis teams", "context": "Social worker + officer pairs, 24/7 coverage"}
         }
 
         topic_lower = topic.lower()
@@ -7475,6 +7485,417 @@ def wp_content_compare(post_id: int) -> str:
 
     except Exception as e:
         logger.error(f"Content compare failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+# ============================================================================
+# CONTENT VALIDATION TOOLS (Integrated WordPress Validator)
+# ============================================================================
+
+@mcp.tool()
+def validate_content_seo(content: str) -> str:
+    """
+    Validate SEO elements in WordPress content.
+
+    Checks for:
+    - Title/H1 heading presence
+    - Meta tags
+    - Alt text on images
+    - Heading hierarchy
+
+    Args:
+        content: HTML content to validate
+
+    Returns:
+        JSON with SEO validation results
+    """
+    try:
+        errors = []
+        warnings = []
+
+        # Check for meta tags (in full page content)
+        if "<meta" not in content and len(content) > 1000:
+            warnings.append({
+                "type": "missing_meta",
+                "severity": "medium",
+                "message": "No meta tags found (may be handled by theme)"
+            })
+
+        # Check for title/H1
+        if "<title>" not in content and "<h1" not in content:
+            warnings.append({
+                "type": "missing_title",
+                "severity": "high",
+                "message": "No title or H1 heading found"
+            })
+
+        # Check for alt text on images
+        img_pattern = r'<img[^>]+>'
+        images = re.findall(img_pattern, content, re.IGNORECASE)
+        for img in images:
+            if 'alt=' not in img.lower():
+                warnings.append({
+                    "type": "missing_alt_text",
+                    "image": img[:80] + "..." if len(img) > 80 else img,
+                    "severity": "medium",
+                    "message": "Image missing alt text for SEO and accessibility"
+                })
+
+        # Check heading hierarchy
+        h1_count = len(re.findall(r'<h1', content, re.IGNORECASE))
+        if h1_count == 0:
+            warnings.append({
+                "type": "no_h1",
+                "severity": "high",
+                "message": "No H1 heading found - important for SEO"
+            })
+        elif h1_count > 1:
+            warnings.append({
+                "type": "multiple_h1",
+                "count": h1_count,
+                "severity": "medium",
+                "message": f"Multiple H1 headings ({h1_count}) - should be only one per page"
+            })
+
+        return json.dumps({
+            "success": True,
+            "status": "pass" if len(errors) == 0 else "fail",
+            "errors": errors,
+            "warnings": warnings,
+            "images_found": len(images),
+            "h1_count": h1_count
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"SEO validation failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def validate_content_accessibility(content: str) -> str:
+    """
+    Validate WCAG 2.1 accessibility in WordPress content.
+
+    Checks for:
+    - Alt text on images (WCAG 1.1.1)
+    - Proper heading hierarchy (WCAG 1.3.1)
+    - ARIA labels on buttons (WCAG 4.1.2)
+    - Link text quality
+
+    Args:
+        content: HTML content to validate
+
+    Returns:
+        JSON with accessibility validation results
+    """
+    try:
+        errors = []
+        warnings = []
+
+        # Check for alt text (WCAG 1.1.1)
+        img_without_alt = re.findall(r'<img(?![^>]*alt=)[^>]*>', content, re.IGNORECASE)
+        for img in img_without_alt:
+            errors.append({
+                "type": "missing_alt_text",
+                "element": img[:80] + "..." if len(img) > 80 else img,
+                "severity": "high",
+                "wcag": "1.1.1",
+                "message": "Images must have alt text for screen readers"
+            })
+
+        # Check for aria labels on interactive elements
+        buttons = re.findall(r'<button[^>]*>[^<]*</button>', content, re.IGNORECASE)
+        for button in buttons:
+            if 'aria-label=' not in button.lower() and not re.search(r'>[^<]+<', button):
+                warnings.append({
+                    "type": "missing_aria_label",
+                    "element": button[:60],
+                    "severity": "medium",
+                    "wcag": "4.1.2",
+                    "message": "Button should have aria-label or visible text"
+                })
+
+        # Check heading hierarchy (WCAG 1.3.1)
+        headings = re.findall(r'<h([1-6])', content, re.IGNORECASE)
+        if headings:
+            prev = 0
+            for i, level in enumerate(headings):
+                level = int(level)
+                if i > 0 and level > prev + 1:
+                    warnings.append({
+                        "type": "skipped_heading_level",
+                        "from": f"H{prev}",
+                        "to": f"H{level}",
+                        "severity": "medium",
+                        "wcag": "1.3.1",
+                        "message": f"Heading level skipped from H{prev} to H{level}"
+                    })
+                prev = level
+
+        # Check for empty links
+        empty_links = re.findall(r'<a[^>]*>\s*</a>', content, re.IGNORECASE)
+        for link in empty_links:
+            if 'aria-label=' not in link.lower():
+                errors.append({
+                    "type": "empty_link",
+                    "element": link[:60],
+                    "severity": "high",
+                    "wcag": "2.4.4",
+                    "message": "Link has no text or aria-label"
+                })
+
+        return json.dumps({
+            "success": True,
+            "status": "pass" if len(errors) == 0 else "fail",
+            "errors": errors,
+            "warnings": warnings,
+            "wcag_version": "2.1"
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Accessibility validation failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def validate_content_links(content: str) -> str:
+    """
+    Validate links in WordPress content.
+
+    Checks for:
+    - Empty/placeholder links
+    - Localhost links (should be removed before publish)
+    - Broken internal link patterns
+    - External link presence
+
+    Args:
+        content: HTML content to validate
+
+    Returns:
+        JSON with link validation results
+    """
+    try:
+        errors = []
+        warnings = []
+
+        # Find all links
+        link_pattern = r'href=["\']([^"\']+)["\']'
+        links = re.findall(link_pattern, content, re.IGNORECASE)
+
+        internal_links = []
+        external_links = []
+        problematic_links = []
+
+        for link in links:
+            # Check for localhost links
+            if 'localhost' in link.lower() or '127.0.0.1' in link:
+                warnings.append({
+                    "type": "localhost_link",
+                    "link": link,
+                    "severity": "high",
+                    "message": "Localhost link should be removed before publishing"
+                })
+                problematic_links.append(link)
+
+            # Check for empty/placeholder links
+            elif link in ['#', '', 'javascript:void(0)', 'javascript:;']:
+                warnings.append({
+                    "type": "empty_link",
+                    "link": link,
+                    "severity": "low",
+                    "message": "Empty or placeholder link"
+                })
+                problematic_links.append(link)
+
+            # Categorize internal vs external
+            elif link.startswith('/') and not link.startswith('//'):
+                internal_links.append(link)
+            elif link.startswith('http'):
+                external_links.append(link)
+
+        # Check for rundaverun.local links (development)
+        local_dev_links = [l for l in links if 'local' in l.lower() and 'rundaverun' in l.lower()]
+        for link in local_dev_links:
+            errors.append({
+                "type": "dev_environment_link",
+                "link": link,
+                "severity": "critical",
+                "message": "Development environment link found - must update for production"
+            })
+
+        return json.dumps({
+            "success": True,
+            "status": "pass" if len(errors) == 0 else "fail",
+            "errors": errors,
+            "warnings": warnings,
+            "stats": {
+                "total_links": len(links),
+                "internal": len(internal_links),
+                "external": len(external_links),
+                "problematic": len(problematic_links)
+            }
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Link validation failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def validate_content_html(content: str) -> str:
+    """
+    Validate HTML structure in WordPress content.
+
+    Checks for:
+    - Unclosed tags
+    - Malformed HTML elements
+    - Common HTML issues
+
+    Args:
+        content: HTML content to validate
+
+    Returns:
+        JSON with HTML validation results
+    """
+    try:
+        errors = []
+        warnings = []
+
+        # Track opened tags (basic validation)
+        tag_stack = []
+        tag_pattern = r'<(/?)(\w+)[^>]*>'
+
+        for match in re.finditer(tag_pattern, content):
+            is_closing = match.group(1) == '/'
+            tag_name = match.group(2).lower()
+
+            # Skip self-closing tags
+            if tag_name in ['img', 'br', 'hr', 'input', 'meta', 'link', 'area', 'base', 'col', 'embed', 'param', 'source', 'track', 'wbr']:
+                continue
+
+            if is_closing:
+                if tag_stack and tag_stack[-1] == tag_name:
+                    tag_stack.pop()
+                elif tag_name in tag_stack:
+                    # Found but not at top - potential nesting issue
+                    warnings.append({
+                        "type": "possible_nesting_issue",
+                        "tag": tag_name,
+                        "severity": "medium",
+                        "message": f"Tag </{tag_name}> may have nesting issues"
+                    })
+            else:
+                tag_stack.append(tag_name)
+
+        # Report unclosed tags
+        for tag in tag_stack[-10:]:  # Limit to last 10
+            warnings.append({
+                "type": "unclosed_tag",
+                "tag": tag,
+                "severity": "medium",
+                "message": f"Tag <{tag}> may not be closed properly"
+            })
+
+        # Check for deprecated HTML
+        deprecated = ['font', 'center', 'marquee', 'blink', 'strike']
+        for tag in deprecated:
+            if f'<{tag}' in content.lower():
+                warnings.append({
+                    "type": "deprecated_tag",
+                    "tag": tag,
+                    "severity": "low",
+                    "message": f"Deprecated HTML tag <{tag}> found"
+                })
+
+        return json.dumps({
+            "success": True,
+            "status": "pass" if len(errors) == 0 else "fail",
+            "errors": errors,
+            "warnings": warnings,
+            "unclosed_tags_count": len(tag_stack)
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"HTML validation failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def validate_content_comprehensive(content: str, level: str = "standard") -> str:
+    """
+    Run comprehensive content validation at specified level.
+
+    Validation Levels:
+    - quick: Facts only
+    - standard: Facts + Links + SEO
+    - strict: Standard + Accessibility
+    - publish-ready: All validations including HTML
+
+    Args:
+        content: HTML content to validate
+        level: Validation level (quick, standard, strict, publish-ready)
+
+    Returns:
+        JSON with comprehensive validation results
+    """
+    try:
+        results = {
+            "success": True,
+            "validation_level": level,
+            "timestamp": datetime.now().isoformat(),
+            "overall_status": "pass",
+            "summary": {"total_errors": 0, "total_warnings": 0}
+        }
+
+        # Always run fact validation
+        facts_result = json.loads(facts_validate(content))
+        results["facts"] = facts_result
+        if not facts_result.get("valid", True):
+            results["overall_status"] = "fail"
+
+        if level in ["standard", "strict", "publish-ready"]:
+            # Links validation
+            links_result = json.loads(validate_content_links(content))
+            results["links"] = links_result
+            if links_result.get("status") == "fail":
+                results["overall_status"] = "fail"
+
+            # SEO validation
+            seo_result = json.loads(validate_content_seo(content))
+            results["seo"] = seo_result
+
+        if level in ["strict", "publish-ready"]:
+            # Accessibility validation
+            a11y_result = json.loads(validate_content_accessibility(content))
+            results["accessibility"] = a11y_result
+            if a11y_result.get("status") == "fail":
+                results["overall_status"] = "fail"
+
+        if level == "publish-ready":
+            # HTML validation
+            html_result = json.loads(validate_content_html(content))
+            results["html"] = html_result
+
+        # Calculate summary
+        for key, value in results.items():
+            if isinstance(value, dict):
+                results["summary"]["total_errors"] += len(value.get("errors", []))
+                results["summary"]["total_warnings"] += len(value.get("warnings", []))
+                if "issues" in value:
+                    results["summary"]["total_errors"] += len(value.get("issues", []))
+
+        # Recommendation
+        if results["overall_status"] == "pass" and results["summary"]["total_warnings"] == 0:
+            results["recommendation"] = "Content is ready for publication."
+        elif results["overall_status"] == "pass":
+            results["recommendation"] = f"Content can be published with {results['summary']['total_warnings']} warnings to review."
+        else:
+            results["recommendation"] = f"Fix {results['summary']['total_errors']} errors before publishing."
+
+        return json.dumps(results, indent=2)
+
+    except Exception as e:
+        logger.error(f"Comprehensive validation failed: {e}")
         return json.dumps({"success": False, "error": str(e)}, indent=2)
 
 
