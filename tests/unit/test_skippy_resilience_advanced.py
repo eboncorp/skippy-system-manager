@@ -1003,6 +1003,27 @@ class TestAlertManager:
         assert recent[0]["title"] == "Alert 5"
         assert recent[4]["title"] == "Alert 9"
 
+    def test_get_recent_alerts_with_hours(self):
+        """Test getting recent alerts filtered by hours."""
+        manager = AlertManager()
+        manager.remove_handler("log")
+
+        # Add alerts
+        for i in range(5):
+            manager.alert(AlertLevel.INFO, f"Alert {i}", "Message")
+
+        # All alerts should be within last 24 hours (just created)
+        recent = manager.get_recent_alerts(hours=24)
+        assert len(recent) == 5
+
+        # Should also work with count limit
+        recent = manager.get_recent_alerts(count=3, hours=24)
+        assert len(recent) == 3
+
+        # With 0 hours, no alerts should match (none are in the future)
+        recent = manager.get_recent_alerts(hours=0)
+        assert len(recent) == 0
+
     def test_get_alerts_by_level(self):
         """Test filtering alerts by level."""
         manager = AlertManager()
