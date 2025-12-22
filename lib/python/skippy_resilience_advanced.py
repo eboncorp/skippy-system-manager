@@ -628,10 +628,26 @@ class AlertManager:
 
         log_func(f"ALERT [{alert.level.upper()}] {alert.title}: {alert.message}")
 
-    def get_recent_alerts(self, count: int = 50) -> List[Dict[str, Any]]:
-        """Get recent alerts."""
+    def get_recent_alerts(self, count: int = 50, hours: int = None) -> List[Dict[str, Any]]:
+        """Get recent alerts, optionally filtered by time.
+
+        Args:
+            count: Maximum number of alerts to return (default 50)
+            hours: If provided, only return alerts from last N hours
+
+        Returns:
+            List of alert dictionaries
+        """
         with self._lock:
-            alerts = list(self.alert_history)[-count:]
+            alerts = list(self.alert_history)
+
+        # Filter by hours if specified
+        if hours is not None:
+            cutoff = datetime.now() - timedelta(hours=hours)
+            alerts = [a for a in alerts if a.timestamp > cutoff]
+
+        # Limit to count
+        alerts = alerts[-count:]
         return [a.to_dict() for a in alerts]
 
     def get_alerts_by_level(self, level: str) -> List[Dict[str, Any]]:
