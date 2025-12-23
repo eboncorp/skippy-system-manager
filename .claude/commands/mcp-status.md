@@ -16,13 +16,19 @@ Check status of all MCP servers and list available tools.
 
 ## MCP Servers Expected
 
-**general-server** (52 tools):
+**general-server** (152 tools):
 - Google Drive management (13 tools)
 - Pexels stock photos (4 tools)
-- File operations
-- System monitoring
+- Google Photos Picker (5 tools)
+- File operations (~20 tools)
+- System monitoring (~10 tools)
+- WordPress management (~10 tools)
+- Git operations (~5 tools)
 - Remote server management (ebon)
+- Docker management (~5 tools)
 - Web requests
+- Skippy infrastructure (~15 tools)
+- Utilities (~50+ tools)
 
 ## Troubleshooting
 

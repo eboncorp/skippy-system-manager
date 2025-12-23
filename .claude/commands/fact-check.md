@@ -27,7 +27,7 @@ FACT_SHEET="/home/dave/skippy/reference/QUICK_FACTS_SHEET.md"
 ```bash
 # Total budget
 grep -i "total.*budget\|budget.*total" "$FACT_SHEET"
-# Answer: $81M (NOT $110.5M)
+# Answer: $1.2 billion (NOT $81M, NOT $110.5M)
 
 # Public safety budget
 grep -i "public safety\|safety.*budget" "$FACT_SHEET"
@@ -35,7 +35,7 @@ grep -i "public safety\|safety.*budget" "$FACT_SHEET"
 
 # Wellness center ROI
 grep -i "wellness.*roi\|roi.*wellness\|per.*dollar" "$FACT_SHEET"
-# Answer: $2-3 per $1 spent (NOT $1.80)
+# Answer: $5.60 per $1 spent (NOT $2-3, NOT $1.80)
 ```
 
 **Education Statistics:**
@@ -84,10 +84,10 @@ grep -i "mayor\|campaign\|running for" "$FACT_SHEET"
 **ALWAYS CORRECT VALUES:**
 ```
 BUDGET:
-- Total Budget: $81M
+- Total Budget: $1.2 billion
 - Public Safety Budget: $77.4M
-- Campaign Budget: $1.2B
-- Wellness Center ROI: $2-3 per $1 spent
+- Wellness Center ROI: $5.60 per $1 spent
+- Mini Substations: 63 total
 
 EDUCATION:
 - JCPS Reading Proficiency: 34-35%
@@ -112,8 +112,9 @@ BIOGRAPHICAL:
 **VALUES TO FLAG AS WRONG:**
 | Topic | WRONG Value | CORRECT Value |
 |-------|------------|---------------|
-| Budget | $110.5M or $110M | $81M |
-| Wellness ROI | $1.80 or $1.8 | $2-3 per $1 |
+| Budget | $81M, $110.5M, $110M | $1.2 billion |
+| Wellness ROI | $2-3, $1.80, $1.8 | $5.60 per $1 |
+| Mini Substations | 46 | 63 |
 | JCPS Reading | 44% or 45% | 34-35% |
 | JCPS Math | 41% or 40% | 27-28% |
 | Family | "married" or "wife" | NOT married |
@@ -137,12 +138,12 @@ echo "WRONG VALUES: $1.80, $1.8"
 TEXT="The city budget of $110.5M will fund..."
 
 # Check for known wrong values
-if echo "$TEXT" | grep -q "\$110\.5M\|\$110M"; then
-  echo "❌ ERROR: Budget should be $81M, not $110.5M"
+if echo "$TEXT" | grep -q "\$81M\|\$110\.5M\|\$110M"; then
+  echo "❌ ERROR: Budget should be $1.2 billion, not $81M or $110.5M"
 fi
 
-if echo "$TEXT" | grep -q "\$1\.80\|\$1\.8"; then
-  echo "❌ ERROR: Wellness ROI should be $2-3 per $1, not $1.80"
+if echo "$TEXT" | grep -q "\$2-3\|\$1\.80\|\$1\.8"; then
+  echo "❌ ERROR: Wellness ROI should be $5.60 per $1, not $2-3 or $1.80"
 fi
 
 if echo "$TEXT" | grep -q "44%.*reading\|reading.*44%"; then
@@ -208,10 +209,12 @@ When errors are found, provide fix:
 ```bash
 # Suggest sed commands
 echo "To fix budget error:"
-echo "sed -i 's/\$110\.5M/\$81M/g' $FILE"
+echo "sed -i 's/\$81M/\$1.2 billion/g' \$FILE"
+echo "sed -i 's/\$110\.5M/\$1.2 billion/g' \$FILE"
 
 echo "To fix ROI error:"
-echo "sed -i 's/\$1\.80 per \$1 spent/\$2-3 per \$1 spent/g' $FILE"
+echo "sed -i 's/\$2-3 per \$1 spent/\$5.60 per \$1 spent/g' \$FILE"
+echo "sed -i 's/\$1\.80 per \$1 spent/\$5.60 per \$1 spent/g' \$FILE"
 
 echo "To fix reading stat:"
 echo "sed -i 's/44% reading proficiency/34-35% reading proficiency/g' $FILE"
@@ -274,13 +277,13 @@ cat > "$FACT_CHECK_FILE" <<FACTCHECK
   "expires": "$(date -Iseconds -d '+1 hour')",
   "facts_verified": [
     {
-      "claim": "Total Budget: \$81M",
+      "claim": "Total Budget: \$1.2 billion",
       "source": "QUICK_FACTS_SHEET.md",
       "verified": true,
       "line": 42
     },
     {
-      "claim": "Wellness ROI: \$2-3 per \$1",
+      "claim": "Wellness ROI: \$5.60 per \$1",
       "source": "QUICK_FACTS_SHEET.md",
       "verified": true,
       "line": 67
@@ -357,13 +360,13 @@ cat > "$FACT_CHECK_FILE" <<FACTCHECK
   "expires": "$(date -Iseconds -d '+1 hour')",
   "facts_verified": [
     {
-      "claim": "Total Budget: \$81M",
+      "claim": "Total Budget: \$1.2 billion",
       "source": "QUICK_FACTS_SHEET.md",
       "verified": ${BUDGET_VERIFIED},
       "found_in_text": true
     },
     {
-      "claim": "Wellness ROI: \$2-3 per \$1",
+      "claim": "Wellness ROI: \$5.60 per \$1",
       "source": "QUICK_FACTS_SHEET.md",
       "verified": ${ROI_VERIFIED},
       "found_in_text": true
