@@ -12,8 +12,8 @@ MCP_SERVER_PATH="/home/dave/skippy/mcp-servers/general-server"
 MCP_CONFIG_PATH="/home/dave/.claude/claude_desktop_config.json"
 
 # Current version
-CURRENT_VERSION="v2.3.2"
-TOTAL_TOOLS=75
+CURRENT_VERSION="v2.4.0"
+TOTAL_TOOLS=152
 ```
 
 ### 2. Check Server Status
@@ -148,7 +148,7 @@ cat > "$HEALTH_DIR/MCP_HEALTH_REPORT.md" <<EOF
 - **Last Test:** $(date)
 
 ## Overall Health Score
-- **Operational Tools:** XX/75
+- **Operational Tools:** XX/152
 - **Health Percentage:** XX%
 - **Critical Issues:** {count}
 - **Warnings:** {count}
@@ -215,7 +215,7 @@ EOF
 ## Usage
 - `/mcp-health` - Run comprehensive health check
 - Reports saved to `/home/dave/skippy/work/mcp/`
-- Monitors 75 tools across 5 integrations
+- Monitors 152 tools across multiple categories
 - Tracks OAuth status and token expiration
 - Identifies degraded or failed services
 

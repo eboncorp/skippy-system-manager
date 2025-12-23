@@ -42,12 +42,12 @@ From the content being validated, identify:
 **CRITICAL BUDGET FIGURES:**
 | Item | CORRECT Value | WRONG Values to Flag |
 |------|--------------|---------------------|
-| Total Budget | $81M | $110.5M, $110M |
+| Total Budget | $1.2 billion | $81M, $110.5M, $110M |
 | Public Safety | $77.4M | Other values |
-| Wellness ROI | $2-3 per $1 | $1.80, $1.8 |
+| Wellness ROI | $5.60 per $1 | $2-3, $1.80, $1.8 |
+| Mini Substations | 63 total | 46 |
 | JCPS Reading | 34-35% | 44%, 45% |
 | JCPS Math | 27-28% | 41%, 40% |
-| Campaign Budget | $1.2B | Different amounts |
 | Policy Documents | 42 total | Other counts |
 | Platform Policies | 16 | Other counts |
 | Implementation Policies | 26 | Other counts |
@@ -101,8 +101,10 @@ EOF
 For each error found, provide:
 ```bash
 # sed command to fix
-sed -i 's/\$110\.5M/\$81M/g' "$FILE"
-sed -i 's/\$1\.80 per \$1/\$2-3 per \$1/g' "$FILE"
+sed -i 's/\$81M/\$1.2 billion/g' "$FILE"
+sed -i 's/\$110\.5M/\$1.2 billion/g' "$FILE"
+sed -i 's/\$2-3 per \$1/\$5.60 per \$1/g' "$FILE"
+sed -i 's/\$1\.80 per \$1/\$5.60 per \$1/g' "$FILE"
 sed -i 's/44% reading/34-35% reading/g' "$FILE"
 ```
 

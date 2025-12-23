@@ -1,6 +1,6 @@
 # General Purpose MCP Server v2.3.2
 
-FastMCP-based Model Context Protocol server with 75 tools for file operations, system utilities, Google Drive, stock photos, and Google Photos.
+FastMCP-based Model Context Protocol server with 152 tools for file operations, system utilities, Google Drive, stock photos, WordPress, and more.
 
 ## Overview
 
@@ -166,7 +166,7 @@ result = gdrive_batch_upload(
 | **Pexels Stock Photos** | **4** | **v2.3.2** | **✅** |
 | **Google Photos** | **6** | **v2.3.2** | **⚠️** |
 | Other Tools | 5 | v2.1.0 | ✅ |
-| **Total** | **75** | **v2.3.2** | - |
+| **Total** | **152** | **v2.4.0** | - |
 
 ## Requirements
 
@@ -237,6 +237,6 @@ Internal tool for personal use.
 
 ---
 
-**Last Updated:** November 12, 2025
-**Current Version:** v2.3.2
-**Total Tools:** 75 (52 general + 13 Google Drive + 4 Pexels + 6 Google Photos)
+**Last Updated:** December 22, 2025
+**Current Version:** v2.4.0
+**Total Tools:** 152 (across 12+ categories including file ops, system monitoring, WordPress, Git, Google Drive, Pexels, Google Photos, Docker, and more)

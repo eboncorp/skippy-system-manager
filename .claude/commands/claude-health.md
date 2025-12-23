@@ -16,7 +16,7 @@ Expected: All servers connected
 ```bash
 ls -1 ~/.claude/skills/ | wc -l
 ```
-Expected: 61 skills
+Expected: 87 skills
 
 ### 3. Skills Backup Status
 ```bash
@@ -74,7 +74,7 @@ Present results in a clear summary table:
 | Component | Status | Details |
 |-----------|--------|---------|
 | MCP Servers | ✅/❌ | Connected/Disconnected |
-| Skills | ✅/❌ | 61/61, backup synced |
+| Skills | ✅/❌ | 87/87, backup synced |
 | Hooks | ✅/❌ | 4 scripts, executable |
 | Storage | ✅/⚠️/❌ | Total size, growth rate |
 | Compactions | ✅/❌ | Recent activity |

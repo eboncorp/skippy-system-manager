@@ -20,7 +20,7 @@ Skippy System Manager is a comprehensive automation and management suite for:
 | Category | Count |
 |----------|-------|
 | Scripts | 1,600+ (Python: 1,399, Bash: 213) |
-| MCP Tools | 82+ across 6 categories |
+| MCP Tools | 152 across 12+ categories |
 | Slash Commands | 32 custom commands |
 | Skills | 89 |
 | Rules | 24 |
@@ -53,7 +53,7 @@ skippy-system-manager/
 │   └── legacy_system_managers/ # Legacy scripts (maintenance mode)
 ├── bin/                        # CLI tools (PATH executable)
 ├── mcp-servers/                # MCP server implementations
-│   ├── general-server/         # Main MCP server (82+ tools)
+│   ├── general-server/         # Main MCP server (152 tools)
 │   └── wordpress-validator/    # WordPress validation
 ├── tests/                      # Test framework
 │   ├── unit/                   # Unit tests
@@ -205,7 +205,7 @@ pytest tests/security/ -v -m security
 
 ## MCP Server Integration
 
-### Available Tools (82+)
+### Available Tools (152)
 
 **Google Drive (13 tools):**
 - File management, uploads, sharing, organization

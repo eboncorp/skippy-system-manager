@@ -42,9 +42,10 @@ class WordPressContentValidator:
 
         # Extract key facts
         facts = {
-            "budget": {"total": "$81M", "wrong": ["$110.5M", "$110M"]},
+            "budget": {"total": "$1.2 billion", "wrong": ["$81M", "$110.5M", "$110M"]},
             "public_safety_budget": "$77.4M",
-            "wellness_roi": {"correct": "$2-3 per $1", "wrong": ["$1.80", "$1.8"]},
+            "wellness_roi": {"correct": "$5.60 per $1", "wrong": ["$2-3", "$1.80", "$1.8"]},
+            "mini_substations": {"correct": "63", "wrong": ["46"]},
             "jcps_reading": {"correct": "34-35%", "wrong": ["44%", "45%"]},
             "jcps_math": {"correct": "27-28%", "wrong": ["41%", "40%"]},
             "marital_status": "NOT married",
@@ -59,30 +60,30 @@ class WordPressContentValidator:
         warnings = []
 
         # Budget checks
-        if "$110" in content:
+        if "$81M" in content or "$110" in content:
             errors.append({
                 "type": "incorrect_fact",
                 "field": "budget",
-                "found": "$110M or $110.5M",
-                "correct": "$81M",
+                "found": "$81M or $110M or $110.5M",
+                "correct": "$1.2 billion",
                 "severity": "critical"
             })
 
-        if "$81M" in content:
+        if "$1.2 billion" in content or "1.2 billion" in content:
             warnings.append({
                 "type": "fact_verified",
                 "field": "budget",
-                "value": "$81M",
+                "value": "$1.2 billion",
                 "status": "correct"
             })
 
         # Wellness ROI checks
-        if "$1.80" in content or "$1.8" in content:
+        if "$2-3" in content or "$1.80" in content or "$1.8" in content:
             errors.append({
                 "type": "incorrect_fact",
                 "field": "wellness_roi",
-                "found": "$1.80",
-                "correct": "$2-3 per $1 spent",
+                "found": "$2-3 or $1.80",
+                "correct": "$5.60 per $1 spent",
                 "severity": "critical"
             })
 
