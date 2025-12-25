@@ -9564,6 +9564,334 @@ def backup_cleanup(days: int = 30, dry_run: bool = True) -> str:
 
 
 # =============================================================================
+# EPSON SCANNER INTEGRATION TOOLS
+# =============================================================================
+
+@mcp.tool()
+def scanner_status() -> str:
+    """
+    Check Epson V39 scanner status and availability.
+
+    Returns scanner device info and queue status.
+    """
+    try:
+        result = {
+            "scanner": {},
+            "queue": {},
+            "dependencies": {}
+        }
+
+        # Check for epsonscan2
+        try:
+            scanner_check = subprocess.run(
+                ["epsonscan2", "--list"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            output = scanner_check.stdout + scanner_check.stderr
+
+            if "device ID" in output:
+                device_id = output.split("device ID :")[1].strip().split("\n")[0] if "device ID :" in output else "unknown"
+                result["scanner"] = {
+                    "connected": True,
+                    "device_id": device_id,
+                    "driver": "epsonscan2"
+                }
+            else:
+                result["scanner"] = {
+                    "connected": False,
+                    "message": "No scanner detected"
+                }
+        except FileNotFoundError:
+            result["scanner"] = {
+                "connected": False,
+                "error": "epsonscan2 not installed"
+            }
+        except Exception as e:
+            result["scanner"] = {
+                "connected": False,
+                "error": str(e)
+            }
+
+        # Check queue status
+        incoming_dir = Path("/home/dave/skippy/operations/scans/incoming")
+        processed_dir = Path("/home/dave/skippy/operations/scans/processed")
+
+        incoming_count = len(list(incoming_dir.glob("*.pdf"))) if incoming_dir.exists() else 0
+        processed_count = len(list(processed_dir.rglob("*"))) if processed_dir.exists() else 0
+
+        result["queue"] = {
+            "incoming": incoming_count,
+            "processed": processed_count,
+            "incoming_path": str(incoming_dir),
+            "processed_path": str(processed_dir)
+        }
+
+        # Check dependencies
+        deps = ["tesseract", "convert", "pdftotext", "simple-scan"]
+        for dep in deps:
+            try:
+                subprocess.run(["which", dep], capture_output=True, check=True)
+                result["dependencies"][dep] = True
+            except Exception:
+                result["dependencies"][dep] = False
+
+        return json.dumps({"success": True, **result}, indent=2)
+
+    except Exception as e:
+        logger.error(f"Scanner status check failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def scanner_quick_scan(
+    output_name: str = "",
+    destination: str = "queue"
+) -> str:
+    """
+    Perform a quick single-page scan with the Epson V39.
+
+    Args:
+        output_name: Optional custom filename (without extension)
+        destination: Where to save - "queue" (default) or custom path
+
+    Returns:
+        Path to scanned file or error message
+    """
+    try:
+        # Determine output location
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = output_name if output_name else f"scan_{timestamp}"
+
+        if destination == "queue":
+            output_dir = Path("/home/dave/skippy/operations/scans/incoming")
+        else:
+            output_dir = Path(destination)
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_file = output_dir / f"{filename}.pdf"
+
+        # Check scanner
+        scanner_check = subprocess.run(
+            ["epsonscan2", "--list"],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        if "device ID" not in (scanner_check.stdout + scanner_check.stderr):
+            return json.dumps({
+                "success": False,
+                "error": "No scanner detected. Check USB connection."
+            }, indent=2)
+
+        device_id = (scanner_check.stdout + scanner_check.stderr).split("device ID :")[1].strip().split("\n")[0]
+
+        # Create settings file
+        settings_file = Path("/tmp/mcp_quick_scan.SF2")
+        settings = {
+            "Preset": [{
+                "0": [{
+                    "ColorType": {"int": 909670447},
+                    "Resolution": {"int": 300},
+                    "ImageFormat": {"int": 6},
+                    "FileNamePrefix": {"string": filename},
+                    "UserDefinePath": {"string": str(output_dir) + "/"},
+                    "FileNameCounter": {"int": 1},
+                    "PDFAllPages": {"int": 1}
+                }]
+            }]
+        }
+
+        settings_file.write_text(json.dumps(settings))
+
+        # Perform scan
+        scan_result = subprocess.run(
+            ["epsonscan2", "--scan", device_id, str(settings_file)],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+
+        # Wait for file
+        import time
+        time.sleep(2)
+
+        # Find the output file
+        scanned_files = list(output_dir.glob(f"{filename}*.pdf"))
+        settings_file.unlink(missing_ok=True)
+
+        if scanned_files:
+            scanned_file = scanned_files[0]
+            file_size = scanned_file.stat().st_size
+            return json.dumps({
+                "success": True,
+                "file_path": str(scanned_file),
+                "file_size_kb": round(file_size / 1024, 2),
+                "destination": destination
+            }, indent=2)
+        else:
+            return json.dumps({
+                "success": False,
+                "error": "Scan completed but file not found",
+                "scan_output": scan_result.stdout + scan_result.stderr
+            }, indent=2)
+
+    except subprocess.TimeoutExpired:
+        return json.dumps({
+            "success": False,
+            "error": "Scan timed out. Check scanner and try again."
+        }, indent=2)
+    except Exception as e:
+        logger.error(f"Quick scan failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def scanner_process_queue(
+    dry_run: bool = True
+) -> str:
+    """
+    Process documents in the scanner incoming queue.
+
+    Applies OCR, categorization, and moves to processed folder.
+
+    Args:
+        dry_run: If True, show what would be processed without moving files
+
+    Returns:
+        Processing results
+    """
+    try:
+        incoming_dir = Path("/home/dave/skippy/operations/scans/incoming")
+        processed_dir = Path("/home/dave/skippy/operations/scans/processed/scanned_documents")
+
+        if not incoming_dir.exists():
+            return json.dumps({
+                "success": True,
+                "message": "No incoming directory",
+                "files_processed": 0
+            }, indent=2)
+
+        files = list(incoming_dir.glob("*.pdf"))
+
+        if not files:
+            return json.dumps({
+                "success": True,
+                "message": "No files in queue",
+                "files_processed": 0
+            }, indent=2)
+
+        results = []
+        processed_dir.mkdir(parents=True, exist_ok=True)
+
+        for file in files:
+            file_info = {
+                "original": file.name,
+                "size_kb": round(file.stat().st_size / 1024, 2)
+            }
+
+            # Try OCR to get category
+            category = "Uncategorized"
+            try:
+                ocr_result = subprocess.run(
+                    ["pdftotext", "-l", "2", str(file), "-"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                text = ocr_result.stdout.lower()
+
+                # Categorize based on content
+                if "invoice" in text:
+                    category = "Financial/Invoices"
+                elif "receipt" in text:
+                    category = "Financial/Receipts"
+                elif "tax" in text or "1099" in text or "w-2" in text:
+                    category = "Financial/Tax"
+                elif "medical" in text or "patient" in text:
+                    category = "Medical"
+                elif "insurance" in text:
+                    category = "Insurance"
+                elif "statement" in text:
+                    category = "Financial/Statements"
+
+            except Exception:
+                pass
+
+            file_info["category"] = category
+
+            if not dry_run:
+                # Create category folder and move file
+                cat_dir = processed_dir / category
+                cat_dir.mkdir(parents=True, exist_ok=True)
+                dest = cat_dir / file.name
+                file.rename(dest)
+                file_info["destination"] = str(dest)
+            else:
+                file_info["would_move_to"] = str(processed_dir / category / file.name)
+
+            results.append(file_info)
+
+        return json.dumps({
+            "success": True,
+            "dry_run": dry_run,
+            "files_processed": len(results),
+            "files": results
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Queue processing failed: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+@mcp.tool()
+def scanner_launch_gui() -> str:
+    """
+    Launch the graphical scanner interface.
+
+    Opens either the custom Skippy GUI scanner or simple-scan.
+
+    Returns:
+        Status message
+    """
+    try:
+        # Try custom GUI first
+        gui_script = Path("/home/dave/skippy/scripts/automation/epson_scan_gui_v1.0.0.sh")
+
+        if gui_script.exists():
+            subprocess.Popen(
+                ["bash", str(gui_script)],
+                start_new_session=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            return json.dumps({
+                "success": True,
+                "message": "Launched Skippy Scanner GUI",
+                "script": str(gui_script)
+            }, indent=2)
+        else:
+            # Fallback to simple-scan
+            subprocess.Popen(
+                ["simple-scan"],
+                start_new_session=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            return json.dumps({
+                "success": True,
+                "message": "Launched simple-scan",
+                "note": "Custom GUI not found, using simple-scan"
+            }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Failed to launch scanner GUI: {e}")
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
+# =============================================================================
 # RATE-LIMITED WEB SEARCH TOOL
 # =============================================================================
 
