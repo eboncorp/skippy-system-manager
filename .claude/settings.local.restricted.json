@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(/home/dave/skippy/**)",
+      "Read(/home/dave/.claude/**)",
+      "Glob(/home/dave/skippy/**)",
+      "Grep(/home/dave/skippy/**)",
+
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(du:*)",
+      "Bash(pwd:*)",
+      "Bash(which:*)",
+      "Bash(date:*)",
+
+      "mcp__brave-search__*",
+      "WebSearch",
+      "SlashCommand(/mcp-status)",
+      "SlashCommand(/screenshot)"
+    ],
+    "deny": [],
+    "ask": [
+      "Edit(**)",
+      "Write(**)",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(ssh:*)",
+      "Bash(sudo:*)"
+    ]
+  },
+  "_note": "RESTRICTED MODE - YubiKey not present. Read-only access, destructive operations require approval."
+}
