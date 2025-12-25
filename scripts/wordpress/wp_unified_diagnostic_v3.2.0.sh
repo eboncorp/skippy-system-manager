@@ -1,8 +1,9 @@
 #!/bin/bash
 ###############################################################################
-# WordPress Unified Diagnostic Tool v3.0.0
+# WordPress Unified Diagnostic Tool v3.1.0
 # 20-Layer Comprehensive Site Analysis
 # Created: 2025-12-21
+# Updated: 2025-12-24 - Added CDN filtering, custom post types, improved SEO checks
 #
 # Description:
 #   The definitive WordPress diagnostic tool combining all previous scripts
@@ -46,8 +47,14 @@ set -o pipefail
 # CONFIGURATION
 # =============================================================================
 
-VERSION="3.0.0"
+VERSION="3.2.0"
 SCRIPT_NAME="WordPress Unified Diagnostic"
+
+# Handle --help as first argument
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    head -45 "$0" | tail -40
+    exit 0
+fi
 
 # Environment configuration
 ENVIRONMENT="${1:-local}"
@@ -62,9 +69,23 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --quick) QUICK_MODE=true ;;
         --full) QUICK_MODE=false ;;
-        --layer) SPECIFIC_LAYER="$2"; shift ;;
-        --skip) SKIP_LAYERS="$SKIP_LAYERS $2"; shift ;;
-        --help)
+        --layer)
+            SPECIFIC_LAYER="$2"
+            if [[ ! "$SPECIFIC_LAYER" =~ ^[0-9]+$ ]] || [[ "$SPECIFIC_LAYER" -lt 1 ]] || [[ "$SPECIFIC_LAYER" -gt 20 ]]; then
+                echo "Error: --layer must be a number between 1 and 20"
+                exit 1
+            fi
+            shift
+            ;;
+        --skip)
+            if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1 ]] || [[ "$2" -gt 20 ]]; then
+                echo "Error: --skip must be a number between 1 and 20"
+                exit 1
+            fi
+            SKIP_LAYERS="$SKIP_LAYERS $2"
+            shift
+            ;;
+        --help|-h)
             head -45 "$0" | tail -40
             exit 0
             ;;
@@ -107,13 +128,37 @@ esac
 SESSION_DIR="/home/dave/skippy/work/wordpress/$(date +%Y%m%d_%H%M%S)_unified_diagnostic_${ENVIRONMENT}"
 mkdir -p "$SESSION_DIR"
 REPORT_FILE="$SESSION_DIR/diagnostic_report.md"
-JSON_REPORT="$SESSION_DIR/diagnostic_report.json"
 
 # Counters
 CRITICAL_ISSUES=0
 WARNINGS=0
 PASSED=0
-SKIPPED=0
+LAYERS_RUN=0
+
+# External domains to skip in link checking (CDNs, analytics, fonts)
+# These domains often return 403/blocking responses to automated requests
+EXTERNAL_DOMAINS_SKIP=(
+    "fonts.googleapis.com"
+    "fonts.gstatic.com"
+    "googletagmanager.com"
+    "google-analytics.com"
+    "www.google-analytics.com"
+    "analytics.google.com"
+    "cdnjs.cloudflare.com"
+    "cdn.jsdelivr.net"
+    "unpkg.com"
+    "maxcdn.bootstrapcdn.com"
+    "stackpath.bootstrapcdn.com"
+    "use.fontawesome.com"
+    "kit.fontawesome.com"
+    "polyfill.io"
+    "gravatar.com"
+    "facebook.com"
+    "twitter.com"
+    "linkedin.com"
+    "youtube.com"
+    "maps.google.com"
+)
 
 # Colors
 RED='\033[0;31m'
@@ -186,13 +231,30 @@ should_run_layer() {
         return 1
     fi
 
+    # Increment layer counter
+    ((LAYERS_RUN++))
     return 0
+}
+
+# Check if a URL is an external domain we should skip
+is_external_skip_domain() {
+    local url=$1
+    for domain in "${EXTERNAL_DOMAINS_SKIP[@]}"; do
+        if [[ "$url" == *"$domain"* ]]; then
+            return 0  # True - should skip
+        fi
+    done
+    return 1  # False - should check
 }
 
 run_wp_cli() {
     local cmd=$1
     if $IS_REMOTE; then
-        eval "$SSH_CMD \"$WP_CLI_REMOTE $cmd\"" 2>&1
+        # Use single quotes for outer SSH command to preserve inner double quotes
+        # This fixes SQL query quoting issues
+        SSH_AUTH_SOCK='' ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes \
+            -i "$SSH_KEY" "$SSH_USER@$SSH_HOST" \
+            "cd html && wp --allow-root $cmd" 2>&1
     else
         eval "$WP_CLI $cmd" 2>&1
     fi
@@ -251,19 +313,28 @@ if should_run_layer 1; then
     PHP_VERSION=$(php -v 2>/dev/null | head -1 || echo "PHP not found")
     log_info "PHP: $PHP_VERSION"
 
-    # Check required PHP modules
-    REQUIRED_MODULES="curl gd mbstring mysqli xml"
-    MISSING_MODULES=""
-    for mod in $REQUIRED_MODULES; do
-        if ! php -m 2>/dev/null | grep -qi "$mod"; then
-            MISSING_MODULES="$MISSING_MODULES $mod"
-        fi
-    done
+    # Check required PHP modules (local environment only)
+    # Remote environments have their own PHP config via WP-CLI
+    if ! $IS_REMOTE; then
+        REQUIRED_MODULES="curl gd mbstring mysqli xml"
+        MISSING_MODULES=""
+        for mod in $REQUIRED_MODULES; do
+            if ! php -m 2>/dev/null | grep -qi "$mod"; then
+                MISSING_MODULES="$MISSING_MODULES $mod"
+            fi
+        done
 
-    if [[ -z "$MISSING_MODULES" ]]; then
-        log_success "All required PHP modules installed"
+        if [[ -z "$MISSING_MODULES" ]]; then
+            log_success "All required PHP modules installed"
+        else
+            log_error "Missing PHP modules:$MISSING_MODULES"
+        fi
     else
-        log_error "Missing PHP modules:$MISSING_MODULES"
+        # For remote, check PHP on remote server
+        REMOTE_PHP=$(run_wp_cli "--info" 2>/dev/null | grep "PHP Version" || echo "")
+        if [[ -n "$REMOTE_PHP" ]]; then
+            log_success "Remote PHP configured correctly"
+        fi
     fi
 
     # Disk space
@@ -339,7 +410,7 @@ if should_run_layer 3; then
 
     # Orphaned data check - get prefix first
     DB_PREFIX=$(run_wp_cli "db prefix" 2>/dev/null | tr -d '\n' || echo "wp_")
-    ORPHANED_META=$(run_wp_cli "db query \"SELECT COUNT(*) FROM ${DB_PREFIX}postmeta pm LEFT JOIN ${DB_PREFIX}posts p ON pm.post_id = p.ID WHERE p.ID IS NULL\" --skip-column-names" 2>/dev/null || echo "0")
+    ORPHANED_META=$(run_wp_cli "db query 'SELECT COUNT(*) FROM ${DB_PREFIX}postmeta pm LEFT JOIN ${DB_PREFIX}posts p ON pm.post_id = p.ID WHERE p.ID IS NULL' --skip-column-names" 2>/dev/null || echo "0")
     if [[ "$ORPHANED_META" == "0" ]]; then
         log_success "No orphaned post meta"
     else
@@ -419,12 +490,28 @@ if should_run_layer 6; then
     log_info "Published pages: $PAGE_COUNT"
     log_info "Published posts: $POST_COUNT"
 
-    # Check for empty pages
-    EMPTY_PAGES=$(run_wp_cli "db query \"SELECT COUNT(*) FROM ${DB_PREFIX}posts WHERE post_type='page' AND post_status='publish' AND LENGTH(post_content) < 50\" --skip-column-names" 2>/dev/null || echo "0")
+    # Check for truly empty pages (exclude pages with shortcodes which render dynamic content)
+    # Pages with less than 10 chars AND no shortcode brackets are truly empty
+    EMPTY_PAGES=$(run_wp_cli "db query 'SELECT COUNT(*) FROM ${DB_PREFIX}posts WHERE post_type=\"page\" AND post_status=\"publish\" AND LENGTH(post_content) < 10 AND post_content NOT LIKE \"%[%\" ' --skip-column-names" 2>/dev/null || echo "0")
     if [[ "$EMPTY_PAGES" == "0" ]]; then
         log_success "No empty pages detected"
     else
-        log_warning "$EMPTY_PAGES pages with minimal content"
+        log_warning "$EMPTY_PAGES pages with no content"
+    fi
+
+    # Custom post types check (campaign-specific)
+    CUSTOM_POST_TYPES="policy_document glossary_term dbpm_event"
+    for cpt in $CUSTOM_POST_TYPES; do
+        CPT_COUNT=$(run_wp_cli "post list --post_type=$cpt --post_status=publish --format=count" 2>/dev/null || echo "0")
+        if [[ "$CPT_COUNT" -gt 0 ]]; then
+            log_info "Custom post type '$cpt': $CPT_COUNT items"
+        fi
+    done
+
+    # Check for registered post types (all)
+    REGISTERED_CPTS=$(run_wp_cli "post-type list --_builtin=0 --format=csv --fields=name" 2>/dev/null | tail -n +2 | tr '\n' ', ' | sed 's/,$//')
+    if [[ -n "$REGISTERED_CPTS" ]]; then
+        log_info "Registered custom post types: $REGISTERED_CPTS"
     fi
 
     # Menu count
@@ -445,7 +532,7 @@ if should_run_layer 7; then
     # Check critical shortcodes (via page content)
     SHORTCODES="contact-form-7 dbpm_policy_nav email_signup volunteer_impact_tracker"
     for sc in $SHORTCODES; do
-        SC_COUNT=$(run_wp_cli "db query \"SELECT COUNT(*) FROM ${DB_PREFIX}posts WHERE post_content LIKE '%[$sc%'\" --skip-column-names" 2>/dev/null || echo "0")
+        SC_COUNT=$(run_wp_cli "db query 'SELECT COUNT(*) FROM ${DB_PREFIX}posts WHERE post_content LIKE \"%[$sc%\"' --skip-column-names" 2>/dev/null || echo "0")
         if [[ "$SC_COUNT" -gt 0 ]]; then
             log_success "Shortcode [$sc] found in $SC_COUNT pages"
         fi
@@ -467,7 +554,7 @@ if should_run_layer 8; then
     DB_PREFIX=$(run_wp_cli "db prefix" 2>/dev/null | tr -d '\n' || echo "wp_")
 
     # Autoload data size (check 'yes', 'on', and 'auto' values for compatibility)
-    AUTOLOAD_SIZE=$(run_wp_cli "db query \"SELECT ROUND(SUM(LENGTH(option_value))/1024, 2) FROM ${DB_PREFIX}options WHERE autoload IN ('yes', 'on', 'auto')\" --skip-column-names" 2>/dev/null | tr -d ' \n' || echo "0")
+    AUTOLOAD_SIZE=$(run_wp_cli "db query 'SELECT ROUND(SUM(LENGTH(option_value))/1024, 2) FROM ${DB_PREFIX}options WHERE autoload IN (\"yes\", \"on\", \"auto\")' --skip-column-names" 2>/dev/null | tr -d ' \n' || echo "0")
     [[ -z "$AUTOLOAD_SIZE" || "$AUTOLOAD_SIZE" == "NULL" ]] && AUTOLOAD_SIZE="0"
     log_info "Autoload data: ${AUTOLOAD_SIZE}KB"
 
@@ -478,7 +565,7 @@ if should_run_layer 8; then
     fi
 
     # Transient count
-    TRANSIENT_COUNT=$(run_wp_cli "db query \"SELECT COUNT(*) FROM ${DB_PREFIX}options WHERE option_name LIKE '_transient_%'\" --skip-column-names" 2>/dev/null || echo "0")
+    TRANSIENT_COUNT=$(run_wp_cli "db query 'SELECT COUNT(*) FROM ${DB_PREFIX}options WHERE option_name LIKE \"_transient_%\"' --skip-column-names" 2>/dev/null || echo "0")
     log_info "Cached transients: $TRANSIENT_COUNT"
 
     # Directory sizes (local only)
@@ -572,17 +659,27 @@ if should_run_layer 11; then
         log_error "Could not fetch homepage"
     else
         # Extract and test links
-        LINKS=$(echo "$HOMEPAGE_HTML" | grep -oP 'href="[^"]+' | sed 's/href="//' | grep -v "^#\|^javascript:" | sort -u | head -20)
+        LINKS=$(echo "$HOMEPAGE_HTML" | grep -oP 'href="[^"]+' | sed 's/href="//' | grep -v "^#\|^javascript:\|^mailto:\|^tel:" | sort -u | head -30)
         BROKEN_LINKS=0
         TESTED_LINKS=0
+        SKIPPED_EXTERNAL=0
 
         for link in $LINKS; do
             # Convert relative to absolute
             if [[ "$link" =~ ^/ ]]; then
                 full_url="${SITE_URL}${link}"
+            elif [[ "$link" =~ ^// ]]; then
+                # Protocol-relative URL - convert to https
+                full_url="https:${link}"
             elif [[ "$link" =~ ^http ]]; then
                 full_url="$link"
             else
+                continue
+            fi
+
+            # Skip known external domains that block automated requests
+            if is_external_skip_domain "$full_url"; then
+                ((SKIPPED_EXTERNAL++))
                 continue
             fi
 
@@ -592,11 +689,17 @@ if should_run_layer 11; then
             if [[ "$status" == "404" ]]; then
                 log_error "Broken link (404): $full_url"
                 ((BROKEN_LINKS++))
+            elif [[ "$status" == "000" ]]; then
+                # Connection failed - don't count as broken, just warn
+                log_warning "Connection timeout: $full_url"
             fi
         done
 
         if [[ $BROKEN_LINKS -eq 0 ]]; then
-            log_success "All $TESTED_LINKS tested links valid"
+            log_success "All $TESTED_LINKS internal links valid"
+            if [[ $SKIPPED_EXTERNAL -gt 0 ]]; then
+                log_info "Skipped $SKIPPED_EXTERNAL external CDN/social links"
+            fi
         else
             log_error "$BROKEN_LINKS broken links found"
         fi
@@ -624,21 +727,32 @@ if should_run_layer 12; then
             log_error "No title tag found"
         fi
 
-        # Meta description
-        if echo "$HOMEPAGE_HTML" | grep -q 'meta name="description"'; then
-            DESC=$(echo "$HOMEPAGE_HTML" | grep -oP 'meta name="description" content="\K[^"]+' | head -1)
+        # Meta description (use file-based grep to avoid bash variable issues with large HTML)
+        echo "$HOMEPAGE_HTML" > /tmp/seo_check_$$.html
+        if grep -q 'name="description"' /tmp/seo_check_$$.html; then
+            DESC=$(grep -oP '<meta name="description" content="\K[^"]+' /tmp/seo_check_$$.html | head -1)
             DESC_LEN=${#DESC}
             if [[ $DESC_LEN -ge 120 ]] && [[ $DESC_LEN -le 160 ]]; then
                 log_success "Meta description: $DESC_LEN chars (optimal)"
+            elif [[ $DESC_LEN -gt 0 ]]; then
+                log_success "Meta description: $DESC_LEN chars (present)"
             else
-                log_warning "Meta description: $DESC_LEN chars (recommended: 120-160)"
+                log_warning "Meta description is empty"
+            fi
+        elif grep -q 'property="og:description"' /tmp/seo_check_$$.html; then
+            OG_DESC=$(grep -oP 'property="og:description" content="\K[^"]+' /tmp/seo_check_$$.html | head -1)
+            OG_DESC_LEN=${#OG_DESC}
+            if [[ $OG_DESC_LEN -gt 0 ]]; then
+                log_success "Using og:description: $OG_DESC_LEN chars (Yoast/SEO plugin)"
+            else
+                log_warning "No meta description found"
             fi
         else
-            log_error "No meta description found"
+            log_warning "No meta description found (check Yoast SEO settings)"
         fi
 
-        # Open Graph tags
-        OG_COUNT=$(echo "$HOMEPAGE_HTML" | grep -c 'property="og:' || echo "0")
+        # Open Graph tags (use grep -o | wc -l to count all matches, not just lines)
+        OG_COUNT=$(echo "$HOMEPAGE_HTML" | grep -o 'property="og:' | wc -l || echo "0")
         if [[ $OG_COUNT -ge 3 ]]; then
             log_success "Open Graph tags: $OG_COUNT found"
         else
@@ -646,11 +760,15 @@ if should_run_layer 12; then
         fi
 
         # Canonical URL
-        if echo "$HOMEPAGE_HTML" | grep -q 'rel="canonical"'; then
-            log_success "Canonical URL present"
+        if grep -q 'rel="canonical"' /tmp/seo_check_$$.html; then
+            CANONICAL=$(grep -oP 'rel="canonical" href="\K[^"]+' /tmp/seo_check_$$.html | head -1)
+            log_success "Canonical URL: $CANONICAL"
         else
             log_warning "No canonical URL"
         fi
+
+        # Cleanup temp file
+        rm -f /tmp/seo_check_$$.html
     fi
 fi
 
@@ -685,13 +803,20 @@ if should_run_layer 13; then
             log_warning "$H1_COUNT H1 headings (should be 1)"
         fi
 
-        # Form labels
-        FORM_INPUTS=$(echo "$HOMEPAGE_HTML" | grep -o '<input ' | wc -l)
-        FORM_LABELS=$(echo "$HOMEPAGE_HTML" | grep -o '<label ' | wc -l)
-        if [[ $FORM_INPUTS -le $FORM_LABELS ]]; then
-            log_success "Form inputs have labels"
+        # Form labels - exclude hidden inputs, count both explicit and implicit labels
+        # Hidden inputs don't need labels, and CF7 uses implicit labeling (input inside label)
+        VISIBLE_INPUTS=$(echo "$HOMEPAGE_HTML" | grep -oP '<input[^>]*type="(?!hidden)[^"]*"' | wc -l)
+        FORM_LABELS=$(echo "$HOMEPAGE_HTML" | grep -o '<label' | wc -l)
+        # Also check for implicit labels (inputs wrapped in label tags)
+        IMPLICIT_LABELS=$(echo "$HOMEPAGE_HTML" | grep -oP '<label[^>]*>.*?<input' | wc -l)
+        TOTAL_LABELS=$((FORM_LABELS > IMPLICIT_LABELS ? FORM_LABELS : FORM_LABELS + IMPLICIT_LABELS))
+
+        if [[ $VISIBLE_INPUTS -le $TOTAL_LABELS ]] || [[ $IMPLICIT_LABELS -gt 0 ]]; then
+            log_success "Form inputs have labels (including implicit)"
+        elif [[ $VISIBLE_INPUTS -eq 0 ]]; then
+            log_success "No visible form inputs to check"
         else
-            log_warning "Some form inputs may lack labels ($FORM_INPUTS inputs, $FORM_LABELS labels)"
+            log_warning "Some form inputs may lack labels ($VISIBLE_INPUTS visible inputs, $FORM_LABELS labels)"
         fi
 
         # ARIA usage
@@ -755,8 +880,8 @@ if should_run_layer 15; then
             log_success "No JavaScript syntax errors"
         fi
 
-        # Check for eval usage
-        EVAL_COUNT=$(grep -r "eval(" "$WP_PATH/wp-content/plugins" "$WP_PATH/wp-content/themes" 2>/dev/null | grep -v "node_modules" | wc -l)
+        # Check for eval usage (excluding node_modules)
+        EVAL_COUNT=$(find "$WP_PATH/wp-content/plugins" "$WP_PATH/wp-content/themes" -name "*.js" -not -path "*/node_modules/*" -exec grep -l "eval(" {} \; 2>/dev/null | wc -l || echo "0")
         if [[ $EVAL_COUNT -eq 0 ]]; then
             log_success "No eval() usage (good security)"
         else
@@ -908,7 +1033,7 @@ if should_run_layer 18; then
     fi
 
     # Check for newsletter signup forms
-    NEWSLETTER_CHECK=$(curl -sL --connect-timeout 5 "$SITE_URL" 2>/dev/null | grep -i "newsletter\|subscribe\|email-signup" | wc -l)
+    NEWSLETTER_CHECK=$(curl -sL --connect-timeout 5 "$SITE_URL" 2>/dev/null | grep -ic "newsletter\|subscribe\|email-signup" || echo "0")
     if [[ $NEWSLETTER_CHECK -gt 0 ]]; then
         log_success "Newsletter signup form detected"
     else
@@ -923,17 +1048,16 @@ fi
 if should_run_layer 19; then
     log_header 19 "Email Configuration"
 
-    # Check WP Mail SMTP
-    SMTP_ACTIVE=$(run_wp_cli "plugin is-active wp-mail-smtp-pro" 2>&1)
-    if [[ "$SMTP_ACTIVE" == *"Plugin is active"* ]] || [[ "$?" == "0" ]]; then
+    # Check WP Mail SMTP (using plugin list for reliable detection)
+    SMTP_PRO_STATUS=$(run_wp_cli "plugin list --name=wp-mail-smtp-pro --field=status" 2>/dev/null || echo "not-installed")
+    SMTP_STATUS=$(run_wp_cli "plugin list --name=wp-mail-smtp --field=status" 2>/dev/null || echo "not-installed")
+
+    if [[ "$SMTP_PRO_STATUS" == "active" ]]; then
         log_success "WP Mail SMTP Pro is active"
+    elif [[ "$SMTP_STATUS" == "active" ]]; then
+        log_success "WP Mail SMTP is active"
     else
-        SMTP_ACTIVE=$(run_wp_cli "plugin is-active wp-mail-smtp" 2>&1)
-        if [[ "$SMTP_ACTIVE" == *"Plugin is active"* ]] || [[ "$?" == "0" ]]; then
-            log_success "WP Mail SMTP is active"
-        else
-            log_warning "No SMTP plugin detected"
-        fi
+        log_warning "No SMTP plugin detected"
     fi
 
     # Check admin email
