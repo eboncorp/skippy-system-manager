@@ -21,8 +21,8 @@ Skippy System Manager is a comprehensive automation and management suite for:
 |----------|-------|
 | Scripts | 1,600+ (Python: 1,399, Bash: 213) |
 | MCP Tools | 152 across 12+ categories |
-| Slash Commands | 32 custom commands |
-| Skills | 89 |
+| Slash Commands | 33 custom commands |
+| Skills | 88 |
 | Rules | 24 |
 | Test Suites | Unit, Integration, Security, WordPress |
 | CI/CD Jobs | 8 automated pipeline stages |

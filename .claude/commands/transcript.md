@@ -92,6 +92,30 @@ Examples:
 ## Save Location:
 `/home/dave/skippy/conversations/`
 
+## Auto-Update Index (REQUIRED)
+
+After saving the transcript, **automatically update INDEX.md**:
+
+1. Add new entry at top of "### December 2025" (or current month) section
+2. Format:
+```markdown
+- **{filename}** [{Mon DD}] ⭐ NEW
+  - Tags: `{tag1}`, `{tag2}`, `{tag3}`
+  - Summary: {one-line summary of session}
+  - Status: {Completed/In Progress/Pending}
+```
+3. Increment "Total Conversations" count in header
+4. Update "Last Updated" date to today
+5. Bump "Index Version" minor number (e.g., 1.7 → 1.8)
+
+**Example entry:**
+```markdown
+- **wordpress_fixes_session_2025-12-25_143000.md** [Dec 25] ⭐ NEW
+  - Tags: `wordpress`, `bugfix`, `production`
+  - Summary: Fixed homepage ROI figure and removed broken social icons
+  - Status: Completed
+```
+
 ## Additional Instructions:
 
 1. **For Auto-Compact Preparation:**
