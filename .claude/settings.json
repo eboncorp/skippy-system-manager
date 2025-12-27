@@ -145,7 +145,11 @@
       "WebSearch",
       "WebFetch(domain:*)",
       "SlashCommand(*)",
-      "Skill(*)"
+      "Skill(*)",
+      "Bash(> /dev/**)",
+      "Bash(> /home/dave/.claude/**)",
+      "Bash(> /var/log/**)",
+      "Bash(ykman:*)"
     ],
     "deny": [
       "Bash(rm -rf /:*)",
