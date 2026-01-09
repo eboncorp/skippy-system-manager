@@ -10,7 +10,7 @@ EVENT_TYPE="$1"
 EVENT_DETAILS="${2:-No details}"
 SKIPPY_BASE="/home/dave/skippy"
 ALERT_LOG="${SKIPPY_BASE}/logs/alerts/critical_events.log"
-ALERT_EMAIL="${ALERT_EMAIL:-dave@rundaverun.org}"
+ALERT_EMAIL="${ALERT_EMAIL:-eboncorp@gmail.com}"
 
 # Create log directory
 mkdir -p "$(dirname "$ALERT_LOG")"

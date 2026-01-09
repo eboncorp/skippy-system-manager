@@ -1033,9 +1033,9 @@ if [ -f "$FACTS_FILE" ]; then
     FACTS_AVAILABLE=true
     # Extract key facts for validation
     BUDGET_TOTAL="1.2 billion"
-    WELLNESS_ROI="1.80"
+    WELLNESS_ROI="5.60"  # Per Masters et al. 2017 - RESEARCH_BIBLIOGRAPHY.md
     WELLNESS_COUNT="18"
-    SUBSTATIONS_COUNT="46"
+    SUBSTATIONS_COUNT="63"  # One per Jefferson County ZIP code
     PARTICIPATORY_BUDGET="15M"
 fi
 
