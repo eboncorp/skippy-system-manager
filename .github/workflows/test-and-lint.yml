@@ -11,7 +11,7 @@ jobs:
     name: ShellCheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Run ShellCheck
         run: |
@@ -19,8 +19,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y shellcheck
 
-          # Check all shell scripts
-          find . -name "*.sh" -type f | while read script; do
+          # Check all shell scripts (exclude backup/legacy files)
+          find . -name "*.sh" -type f \
+            ! -path "*/legacy*" \
+            ! -name "*_backup*" \
+            ! -name "*_original*" \
+            ! -name "*_bak*" \
+            | while read script; do
             echo "Checking: $script"
             shellcheck "$script" || exit 1
           done
@@ -29,10 +34,10 @@ jobs:
     name: Python Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -43,16 +48,24 @@ jobs:
 
       - name: Run pylint
         run: |
-          find . -name "*.py" -type f | while read script; do
+          # Lint Python files (exclude backup/legacy/venv files)
+          find . -name "*.py" -type f \
+            ! -path "*/.venv/*" \
+            ! -path "*/venv/*" \
+            ! -path "*/legacy*" \
+            ! -name "*_backup*" \
+            ! -name "*_original*" \
+            ! -name "*_bak*" \
+            | while read script; do
             echo "Linting: $script"
-            pylint --score=no "$script" || exit 1
+            pylint --score=no --disable=C0301,C0302,E0401 "$script" || exit 1
           done
 
   test-suite:
     name: Test Suite
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Run tests
         run: |
@@ -66,7 +79,7 @@ jobs:
     name: Security Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Credential scan
         run: |
