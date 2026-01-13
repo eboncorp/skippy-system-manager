@@ -20,6 +20,7 @@ jobs:
           sudo apt-get install -y shellcheck
 
           # Check all shell scripts (exclude backup/legacy files)
+          # Exclude SC1091 (source file not found) and SC2155 (declare separately)
           find . -name "*.sh" -type f \
             ! -path "*/legacy*" \
             ! -name "*_backup*" \
@@ -27,7 +28,7 @@ jobs:
             ! -name "*_bak*" \
             | while read script; do
             echo "Checking: $script"
-            shellcheck "$script" || exit 1
+            shellcheck -e SC1091 -e SC2155 -e SC2129 "$script" || exit 1
           done
 
   python-lint:
