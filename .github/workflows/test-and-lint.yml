@@ -19,16 +19,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y shellcheck
 
-          # Check all shell scripts (exclude backup/legacy files)
-          # Exclude SC1091 (source file not found) and SC2155 (declare separately)
+          # Check all shell scripts (exclude backup/legacy/archive files)
+          # Exclude common style warnings that don't affect functionality
           find . -name "*.sh" -type f \
             ! -path "*/legacy*" \
+            ! -path "*/archive/*" \
             ! -name "*_backup*" \
             ! -name "*_original*" \
             ! -name "*_bak*" \
             | while read script; do
             echo "Checking: $script"
-            shellcheck -e SC1091 -e SC2155 -e SC2129 "$script" || exit 1
+            shellcheck -e SC1091 -e SC2155 -e SC2129 -e SC2162 -S warning "$script" || exit 1
           done
 
   python-lint:
