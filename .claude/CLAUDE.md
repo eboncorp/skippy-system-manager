@@ -1,7 +1,7 @@
 # Skippy System Manager - Claude Code Instructions
 
-**Version:** 2.2.0
-**Last Updated:** 2025-12-21
+**Version:** 2.3.0
+**Last Updated:** 2026-01-16
 **Status:** Production Ready
 
 ---
@@ -22,8 +22,10 @@ Skippy System Manager is a comprehensive automation and management suite for:
 | Scripts | 1,600+ (Python: 1,399, Bash: 213) |
 | MCP Tools | 152 across 12+ categories |
 | Slash Commands | 33 custom commands |
-| Skills | 88 |
+| Skills | 74 |
 | Rules | 24 |
+| Hooks | 12 (11 configured) |
+| Permission Rules | 166 allow, 13 deny |
 | Test Suites | Unit, Integration, Security, WordPress |
 | CI/CD Jobs | 8 automated pipeline stages |
 
@@ -34,7 +36,7 @@ Skippy System Manager is a comprehensive automation and management suite for:
 ```
 skippy-system-manager/
 ├── .claude/                    # Claude Code configuration
-│   ├── commands/               # 32 slash commands
+│   ├── commands/               # 33 slash commands
 │   ├── hooks/                  # Pre/post execution hooks
 │   ├── workflows/              # Documented workflows
 │   ├── protocols/              # Standard procedures
