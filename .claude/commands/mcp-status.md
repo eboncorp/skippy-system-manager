@@ -14,21 +14,16 @@ Check status of all MCP servers and list available tools.
 3. List total tool count per server
 4. Report any connection issues or failures
 
-## MCP Servers Expected
+## MCP Servers Expected (133 tools across 6 servers)
 
-**general-server** (152 tools):
-- Google Drive management (13 tools)
-- Pexels stock photos (4 tools)
-- Google Photos Picker (5 tools)
-- File operations (~20 tools)
-- System monitoring (~10 tools)
-- WordPress management (~10 tools)
-- Git operations (~5 tools)
-- Remote server management (ebon)
-- Docker management (~5 tools)
-- Web requests
-- Skippy infrastructure (~15 tools)
-- Utilities (~50+ tools)
+| Server | Tools | Categories |
+|--------|-------|------------|
+| general-server | 67 | Files, System, WordPress, Git, Docker, Skippy, Utils |
+| github | 26 | Repos, PRs, Issues, Branches, Code Search |
+| chrome-devtools | 26 | Browser automation, Screenshots, Performance |
+| crypto-portfolio | 10 | Portfolio, Staking, DeFi, Tax, Alerts |
+| brave-search | 2 | Web search, Local search |
+| coinbase-agentkit | 2 | Wallet details, Native transfers |
 
 ## Troubleshooting
 
