@@ -108,7 +108,7 @@
 
 ---
 
-## MCP Servers (6 servers, 133 tools)
+## MCP Servers (6 servers, 145 tools)
 
 | Server | Tools | Purpose |
 |--------|-------|---------|
@@ -117,7 +117,7 @@
 | chrome-devtools | 26 | Browser automation |
 | crypto-portfolio | 10 | Crypto portfolio tracking |
 | brave-search | 2 | Web search |
-| coinbase-agentkit | 2 | Wallet operations |
+| coinbase-agentkit | 14 | Wallet, ERC-20, NFT, WETH |
 
 See `mcp.json` for full documentation.
 
