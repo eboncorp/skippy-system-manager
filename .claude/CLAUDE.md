@@ -20,7 +20,7 @@ Skippy System Manager is a comprehensive automation and management suite for:
 | Category | Count |
 |----------|-------|
 | Scripts | 1,600+ (Python: 1,399, Bash: 213) |
-| MCP Tools | 145 across 6 servers |
+| MCP Tools | 146 across 6 servers |
 | Slash Commands | 33 custom commands |
 | Skills | 73 |
 | Rules | 26 |
@@ -214,7 +214,7 @@ pytest tests/security/ -v -m security
 | general-server | 67 | Files, System, WordPress, Git, Docker, Skippy |
 | github | 26 | Repos, PRs, Issues, Branches, Code Search |
 | chrome-devtools | 26 | Browser automation, Screenshots, Performance |
-| crypto-portfolio | 10 | Portfolio, Staking, DeFi, Tax, Alerts |
+| crypto-portfolio | 11 | Portfolio, Staking, DeFi, Tax, Alerts, Cronos AI |
 | brave-search | 2 | Web search, Local search |
 | coinbase-agentkit | 2 | Wallet details, Native transfers |
 
