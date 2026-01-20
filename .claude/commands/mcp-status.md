@@ -14,7 +14,7 @@ Check status of all MCP servers and list available tools.
 3. List total tool count per server
 4. Report any connection issues or failures
 
-## MCP Servers Expected (133 tools across 6 servers)
+## MCP Servers Expected (145 tools across 6 servers)
 
 | Server | Tools | Categories |
 |--------|-------|------------|
@@ -23,7 +23,7 @@ Check status of all MCP servers and list available tools.
 | chrome-devtools | 26 | Browser automation, Screenshots, Performance |
 | crypto-portfolio | 10 | Portfolio, Staking, DeFi, Tax, Alerts |
 | brave-search | 2 | Web search, Local search |
-| coinbase-agentkit | 2 | Wallet details, Native transfers |
+| coinbase-agentkit | 14 | Wallet, ERC-20, NFT, WETH, Basename, Faucet |
 
 ## Troubleshooting
 
