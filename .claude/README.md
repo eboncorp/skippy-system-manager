@@ -108,14 +108,14 @@
 
 ---
 
-## MCP Servers (6 servers, 145 tools)
+## MCP Servers (6 servers, 146 tools)
 
 | Server | Tools | Purpose |
 |--------|-------|---------|
 | general-server | 67 | Skippy system management |
 | github | 26 | GitHub API |
 | chrome-devtools | 26 | Browser automation |
-| crypto-portfolio | 10 | Crypto portfolio tracking |
+| crypto-portfolio | 11 | Crypto portfolio tracking |
 | brave-search | 2 | Web search |
 | coinbase-agentkit | 14 | Wallet, ERC-20, NFT, WETH |
 

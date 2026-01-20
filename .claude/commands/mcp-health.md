@@ -13,7 +13,7 @@ MCP_CONFIG_PATH="/home/dave/.claude/claude_desktop_config.json"
 
 # Current version
 CURRENT_VERSION="v2.4.0"
-TOTAL_TOOLS=145
+TOTAL_TOOLS=146
 ```
 
 ### 2. Check Server Status
