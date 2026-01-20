@@ -6,7 +6,7 @@
 
   "mcpServers": {
     "general-server": {
-      "description": "Skippy's comprehensive MCP server with 67 exposed tools (156 registered) for system management",
+      "description": "Skippy's comprehensive MCP server - 156 registered tools (67 pre-loaded, rest on-demand via ENABLE_TOOL_SEARCH=auto)",
       "command": "/home/dave/skippy/mcp-servers/general-server/.venv/bin/python3",
       "args": ["/home/dave/skippy/mcp-servers/general-server/server.py"],
       "version": "2.6.0",
