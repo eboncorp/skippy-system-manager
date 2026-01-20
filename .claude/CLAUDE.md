@@ -23,7 +23,7 @@ Skippy System Manager is a comprehensive automation and management suite for:
 | MCP Tools | 133 across 6 servers |
 | Slash Commands | 33 custom commands |
 | Skills | 73 |
-| Rules | 24 |
+| Rules | 26 |
 | Hooks | 12 (11 configured) |
 | Permission Rules | 166 allow, 13 deny |
 | Test Suites | Unit, Integration, Security, WordPress |
