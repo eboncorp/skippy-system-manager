@@ -20,9 +20,9 @@ Skippy System Manager is a comprehensive automation and management suite for:
 | Category | Count |
 |----------|-------|
 | Scripts | 1,600+ (Python: 1,399, Bash: 213) |
-| MCP Tools | 152 across 12+ categories |
+| MCP Tools | 133 across 6 servers |
 | Slash Commands | 33 custom commands |
-| Skills | 74 |
+| Skills | 73 |
 | Rules | 24 |
 | Hooks | 12 (11 configured) |
 | Permission Rules | 166 allow, 13 deny |
@@ -55,7 +55,7 @@ skippy-system-manager/
 │   └── legacy_system_managers/ # Legacy scripts (maintenance mode)
 ├── bin/                        # CLI tools (PATH executable)
 ├── mcp-servers/                # MCP server implementations
-│   ├── general-server/         # Main MCP server (152 tools)
+│   ├── general-server/         # Main MCP server (67 tools)
 │   └── wordpress-validator/    # WordPress validation
 ├── tests/                      # Test framework
 │   ├── unit/                   # Unit tests
@@ -207,25 +207,16 @@ pytest tests/security/ -v -m security
 
 ## MCP Server Integration
 
-### Available Tools (152)
+### Available Tools (133 across 6 servers)
 
-**Google Drive (13 tools):**
-- File management, uploads, sharing, organization
-
-**Pexels (4 tools):**
-- Stock photo search and download
-
-**System Monitoring:**
-- CPU, disk, memory, process monitoring
-
-**Remote Server (Ebon):**
-- SSH commands, health checks
-
-**File Operations:**
-- Advanced file management
-
-**Web Requests:**
-- HTTP GET/POST operations
+| Server | Tools | Categories |
+|--------|-------|------------|
+| general-server | 67 | Files, System, WordPress, Git, Docker, Skippy |
+| github | 26 | Repos, PRs, Issues, Branches, Code Search |
+| chrome-devtools | 26 | Browser automation, Screenshots, Performance |
+| crypto-portfolio | 10 | Portfolio, Staking, DeFi, Tax, Alerts |
+| brave-search | 2 | Web search, Local search |
+| coinbase-agentkit | 2 | Wallet details, Native transfers |
 
 ### Checking MCP Status
 

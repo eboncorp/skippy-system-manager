@@ -6,11 +6,11 @@
 
   "mcpServers": {
     "general-server": {
-      "description": "Skippy's comprehensive MCP server with 145+ tools for system management",
+      "description": "Skippy's comprehensive MCP server with 67 exposed tools (156 registered) for system management",
       "command": "/home/dave/skippy/mcp-servers/general-server/.venv/bin/python3",
       "args": ["/home/dave/skippy/mcp-servers/general-server/server.py"],
       "version": "2.6.0",
-      "toolCount": 145,
+      "toolCount": 67,
       "categories": [
         "File operations (read, write, search, list)",
         "System monitoring (disk, memory, CPU, processes)",
