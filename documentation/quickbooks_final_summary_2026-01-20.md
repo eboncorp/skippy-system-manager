@@ -199,3 +199,26 @@ Once statements are provided, I will:
 
 *Final Summary Created: 2026-01-20 05:35 AM*
 *Session Directory: /home/dave/skippy/work/business/20260120_024924_account_reconciliation/*
+
+---
+
+## 10. SESSION UPDATE (2026-01-21)
+
+### Statements Retrieved
+| Account | Source | Count |
+|---------|--------|-------|
+| Dirty Daves (BofA 9207) | Google Drive | 36 PDFs |
+| Credit Card (BofA 5268) | Google Drive | 31 PDFs |
+| PaperWerk (Mercury 9687) | Mercury API | 33 statements ($48.69 balance) |
+| Decibel Customs (US Bank 4416) | Downloads | 34 PDFs |
+| Ebon Corp (Fidelity) | Downloads | 43 CSVs |
+
+### Expanded Scope - Comingled Funds
+Old QB had mixed personal/business funds requiring separation. Additional accounts needed:
+- Ally Credit 0243
+- L & N Checking / Savings
+- Invest Checking 2118
+- Capital One 2379, 5311
+- Savor (3624), My Best Buy (4092), Home Depot (9429)
+
+*Updated: 2026-01-21*
