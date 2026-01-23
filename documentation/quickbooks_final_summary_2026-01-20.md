@@ -222,3 +222,41 @@ Old QB had mixed personal/business funds requiring separation. Additional accoun
 - Savor (3624), My Best Buy (4092), Home Depot (9429)
 
 *Updated: 2026-01-21*
+
+---
+
+## 11. RECONCILIATION ANALYSIS (2026-01-22)
+
+### Root Cause Identified
+
+The $149K "missing income" gap between OLD and NEW QuickBooks is explained:
+
+| What OLD QB Recorded | Actually Was |
+|---------------------|--------------|
+| Services: $180,705.76 | Mixed business + personal |
+| TRUE business (Square): ~$15,217/year | Actual business income |
+| W-2 Payroll to wrong acct: ~$10K/year | Personal income misclassified |
+
+### Statement Files Analyzed: 297 Total
+
+- BofA Checking (9207): 36 PDFs + QBO
+- BofA Credit Card (4095): 33 PDFs + QBO
+- Chase 2118: 37 files + 1,400 transactions in QBO
+- Capital One: 24+ files
+- Fidelity: 43 CSVs
+- And 9 other accounts
+
+### Key Finding: Comingled Funds
+
+OLD QB contained ~$49K of personal expenses:
+- Groceries: $6,166
+- Personal Expense: $8,595  
+- Vehicle Gas: $23,598
+- Gambling: $975
+
+### Recommendation
+
+The NEW QuickBooks appears to be the correct business-only version.
+The discrepancies are due to OLD QB mixing personal/business, not missing data.
+
+*Updated: 2026-01-22*
