@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Yahoo Mail Utility v1.1.0
+Yahoo Mail Utility v1.2.0
 Access davidbiggers@yahoo.com via IMAP/SMTP
 
 Usage:
@@ -8,9 +8,11 @@ Usage:
     python3 yahoo_mail_v1.0.0.py recent [N]    # Show N recent emails (default 5)
     python3 yahoo_mail_v1.0.0.py send TO SUBJ  # Send email (reads body from stdin)
     python3 yahoo_mail_v1.0.0.py send TO SUBJ --attach FILE  # Send with attachment
+    python3 yahoo_mail_v1.0.0.py send TO SUBJ --attach FILE1 --attach FILE2  # Multiple attachments
 
 Created: 2026-01-18
 Updated: 2026-01-20 - Added attachment support
+Updated: 2026-01-23 - Added multiple attachment support
 """
 
 import imaplib
@@ -130,16 +132,22 @@ def recent(count=5):
     mail.logout()
 
 
-def send_email(to, subject, body, attachment_path=None):
-    """Send an email with optional attachment."""
+def send_email(to, subject, body, attachments=None):
+    """Send an email with optional attachments (single path or list of paths)."""
     msg = MIMEMultipart()
     msg['From'] = EMAIL
     msg['To'] = to
     msg['Subject'] = subject
     msg.attach(MIMEText(body, 'plain'))
 
-    # Add attachment if provided
-    if attachment_path:
+    # Normalize attachments to a list
+    if attachments is None:
+        attachments = []
+    elif isinstance(attachments, str):
+        attachments = [attachments]
+
+    # Add all attachments
+    for attachment_path in attachments:
         if not os.path.exists(attachment_path):
             print(f"❌ Attachment not found: {attachment_path}")
             return False
@@ -184,22 +192,26 @@ def main():
         recent(count)
     elif cmd == "send":
         if len(sys.argv) < 4:
-            print("Usage: yahoo_mail.py send TO SUBJECT [--attach FILE]")
+            print("Usage: yahoo_mail.py send TO SUBJECT [--attach FILE] [--attach FILE2] ...")
             print("Body is read from stdin")
             return
         to = sys.argv[2]
         subject = sys.argv[3]
 
-        # Check for --attach flag
-        attachment = None
-        if "--attach" in sys.argv:
-            attach_idx = sys.argv.index("--attach")
-            if attach_idx + 1 < len(sys.argv):
-                attachment = sys.argv[attach_idx + 1]
+        # Collect all --attach flags (supports multiple attachments)
+        attachments = []
+        args = sys.argv[4:]
+        i = 0
+        while i < len(args):
+            if args[i] == "--attach" and i + 1 < len(args):
+                attachments.append(args[i + 1])
+                i += 2
+            else:
+                i += 1
 
         print("Enter message body (Ctrl+D to send):")
         body = sys.stdin.read()
-        send_email(to, subject, body, attachment)
+        send_email(to, subject, body, attachments if attachments else None)
     else:
         print(f"Unknown command: {cmd}")
         print(__doc__)
