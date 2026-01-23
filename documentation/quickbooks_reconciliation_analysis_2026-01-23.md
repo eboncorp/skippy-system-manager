@@ -40,15 +40,16 @@ Analysis of 297+ bank statements and transaction files reveals the root causes o
 
 | Category | Amount | Classification |
 |----------|--------|----------------|
-| **ATM/Cash Deposits** | $65,142.96 | ✅ TRUE Business |
-| **Cash App** | $1,046.93 | ✅ TRUE Business |
-| Thomas Car Wash (W-2) | $15,533.62 | ❌ Personal (wrong account) |
-| Other Deposits | $22,983.57 | Mixed |
-| Zelle Transfers | $3,030.00 | Mixed |
+| **ATM/Cash Deposits** | $65,142.96 | ✅ Business |
+| **Other Deposits** | $22,983.57 | ✅ Business |
+| **Zelle Transfers** | $3,030.00 | ✅ Business |
+| **Cash App** | $1,046.93 | ✅ Business |
+| Thomas Car Wash (W-2) | $15,533.62 | ❌ Personal W-2 (wrong account) |
 | IRS Refund | $1,399.00 | ❌ Personal |
 | **TOTAL** | **$109,136.08** | |
 
-**TRUE Business Income from Chase 2118:** ~$66,190 (ATM Cash + Cash App)
+**TRUE Business Income from Chase 2118:** $92,203.46
+**Personal (misdeposited to business):** $16,932.62
 
 ### Dirty Daves (BofA 9207) Income Sources
 
@@ -71,17 +72,20 @@ Dirty Daves (9207) TRUE Business:
   ─────────────────────────────────────────────
   Subtotal BofA 9207:            ~$27,700/year
 
-Chase 2118 TRUE Business:
-  ATM Cash Deposits:             ~$65,143 (all years)
-  Cash App:                       ~$1,047 (all years)
+Chase 2118 TRUE Business (all deposits except W-2/IRS):
+  ATM Cash Deposits:             $65,142.96
+  Other Deposits:                $22,983.57
+  Zelle Transfers:                $3,030.00
+  Cash App:                       $1,046.93
   ─────────────────────────────────────────────
-  Subtotal Chase 2118:           ~$66,190 (all years)
+  Subtotal Chase 2118:           $92,203.46
 
-TOTAL TRUE BUSINESS (both accounts): ~$93,900
+TOTAL TRUE BUSINESS (both accounts): ~$120,000+
 ```
 
-**Note:** The difference between OLD QB Services ($180,706) and TRUE Business (~$93,900)
-is W-2 payroll + personal deposits that were incorrectly deposited to business accounts.
+**NOT Business (misdeposited to Chase 2118):**
+- Thomas Car Wash W-2: $15,533.62 (personal employment income)
+- IRS Refund: $1,399.00 (personal)
 
 ---
 
