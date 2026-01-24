@@ -122,17 +122,51 @@
       ],
       "requiresChrome": true,
       "chromeRequirements": "Chrome browser with DevTools available"
+    },
+
+    "crypto-portfolio": {
+      "description": "Multi-exchange cryptocurrency portfolio analyzer with trading capabilities",
+      "command": "/home/dave/skippy/projects/crypto-portfolio/venv/bin/python3",
+      "args": ["/home/dave/skippy/projects/crypto-portfolio/crypto_portfolio_mcp.py"],
+      "version": "2.0.0",
+      "toolCount": 28,
+      "categories": [
+        "Portfolio analysis (summary, holdings, staking, DeFi)",
+        "Trading (market orders, limit orders, cancel orders)",
+        "Staking management (stake, unstake, claim rewards)",
+        "DCA bot management (create, pause, delete)",
+        "Alert management (price alerts, portfolio alerts)",
+        "Market data (prices, sentiment, trending)",
+        "Tax reporting (cost basis, export reports)",
+        "AI analysis and recommendations",
+        "Cronos blockchain queries"
+      ],
+      "supportedExchanges": [
+        "Coinbase (personal)",
+        "Coinbase GTI (business)",
+        "Kraken",
+        "Crypto.com",
+        "Gemini"
+      ],
+      "requiresCredentials": true,
+      "credentialLocations": [
+        "~/.config/coinbase/cdp_api_key.json",
+        "~/.config/coinbase/gti_cdp_api_key.json",
+        "~/.config/kraken/api_key.json"
+      ],
+      "documentation": "/home/dave/skippy/projects/crypto-portfolio/README.md"
     }
   },
 
   "summary": {
-    "totalServers": 4,
-    "totalTools": 152,
+    "totalServers": 5,
+    "totalTools": 180,
     "serverStatus": {
       "general-server": "active",
       "brave-search": "active",
       "github": "active",
-      "chrome-devtools": "active"
+      "chrome-devtools": "active",
+      "crypto-portfolio": "active"
     }
   },
 
