@@ -1,0 +1,178 @@
+"""
+Prevention Generator - Auto-generate hooks and rules from patterns.
+"""
+
+import json
+from datetime import datetime
+from pathlib import Path
+from dataclasses import dataclass, asdict
+
+
+@dataclass
+class PreventionRule:
+    """Auto-generated prevention rule."""
+    id: str
+    name: str
+    trigger: str  # PreToolUse, PostToolUse, etc.
+    pattern_match: str  # What to match
+    action: str  # block, warn, log
+    reason: str
+    source_pattern_id: str
+    auto_generated: bool = True
+    enabled: bool = True
+
+    def to_dict(self):
+        return asdict(self)
+
+    def to_hook_code(self) -> str:
+        """Generate bash hook code for this rule."""
+        if self.action == "block":
+            return f'''
+# Auto-generated rule: {self.name}
+# Source: Pattern {self.source_pattern_id}
+if [[ "$COMMAND" =~ {self.pattern_match} ]]; then
+    echo '{{"decision": "block", "reason": "{self.reason}"}}'
+    exit 0
+fi
+'''
+        elif self.action == "warn":
+            return f'''
+# Auto-generated rule: {self.name}
+if [[ "$COMMAND" =~ {self.pattern_match} ]]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: {self.reason}" >> "$LOG_DIR/auto_warnings.log"
+fi
+'''
+        return ""
+
+
+class PreventionGenerator:
+    """Generate prevention rules from detected patterns."""
+
+    def __init__(self):
+        self.rules_file = Path("/home/dave/skippy/.claude/learning/prevention_rules.json")
+        self.hooks_dir = Path.home() / ".claude" / "hooks"
+        self.rules_file.parent.mkdir(parents=True, exist_ok=True)
+
+    def generate_rules(self, patterns: list) -> list[PreventionRule]:
+        """Generate prevention rules from patterns."""
+        rules = []
+
+        for pattern in patterns:
+            if not pattern.auto_preventable:
+                continue
+
+            rule = self._pattern_to_rule(pattern)
+            if rule:
+                rules.append(rule)
+
+        # Save rules
+        self._save_rules(rules)
+
+        return rules
+
+    def _pattern_to_rule(self, pattern) -> PreventionRule:
+        """Convert a pattern to a prevention rule."""
+
+        # Email empty body pattern
+        if "email" in pattern.name.lower() and "empty" in str(pattern.example_messages).lower():
+            return PreventionRule(
+                id=f"rule_{pattern.id}",
+                name="Block empty email body",
+                trigger="PreToolUse",
+                pattern_match=r"(yahoo_mail|send.email|gmail).*send.*--attach",
+                action="block",
+                reason="Email with attachments must have body content",
+                source_pattern_id=pattern.id,
+            )
+
+        # Dangerous command pattern
+        if "security" in pattern.name.lower() or "blocked" in str(pattern.example_messages).lower():
+            return PreventionRule(
+                id=f"rule_{pattern.id}",
+                name=f"Block dangerous pattern",
+                trigger="PreToolUse",
+                pattern_match=self._extract_pattern(pattern.example_messages),
+                action="block",
+                reason=pattern.description,
+                source_pattern_id=pattern.id,
+            )
+
+        # MCP timeout pattern
+        if "mcp" in pattern.name.lower() and pattern.frequency >= 5:
+            return PreventionRule(
+                id=f"rule_{pattern.id}",
+                name="MCP retry with backoff",
+                trigger="PostToolUse",
+                pattern_match=r"mcp__.*timeout|mcp__.*error",
+                action="warn",
+                reason="MCP operation failed - consider retry",
+                source_pattern_id=pattern.id,
+            )
+
+        return None
+
+    def _extract_pattern(self, messages: list) -> str:
+        """Extract regex pattern from example messages."""
+        if not messages:
+            return "UNKNOWN_PATTERN"
+
+        # Find common substrings
+        common = messages[0][:50] if messages else ""
+        # Escape regex special chars
+        import re
+        escaped = re.escape(common)
+        return escaped.replace(r"\ ", r"\s+")[:100]
+
+    def _save_rules(self, rules: list[PreventionRule]):
+        """Save rules to file."""
+        data = {
+            "last_updated": datetime.now().isoformat(),
+            "rules": [r.to_dict() for r in rules]
+        }
+        self.rules_file.write_text(json.dumps(data, indent=2))
+
+    def load_rules(self) -> list[PreventionRule]:
+        """Load saved rules."""
+        if not self.rules_file.exists():
+            return []
+        try:
+            data = json.loads(self.rules_file.read_text())
+            return [PreventionRule(**r) for r in data.get("rules", [])]
+        except:
+            return []
+
+    def install_rules(self, rules: list[PreventionRule]) -> int:
+        """Install rules as hook code (appends to auto-generated section)."""
+        auto_hooks_file = self.hooks_dir / "auto_generated_rules.sh"
+
+        header = '''#!/bin/bash
+# AUTO-GENERATED PREVENTION RULES
+# Generated by Skippy Brain from detected patterns
+# DO NOT EDIT - This file is auto-regenerated
+# Last updated: ''' + datetime.now().isoformat() + '''
+
+# Source this file from pre_tool_use.sh to enable auto-prevention
+'''
+
+        code_blocks = [header]
+        for rule in rules:
+            if rule.enabled:
+                code_blocks.append(rule.to_hook_code())
+
+        auto_hooks_file.write_text("\n".join(code_blocks))
+        auto_hooks_file.chmod(0o755)
+
+        return len([r for r in rules if r.enabled])
+
+    def get_stats(self) -> dict:
+        """Get prevention stats."""
+        rules = self.load_rules()
+        return {
+            "total_rules": len(rules),
+            "enabled": len([r for r in rules if r.enabled]),
+            "by_action": {
+                "block": len([r for r in rules if r.action == "block"]),
+                "warn": len([r for r in rules if r.action == "warn"]),
+                "log": len([r for r in rules if r.action == "log"]),
+            }
+        }
