@@ -80,6 +80,7 @@ class ResponseFormat(str, Enum):
 
 class Exchange(str, Enum):
     COINBASE = "coinbase"
+    COINBASE_GTI = "coinbase_gti"
     KRAKEN = "kraken"
     CRYPTO_COM = "crypto.com"
     GEMINI = "gemini"

@@ -78,6 +78,7 @@ class ResponseFormat(str, Enum):
 class Exchange(str, Enum):
     """Supported cryptocurrency exchanges."""
     COINBASE = "coinbase"
+    COINBASE_GTI = "coinbase_gti"
     KRAKEN = "kraken"
     CRYPTO_COM = "crypto.com"
     GEMINI = "gemini"
