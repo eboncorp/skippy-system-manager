@@ -499,18 +499,19 @@ def register_trading_tools(mcp: FastMCP):
     )
     async def crypto_place_order(params: PlaceOrderInput) -> str:
         """Place a buy or sell order on an exchange.
-        
-        ⚠️ WARNING: This executes real trades when PAPER_TRADING=false.
-        
+
+        ⚠️ WARNING: This executes real trades. Requires explicit user confirmation.
+
         Args:
             params: Order parameters including exchange, symbol, side, type, amount
-        
+
         Returns:
             Order confirmation or error message
         """
         import os
-        if os.getenv("PAPER_TRADING", "true").lower() == "true":
-            # Paper trading mock response
+
+        # Paper trading mode for testing
+        if os.getenv("PAPER_TRADING", "false").lower() == "true":
             return json.dumps({
                 "status": "success",
                 "mode": "paper_trading",
@@ -527,12 +528,71 @@ def register_trading_tools(mcp: FastMCP):
                 },
                 "message": "Paper trade executed successfully"
             }, indent=2)
-        
-        # Real trading would go here
-        return json.dumps({
-            "status": "error",
-            "message": "Real trading not implemented in this example"
-        })
+
+        # Real trading - Coinbase only for now
+        if params.exchange.value not in ["coinbase", "coinbase_gti"]:
+            return json.dumps({
+                "status": "error",
+                "message": f"Real trading not yet implemented for {params.exchange.value}. Only Coinbase supported."
+            }, indent=2)
+
+        try:
+            # Get the appropriate Coinbase client
+            from portfolio_aggregator import PortfolioAggregator
+            aggregator = PortfolioAggregator()
+
+            exchange_key = params.exchange.value
+            if exchange_key not in aggregator.exchanges:
+                return json.dumps({
+                    "status": "error",
+                    "message": f"{params.exchange.value} not configured or credentials missing"
+                }, indent=2)
+
+            client = aggregator.exchanges[exchange_key]['client']
+
+            # Execute the order
+            if params.order_type == OrderType.MARKET:
+                result = client.place_market_order(
+                    product_id=params.symbol,
+                    side=params.side.value.upper(),
+                    amount=params.amount
+                )
+            elif params.order_type == OrderType.LIMIT:
+                if not params.price:
+                    return json.dumps({
+                        "status": "error",
+                        "message": "Limit orders require a price"
+                    }, indent=2)
+                result = client.place_limit_order(
+                    product_id=params.symbol,
+                    side=params.side.value.upper(),
+                    amount=params.amount,
+                    price=params.price
+                )
+            else:
+                return json.dumps({
+                    "status": "error",
+                    "message": f"Order type {params.order_type.value} not yet supported"
+                }, indent=2)
+
+            if result.get("success"):
+                return json.dumps({
+                    "status": "success",
+                    "mode": "live",
+                    "order": result,
+                    "message": f"Order placed successfully on {params.exchange.value}"
+                }, indent=2)
+            else:
+                return json.dumps({
+                    "status": "error",
+                    "message": result.get("error", "Unknown error")
+                }, indent=2)
+
+        except Exception as e:
+            return json.dumps({
+                "status": "error",
+                "message": str(e)
+            }, indent=2)
     
     @mcp.tool(
         name="crypto_cancel_order",
@@ -546,19 +606,51 @@ def register_trading_tools(mcp: FastMCP):
     )
     async def crypto_cancel_order(params: CancelOrderInput) -> str:
         """Cancel an open order.
-        
+
         Args:
             params: Order ID and exchange
-        
+
         Returns:
             Cancellation confirmation
         """
-        return json.dumps({
-            "status": "success",
-            "order_id": params.order_id,
-            "exchange": params.exchange.value,
-            "message": "Order cancelled successfully"
-        }, indent=2)
+        if params.exchange.value not in ["coinbase", "coinbase_gti"]:
+            return json.dumps({
+                "status": "error",
+                "message": f"Cancel not yet implemented for {params.exchange.value}"
+            }, indent=2)
+
+        try:
+            from portfolio_aggregator import PortfolioAggregator
+            aggregator = PortfolioAggregator()
+
+            exchange_key = params.exchange.value
+            if exchange_key not in aggregator.exchanges:
+                return json.dumps({
+                    "status": "error",
+                    "message": f"{params.exchange.value} not configured"
+                }, indent=2)
+
+            client = aggregator.exchanges[exchange_key]['client']
+            result = client.cancel_order(params.order_id)
+
+            if result.get("success"):
+                return json.dumps({
+                    "status": "success",
+                    "order_id": params.order_id,
+                    "exchange": params.exchange.value,
+                    "message": "Order cancelled successfully"
+                }, indent=2)
+            else:
+                return json.dumps({
+                    "status": "error",
+                    "message": result.get("error", "Cancel failed")
+                }, indent=2)
+
+        except Exception as e:
+            return json.dumps({
+                "status": "error",
+                "message": str(e)
+            }, indent=2)
     
     @mcp.tool(
         name="crypto_open_orders",
@@ -572,40 +664,64 @@ def register_trading_tools(mcp: FastMCP):
     )
     async def crypto_open_orders(params: GetOpenOrdersInput) -> str:
         """Get all open/pending orders.
-        
+
         Args:
             params: Optional filters for exchange and symbol
-        
+
         Returns:
             List of open orders
         """
-        mock_orders = [
-            {
-                "id": "ord_001",
-                "exchange": "coinbase",
-                "symbol": "BTC-USD",
-                "side": "buy",
-                "type": "limit",
-                "amount": 0.1,
-                "price": 40000.00,
-                "filled": 0.0,
-                "status": "open",
-                "created_at": "2024-02-15T10:00:00Z"
-            }
-        ]
-        
+        all_orders = []
+
+        try:
+            from portfolio_aggregator import PortfolioAggregator
+            aggregator = PortfolioAggregator()
+
+            # Get orders from requested exchange(s)
+            exchanges_to_check = []
+            if params.exchange:
+                exchanges_to_check = [params.exchange.value]
+            else:
+                exchanges_to_check = ["coinbase", "coinbase_gti"]
+
+            for exchange_key in exchanges_to_check:
+                if exchange_key in aggregator.exchanges:
+                    client = aggregator.exchanges[exchange_key]['client']
+                    if hasattr(client, 'get_orders'):
+                        orders = client.get_orders(
+                            status="OPEN",
+                            product_id=params.symbol
+                        )
+                        for o in orders:
+                            all_orders.append({
+                                "id": o.get('order_id', ''),
+                                "exchange": exchange_key,
+                                "symbol": o.get('product_id', ''),
+                                "side": o.get('side', '').lower(),
+                                "type": o.get('order_type', '').lower(),
+                                "amount": float(o.get('base_size', 0) or 0),
+                                "price": float(o.get('limit_price', 0) or 0),
+                                "filled": float(o.get('filled_size', 0) or 0),
+                                "status": o.get('status', 'open').lower(),
+                                "created_at": o.get('created_time', '')
+                            })
+
+        except Exception as e:
+            return json.dumps({"error": str(e)}, indent=2)
+
         if params.response_format == ResponseFormat.JSON:
-            return json.dumps({"orders": mock_orders}, indent=2)
-        
+            return json.dumps({"orders": all_orders, "count": len(all_orders)}, indent=2)
+
         md = "# Open Orders\n\n"
-        if not mock_orders:
+        if not all_orders:
             md += "*No open orders*\n"
         else:
-            md += "| Exchange | Symbol | Side | Type | Amount | Price | Status |\n"
-            md += "|----------|--------|------|------|--------|-------|--------|\n"
-            for o in mock_orders:
-                md += f"| {o['exchange']} | {o['symbol']} | {o['side']} | {o['type']} | {o['amount']} | ${o['price']:,.2f} | {o['status']} |\n"
-        
+            md += "| Exchange | Symbol | Side | Type | Amount | Price | Filled | Status |\n"
+            md += "|----------|--------|------|------|--------|-------|--------|--------|\n"
+            for o in all_orders:
+                price_str = f"${o['price']:,.2f}" if o['price'] else "-"
+                md += f"| {o['exchange']} | {o['symbol']} | {o['side']} | {o['type']} | {o['amount']:.6f} | {price_str} | {o['filled']:.6f} | {o['status']} |\n"
+
         return md
 
 

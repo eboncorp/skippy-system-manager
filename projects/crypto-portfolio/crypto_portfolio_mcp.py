@@ -44,6 +44,13 @@ try:
 except ImportError:
     PORTFOLIO_AGGREGATOR_AVAILABLE = False
 
+# Additional trading and management tools
+try:
+    from additional_tools import register_all_additional_tools
+    ADDITIONAL_TOOLS_AVAILABLE = True
+except ImportError:
+    ADDITIONAL_TOOLS_AVAILABLE = False
+
 # Global aggregator instance (initialized in lifespan)
 _aggregator: Optional["PortfolioAggregator"] = None
 
@@ -656,6 +663,10 @@ async def app_lifespan(app):
 
 
 mcp = FastMCP("crypto_portfolio_mcp", lifespan=app_lifespan)
+
+# Register additional trading and management tools
+if ADDITIONAL_TOOLS_AVAILABLE:
+    register_all_additional_tools(mcp)
 
 
 # =============================================================================
