@@ -1,0 +1,366 @@
+#!/usr/bin/env python3
+"""
+skippy-learn - Error and Lesson Learning System
+Version: 1.0.0
+
+Captures mistakes, errors, and lessons learned for continuous improvement.
+
+Usage:
+    skippy-learn log <category> <message>     Log an issue/lesson
+    skippy-learn list [--category <cat>]      View logged issues
+    skippy-learn patterns                      Show recurring patterns
+    skippy-learn review                        Interactive review session
+    skippy-learn stats                         Show statistics
+    skippy-learn export                        Export to markdown
+
+Categories:
+    error       - Runtime errors, exceptions
+    blocked     - Blocked by hooks/validation
+    mistake     - User-reported mistakes
+    oversight   - Missed steps, forgot to do X
+    confusion   - Unclear requirements
+    tooling     - Tool limitations, workarounds needed
+    pattern     - Recurring issue pattern
+    solved      - Previously solved problems (for reference)
+
+Examples:
+    skippy-learn log error "Pre-commit hook false positive on os.getenv()"
+    skippy-learn log oversight "Forgot to create session README"
+    skippy-learn log solved "Fixed by adding exclusion pattern to hook"
+"""
+
+import os
+import sys
+import json
+import argparse
+from pathlib import Path
+from datetime import datetime, timedelta
+from collections import Counter
+import re
+
+SKIPPY_ROOT = Path("/home/dave/skippy")
+LEARN_DIR = SKIPPY_ROOT / ".claude" / "learning"
+ISSUES_FILE = LEARN_DIR / "issues.jsonl"
+PATTERNS_FILE = LEARN_DIR / "patterns.json"
+
+CATEGORIES = {
+    "error": "🔴 Runtime errors, exceptions",
+    "blocked": "🚫 Blocked by hooks/validation",
+    "mistake": "⚠️ User-reported mistakes",
+    "oversight": "👁️ Missed steps, forgot to do X",
+    "confusion": "❓ Unclear requirements",
+    "tooling": "🔧 Tool limitations, workarounds",
+    "pattern": "🔄 Recurring issue pattern",
+    "solved": "✅ Previously solved problems"
+}
+
+
+def ensure_dirs():
+    """Ensure learning directory exists."""
+    LEARN_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def log_issue(category: str, message: str, context: dict = None):
+    """Log an issue to the learning system."""
+    ensure_dirs()
+
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "category": category,
+        "message": message,
+        "context": context or {},
+        "session_id": os.environ.get("CLAUDE_SESSION_ID", "unknown"),
+        "cwd": os.getcwd()
+    }
+
+    # Append to JSONL file
+    with open(ISSUES_FILE, 'a') as f:
+        f.write(json.dumps(entry) + '\n')
+
+    print(f"{CATEGORIES.get(category, '📝')} Logged: {message[:60]}...")
+
+    # Update pattern detection
+    update_patterns(category, message)
+
+
+def load_issues():
+    """Load all issues from the log file."""
+    if not ISSUES_FILE.exists():
+        return []
+
+    issues = []
+    with open(ISSUES_FILE) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    issues.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+    return issues
+
+
+def update_patterns(category: str, message: str):
+    """Detect and update patterns from recurring issues."""
+    ensure_dirs()
+
+    patterns = {}
+    if PATTERNS_FILE.exists():
+        try:
+            with open(PATTERNS_FILE) as f:
+                patterns = json.load(f)
+        except:
+            patterns = {}
+
+    # Extract key phrases (2-4 word patterns)
+    words = re.findall(r'\b\w+\b', message.lower())
+    for i in range(len(words) - 1):
+        phrase = ' '.join(words[i:i+3])
+        if len(phrase) > 8:  # Meaningful phrases only
+            key = f"{category}:{phrase}"
+            patterns[key] = patterns.get(key, 0) + 1
+
+    # Save updated patterns
+    with open(PATTERNS_FILE, 'w') as f:
+        json.dump(patterns, f, indent=2)
+
+
+def list_issues(category: str = None, limit: int = 20):
+    """List logged issues."""
+    issues = load_issues()
+
+    if category:
+        issues = [i for i in issues if i.get('category') == category]
+
+    if not issues:
+        print("No issues logged yet.")
+        return
+
+    print(f"\n📋 Learning Log ({len(issues)} total)\n")
+
+    # Most recent first
+    for issue in reversed(issues[-limit:]):
+        cat = issue.get('category', 'unknown')
+        msg = issue.get('message', '')[:70]
+        ts = issue.get('timestamp', '')[:10]
+        icon = CATEGORIES.get(cat, '📝').split()[0]
+        print(f"  {icon} [{ts}] {cat:10} {msg}")
+
+    if len(issues) > limit:
+        print(f"\n  ... and {len(issues) - limit} more")
+
+
+def show_patterns():
+    """Show recurring patterns."""
+    if not PATTERNS_FILE.exists():
+        print("No patterns detected yet.")
+        return
+
+    with open(PATTERNS_FILE) as f:
+        patterns = json.load(f)
+
+    # Filter to patterns that occurred 2+ times
+    recurring = {k: v for k, v in patterns.items() if v >= 2}
+
+    if not recurring:
+        print("No recurring patterns detected yet.")
+        return
+
+    print("\n🔄 Recurring Patterns\n")
+
+    # Sort by frequency
+    for pattern, count in sorted(recurring.items(), key=lambda x: -x[1])[:15]:
+        category, phrase = pattern.split(':', 1)
+        icon = CATEGORIES.get(category, '📝').split()[0]
+        print(f"  {icon} ({count}x) {phrase}")
+
+    print("\n💡 Tip: Patterns with high counts indicate areas for improvement.")
+
+
+def show_stats():
+    """Show statistics about logged issues."""
+    issues = load_issues()
+
+    if not issues:
+        print("No issues logged yet.")
+        return
+
+    print("\n📊 Learning Statistics\n")
+
+    # Category breakdown
+    categories = Counter(i.get('category', 'unknown') for i in issues)
+    print("By Category:")
+    for cat, count in categories.most_common():
+        icon = CATEGORIES.get(cat, '📝').split()[0]
+        pct = count / len(issues) * 100
+        bar = '█' * int(pct / 5) + '░' * (20 - int(pct / 5))
+        print(f"  {icon} {cat:12} {bar} {count:3} ({pct:.0f}%)")
+
+    # Time analysis
+    now = datetime.now()
+    today = sum(1 for i in issues if i.get('timestamp', '')[:10] == now.strftime('%Y-%m-%d'))
+    week = sum(1 for i in issues if datetime.fromisoformat(i.get('timestamp', '2000-01-01')[:19]) > now - timedelta(days=7))
+    month = sum(1 for i in issues if datetime.fromisoformat(i.get('timestamp', '2000-01-01')[:19]) > now - timedelta(days=30))
+
+    print(f"\nBy Time Period:")
+    print(f"  Today:      {today}")
+    print(f"  This week:  {week}")
+    print(f"  This month: {month}")
+    print(f"  All time:   {len(issues)}")
+
+    # Most common error types
+    print("\n💡 Insights:")
+    if categories.get('oversight', 0) > 3:
+        print("  - High 'oversight' count: Consider adding checklists or automation")
+    if categories.get('blocked', 0) > 5:
+        print("  - Many 'blocked' issues: Review hook/validation rules for false positives")
+    if categories.get('confusion', 0) > 3:
+        print("  - Frequent 'confusion': Consider improving documentation or prompts")
+
+
+def interactive_review():
+    """Interactive review session for learning."""
+    issues = load_issues()
+    unreviewed = [i for i in issues if not i.get('context', {}).get('reviewed')]
+
+    if not unreviewed:
+        print("✅ All issues have been reviewed!")
+        return
+
+    print(f"\n📖 Review Session ({len(unreviewed)} unreviewed issues)\n")
+    print("For each issue, mark as: (s)olved, (p)attern, (i)gnore, (q)uit\n")
+
+    for issue in unreviewed[:10]:  # Review 10 at a time
+        cat = issue.get('category', 'unknown')
+        msg = issue.get('message', '')
+        ts = issue.get('timestamp', '')[:10]
+        icon = CATEGORIES.get(cat, '📝').split()[0]
+
+        print(f"{icon} [{ts}] {cat}")
+        print(f"   {msg}\n")
+
+        response = input("   Action? [s/p/i/q]: ").strip().lower()
+
+        if response == 'q':
+            break
+        elif response == 's':
+            issue['context']['reviewed'] = True
+            issue['context']['resolution'] = 'solved'
+            print("   ✅ Marked as solved\n")
+        elif response == 'p':
+            issue['context']['reviewed'] = True
+            issue['context']['resolution'] = 'pattern'
+            print("   🔄 Marked as pattern - will track\n")
+        else:
+            issue['context']['reviewed'] = True
+            issue['context']['resolution'] = 'ignored'
+            print("   ⏭️ Ignored\n")
+
+    # Save updated issues
+    with open(ISSUES_FILE, 'w') as f:
+        for issue in issues:
+            f.write(json.dumps(issue) + '\n')
+
+
+def export_markdown():
+    """Export learning log to markdown."""
+    issues = load_issues()
+
+    if not issues:
+        print("No issues to export.")
+        return
+
+    output_file = LEARN_DIR / f"learning_report_{datetime.now().strftime('%Y%m%d')}.md"
+
+    with open(output_file, 'w') as f:
+        f.write(f"# Learning Report\n\n")
+        f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
+        f.write(f"**Total Issues:** {len(issues)}\n\n")
+
+        # Group by category
+        by_category = {}
+        for issue in issues:
+            cat = issue.get('category', 'unknown')
+            if cat not in by_category:
+                by_category[cat] = []
+            by_category[cat].append(issue)
+
+        for cat in CATEGORIES:
+            if cat in by_category:
+                icon = CATEGORIES[cat].split()[0]
+                f.write(f"## {icon} {cat.title()}\n\n")
+                for issue in by_category[cat][-10:]:  # Last 10 per category
+                    msg = issue.get('message', '')
+                    ts = issue.get('timestamp', '')[:10]
+                    resolved = issue.get('context', {}).get('resolution', '')
+                    status = "✅" if resolved == 'solved' else ""
+                    f.write(f"- [{ts}] {msg} {status}\n")
+                f.write("\n")
+
+        f.write("---\n")
+        f.write("*Use `skippy-learn review` for interactive issue review.*\n")
+
+    print(f"📄 Exported to {output_file}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Error and lesson learning system",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    subparsers = parser.add_subparsers(dest="command", help="Command")
+
+    # log
+    log_parser = subparsers.add_parser("log", help="Log an issue")
+    log_parser.add_argument("category", choices=list(CATEGORIES.keys()), help="Issue category")
+    log_parser.add_argument("message", help="Description of the issue")
+
+    # list
+    list_parser = subparsers.add_parser("list", help="List issues")
+    list_parser.add_argument("--category", "-c", choices=list(CATEGORIES.keys()), help="Filter by category")
+    list_parser.add_argument("--limit", "-n", type=int, default=20, help="Number to show")
+
+    # patterns
+    subparsers.add_parser("patterns", help="Show recurring patterns")
+
+    # stats
+    subparsers.add_parser("stats", help="Show statistics")
+
+    # review
+    subparsers.add_parser("review", help="Interactive review session")
+
+    # export
+    subparsers.add_parser("export", help="Export to markdown")
+
+    # categories
+    subparsers.add_parser("categories", help="List all categories")
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        print("\nCategories:")
+        for cat, desc in CATEGORIES.items():
+            print(f"  {cat:12} {desc}")
+        return
+
+    if args.command == "log":
+        log_issue(args.category, args.message)
+    elif args.command == "list":
+        list_issues(args.category, args.limit)
+    elif args.command == "patterns":
+        show_patterns()
+    elif args.command == "stats":
+        show_stats()
+    elif args.command == "review":
+        interactive_review()
+    elif args.command == "export":
+        export_markdown()
+    elif args.command == "categories":
+        print("\nCategories:")
+        for cat, desc in CATEGORIES.items():
+            print(f"  {cat:12} {desc}")
+
+
+if __name__ == "__main__":
+    main()
