@@ -5777,8 +5777,8 @@ def gdrive_batch_upload(
 def _get_google_photos_picker_credentials():
     """Get OAuth credentials for Google Photos Picker API."""
     creds = None
-    token_path = os.getenv("GOOGLE_PHOTOS_TOKEN_PATH", "/home/dave/skippy/.credentials/google_photos_token.json")
-    credentials_path = os.getenv("GOOGLE_PHOTOS_CREDENTIALS_PATH", "/home/dave/skippy/.credentials/credentials.json")
+    token_path = os.getenv("GOOGLE_PHOTOS_TOKEN_PATH", os.path.expanduser("~/.config/skippy/credentials/google_photos_token.json"))
+    credentials_path = os.getenv("GOOGLE_PHOTOS_CREDENTIALS_PATH", os.path.expanduser("~/.config/skippy/credentials/credentials.json"))
     scopes = [os.getenv("GOOGLE_PHOTOS_SCOPES", "https://www.googleapis.com/auth/photospicker.mediaitems.readonly")]
 
     token_path = Path(token_path).expanduser()
