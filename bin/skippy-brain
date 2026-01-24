@@ -1,0 +1,424 @@
+#!/usr/bin/env python3
+"""
+skippy-brain - Unified Log Aggregation & Learning System CLI
+
+Collects logs from all sources, detects patterns, and generates prevention rules.
+
+Usage:
+    skippy-brain ingest          # Collect logs from all sources
+    skippy-brain analyze         # Detect patterns in collected logs
+    skippy-brain report          # Show comprehensive report
+    skippy-brain insights        # Show actionable insights
+    skippy-brain cycle           # Run full ingest->analyze->generate cycle
+    skippy-brain errors          # Show recent errors
+    skippy-brain search QUERY    # Search events by keyword
+    skippy-brain rules           # Show generated prevention rules
+    skippy-brain install         # Install prevention rules as hooks
+    skippy-brain status          # Quick status overview
+"""
+
+import argparse
+import json
+import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+
+# Add lib to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "lib" / "python"))
+
+from skippy_brain import Brain
+
+
+def format_table(headers: list[str], rows: list[list], widths: list[int] = None) -> str:
+    """Format data as a simple table."""
+    if not rows:
+        return "No data"
+
+    if widths is None:
+        widths = [max(len(str(row[i])) for row in rows + [headers]) + 2
+                  for i in range(len(headers))]
+
+    lines = []
+    # Header
+    header_line = "".join(str(h).ljust(w) for h, w in zip(headers, widths))
+    lines.append(header_line)
+    lines.append("-" * sum(widths))
+    # Rows
+    for row in rows:
+        line = "".join(str(cell).ljust(w) for cell, w in zip(row, widths))
+        lines.append(line)
+
+    return "\n".join(lines)
+
+
+def cmd_ingest(args, brain: Brain):
+    """Ingest logs from all sources."""
+    since = None
+    if args.hours:
+        since = datetime.now() - timedelta(hours=args.hours)
+
+    print(f"Ingesting logs since {since or '24 hours ago'}...")
+    stats = brain.ingest_all(since)
+
+    print(f"\n{'='*50}")
+    print("INGESTION COMPLETE")
+    print(f"{'='*50}")
+    print(f"System logs:  {stats['system']:>5}")
+    print(f"App logs:     {stats['app']:>5}")
+    print(f"Claude logs:  {stats['claude']:>5}")
+    print(f"{'─'*50}")
+    print(f"Total:        {stats['total']:>5}")
+    print(f"  Errors:     {stats['errors']:>5}")
+    print(f"  Warnings:   {stats['warnings']:>5}")
+
+    if "system_error" in stats:
+        print(f"\nSystem collector error: {stats['system_error']}")
+    if "app_error" in stats:
+        print(f"App collector error: {stats['app_error']}")
+    if "claude_error" in stats:
+        print(f"Claude collector error: {stats['claude_error']}")
+
+
+def cmd_analyze(args, brain: Brain):
+    """Detect patterns in collected logs."""
+    print("Analyzing events for patterns...")
+    patterns = brain.detect_patterns()
+
+    if not patterns:
+        print("No patterns detected.")
+        return
+
+    print(f"\n{'='*60}")
+    print(f"DETECTED {len(patterns)} PATTERNS")
+    print(f"{'='*60}")
+
+    for i, p in enumerate(patterns, 1):
+        severity_icon = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}.get(p.severity, "⚪")
+        auto = "🤖" if p.auto_preventable else ""
+
+        print(f"\n{i}. {severity_icon} {p.name} {auto}")
+        print(f"   {p.description}")
+        print(f"   Frequency: {p.frequency} | Sources: {', '.join(p.sources[:3])}")
+        print(f"   Action: {p.suggested_action}")
+
+        if p.example_messages:
+            print(f"   Example: {p.example_messages[0][:80]}...")
+
+
+def cmd_report(args, brain: Brain):
+    """Show comprehensive report."""
+    report = brain.get_report()
+
+    print(f"\n{'='*60}")
+    print("SKIPPY BRAIN REPORT")
+    print(f"{'='*60}")
+
+    summary = report["summary"]
+    print(f"\nTotal Events:      {summary['total_events']}")
+    print(f"Patterns Detected: {summary['patterns_detected']}")
+    print(f"Prevention Rules:  {summary['prevention_rules']}")
+    print(f"Last Ingest:       {summary['last_ingest'] or 'Never'}")
+    print(f"Last Analysis:     {summary['last_analysis'] or 'Never'}")
+
+    print(f"\n{'─'*60}")
+    print("EVENTS BY CATEGORY")
+    print(f"{'─'*60}")
+    for cat, count in report["events_by_category"].items():
+        bar = "█" * min(count // 5, 20)
+        print(f"  {cat:15} {count:>5}  {bar}")
+
+    print(f"\n{'─'*60}")
+    print("EVENTS BY LEVEL")
+    print(f"{'─'*60}")
+    level_icons = {"critical": "🔴", "error": "🟠", "warning": "🟡", "info": "🟢"}
+    for level, count in report["events_by_level"].items():
+        icon = level_icons.get(level, "⚪")
+        print(f"  {icon} {level:10} {count:>5}")
+
+    if report["top_patterns"]:
+        print(f"\n{'─'*60}")
+        print("TOP PATTERNS")
+        print(f"{'─'*60}")
+        for p in report["top_patterns"][:5]:
+            auto = "🤖" if p["auto_preventable"] else ""
+            print(f"  [{p['severity']:8}] {p['name']} (×{p['frequency']}) {auto}")
+
+    prev = report["prevention"]
+    print(f"\n{'─'*60}")
+    print("PREVENTION RULES")
+    print(f"{'─'*60}")
+    print(f"  Total:   {prev['total_rules']}")
+    print(f"  Enabled: {prev['enabled']}")
+    print(f"  Block:   {prev['by_action']['block']}")
+    print(f"  Warn:    {prev['by_action']['warn']}")
+
+
+def cmd_insights(args, brain: Brain):
+    """Show actionable insights."""
+    insights = brain.get_actionable_insights()
+
+    if not insights:
+        print("No actionable insights at this time.")
+        return
+
+    print(f"\n{'='*60}")
+    print(f"ACTIONABLE INSIGHTS ({len(insights)} items)")
+    print(f"{'='*60}")
+
+    priority_icons = {"high": "🔴", "medium": "🟡", "low": "🟢"}
+
+    for i, insight in enumerate(insights, 1):
+        icon = priority_icons.get(insight["priority"], "⚪")
+        auto = "🤖 Auto-fixable" if insight["auto_fixable"] else ""
+
+        print(f"\n{i}. {icon} [{insight['priority'].upper()}] {insight['title']}")
+        print(f"   {insight['description']}")
+        print(f"   Action: {insight['action']}")
+        if auto:
+            print(f"   {auto}")
+        print(f"   Sources: {', '.join(insight['sources'][:3])}")
+
+
+def cmd_cycle(args, brain: Brain):
+    """Run full ingest->analyze->generate cycle."""
+    print("Running full analysis cycle...")
+    print("="*60)
+
+    result = brain.run_full_cycle()
+
+    print(f"\nCycle completed at {result['timestamp']}")
+    print(f"\n{'─'*60}")
+
+    # Ingest stage
+    ingest = result["stages"]["ingest"]
+    print(f"Stage 1 - INGEST")
+    print(f"  Collected {ingest['total']} events ({ingest['errors']} errors, {ingest['warnings']} warnings)")
+
+    # Patterns stage
+    patterns = result["stages"]["patterns"]
+    print(f"\nStage 2 - PATTERNS")
+    print(f"  Detected {patterns['detected']} patterns ({patterns['auto_preventable']} auto-preventable)")
+    print(f"  High severity: {patterns['high_severity']}")
+
+    # Rules stage
+    rules = result["stages"]["rules"]
+    print(f"\nStage 3 - RULES")
+    print(f"  Generated {rules['generated']} rules ({rules['block_rules']} block, {rules['warn_rules']} warn)")
+
+    # Insights stage
+    insights_stage = result["stages"]["insights"]
+    print(f"\nStage 4 - INSIGHTS")
+    print(f"  {insights_stage['total']} actionable items ({insights_stage['high_priority']} high priority)")
+
+    print(f"\n{'='*60}")
+    print("Cycle complete. Run 'skippy-brain insights' for detailed recommendations.")
+
+
+def cmd_errors(args, brain: Brain):
+    """Show recent errors."""
+    errors = brain.get_recent_errors(args.limit)
+
+    if not errors:
+        print("No recent errors found.")
+        return
+
+    print(f"\n{'='*60}")
+    print(f"RECENT ERRORS (last {len(errors)})")
+    print(f"{'='*60}")
+
+    for e in errors:
+        level_icon = "🔴" if e.level == "critical" else "🟠"
+        ts = e.timestamp[:19] if len(e.timestamp) > 19 else e.timestamp
+        print(f"\n{level_icon} [{ts}] {e.source}/{e.category}")
+        print(f"   {e.message[:100]}{'...' if len(e.message) > 100 else ''}")
+
+
+def cmd_search(args, brain: Brain):
+    """Search events by keyword."""
+    query = " ".join(args.query)
+    matches = brain.search_events(query, args.limit)
+
+    if not matches:
+        print(f"No events matching '{query}'")
+        return
+
+    print(f"\n{'='*60}")
+    print(f"SEARCH RESULTS for '{query}' ({len(matches)} matches)")
+    print(f"{'='*60}")
+
+    for e in matches:
+        level_icon = {"critical": "🔴", "error": "🟠", "warning": "🟡", "info": "🟢"}.get(e.level, "⚪")
+        ts = e.timestamp[:19] if len(e.timestamp) > 19 else e.timestamp
+        print(f"\n{level_icon} [{ts}] {e.source}/{e.category}")
+        print(f"   {e.message[:100]}{'...' if len(e.message) > 100 else ''}")
+
+
+def cmd_rules(args, brain: Brain):
+    """Show generated prevention rules."""
+    rules = brain.prevention_generator.load_rules()
+
+    if not rules:
+        print("No prevention rules generated yet.")
+        print("Run 'skippy-brain cycle' to generate rules from patterns.")
+        return
+
+    print(f"\n{'='*60}")
+    print(f"PREVENTION RULES ({len(rules)} total)")
+    print(f"{'='*60}")
+
+    for r in rules:
+        status = "✅" if r.enabled else "❌"
+        action_icon = "🚫" if r.action == "block" else "⚠️" if r.action == "warn" else "📝"
+
+        print(f"\n{status} {action_icon} {r.name}")
+        print(f"   Trigger: {r.trigger}")
+        print(f"   Pattern: {r.pattern_match[:60]}{'...' if len(r.pattern_match) > 60 else ''}")
+        print(f"   Reason: {r.reason}")
+        print(f"   Source: Pattern {r.source_pattern_id}")
+
+
+def cmd_install(args, brain: Brain):
+    """Install prevention rules as hooks."""
+    rules = brain.prevention_generator.load_rules()
+
+    if not rules:
+        print("No rules to install. Run 'skippy-brain cycle' first.")
+        return
+
+    if not args.yes:
+        print(f"This will install {len(rules)} prevention rules as hooks.")
+        print("Rules will be written to ~/.claude/hooks/auto_generated_rules.sh")
+        response = input("Continue? [y/N] ")
+        if response.lower() != 'y':
+            print("Cancelled.")
+            return
+
+    count = brain.install_prevention_rules(rules)
+    print(f"\n✅ Installed {count} prevention rules.")
+    print("Source this file from your pre_tool_use.sh to enable auto-prevention.")
+
+
+def cmd_status(args, brain: Brain):
+    """Quick status overview."""
+    report = brain.get_report()
+    summary = report["summary"]
+
+    print(f"\n{'='*40}")
+    print("SKIPPY BRAIN STATUS")
+    print(f"{'='*40}")
+
+    # Status indicators
+    events_ok = summary["total_events"] > 0
+    patterns_ok = summary["patterns_detected"] >= 0
+    rules_ok = summary["prevention_rules"] >= 0
+
+    print(f"Events:     {'✅' if events_ok else '❌'} {summary['total_events']} collected")
+    print(f"Patterns:   {'✅' if patterns_ok else '⚪'} {summary['patterns_detected']} detected")
+    print(f"Rules:      {'✅' if rules_ok else '⚪'} {summary['prevention_rules']} generated")
+
+    # Errors by level
+    levels = report.get("events_by_level", {})
+    if levels:
+        print(f"\nError breakdown:")
+        print(f"  Critical: {levels.get('critical', 0)}")
+        print(f"  Error:    {levels.get('error', 0)}")
+        print(f"  Warning:  {levels.get('warning', 0)}")
+
+    # Last activity
+    print(f"\nLast ingest:  {summary['last_ingest'] or 'Never'}")
+    print(f"Last analysis: {summary['last_analysis'] or 'Never'}")
+
+    if summary["total_events"] == 0:
+        print("\n💡 Run 'skippy-brain ingest' to collect logs")
+    elif summary["patterns_detected"] == 0:
+        print("\n💡 Run 'skippy-brain analyze' to detect patterns")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Skippy Brain - Unified Log Aggregation & Learning System",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  skippy-brain status           # Quick overview
+  skippy-brain ingest           # Collect logs from all sources
+  skippy-brain ingest --hours 48  # Collect last 48 hours
+  skippy-brain analyze          # Detect patterns
+  skippy-brain report           # Full report
+  skippy-brain insights         # Actionable recommendations
+  skippy-brain cycle            # Run full cycle
+  skippy-brain errors           # Recent errors
+  skippy-brain search mcp       # Search for MCP-related events
+  skippy-brain rules            # Show prevention rules
+  skippy-brain install          # Install rules as hooks
+        """
+    )
+
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # ingest
+    p_ingest = subparsers.add_parser("ingest", help="Collect logs from all sources")
+    p_ingest.add_argument("--hours", type=int, default=24, help="Hours of logs to collect (default: 24)")
+
+    # analyze
+    subparsers.add_parser("analyze", help="Detect patterns in collected logs")
+
+    # report
+    subparsers.add_parser("report", help="Show comprehensive report")
+
+    # insights
+    subparsers.add_parser("insights", help="Show actionable insights")
+
+    # cycle
+    subparsers.add_parser("cycle", help="Run full ingest->analyze->generate cycle")
+
+    # errors
+    p_errors = subparsers.add_parser("errors", help="Show recent errors")
+    p_errors.add_argument("--limit", type=int, default=20, help="Number of errors to show")
+
+    # search
+    p_search = subparsers.add_parser("search", help="Search events by keyword")
+    p_search.add_argument("query", nargs="+", help="Search query")
+    p_search.add_argument("--limit", type=int, default=50, help="Max results")
+
+    # rules
+    subparsers.add_parser("rules", help="Show generated prevention rules")
+
+    # install
+    p_install = subparsers.add_parser("install", help="Install prevention rules as hooks")
+    p_install.add_argument("-y", "--yes", action="store_true", help="Skip confirmation")
+
+    # status
+    subparsers.add_parser("status", help="Quick status overview")
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(0)
+
+    # Initialize brain
+    brain = Brain()
+
+    # Dispatch command
+    commands = {
+        "ingest": cmd_ingest,
+        "analyze": cmd_analyze,
+        "report": cmd_report,
+        "insights": cmd_insights,
+        "cycle": cmd_cycle,
+        "errors": cmd_errors,
+        "search": cmd_search,
+        "rules": cmd_rules,
+        "install": cmd_install,
+        "status": cmd_status,
+    }
+
+    if args.command in commands:
+        commands[args.command](args, brain)
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
