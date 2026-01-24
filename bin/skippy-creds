@@ -1,0 +1,380 @@
+#!/usr/bin/env python3
+"""
+skippy-creds - Secure credential management for Skippy
+Version: 1.0.0
+
+Usage:
+    skippy-creds list                        List all credential namespaces
+    skippy-creds get <namespace> [key]       Get credential(s) from namespace
+    skippy-creds set <namespace> <key> <val> Set a credential
+    skippy-creds init <namespace>            Initialize a new namespace
+    skippy-creds delete <namespace> [key]    Delete namespace or specific key
+    skippy-creds export <namespace>          Export namespace (masked)
+
+Namespaces:
+    godaddy     - GoDaddy API credentials
+    github      - GitHub tokens
+    coinbase    - Coinbase API keys
+    kraken      - Kraken API keys
+    crypto.com  - Crypto.com credentials
+    gemini      - Gemini API keys
+    wordpress   - WordPress application passwords
+    ssh         - SSH key references
+    custom/*    - User-defined namespaces
+
+Security:
+    - Credentials stored in ~/.config/<namespace>/
+    - Files created with 600 permissions
+    - JSON format for easy parsing
+    - Never logs actual credential values
+"""
+
+import os
+import sys
+import json
+import argparse
+from pathlib import Path
+from datetime import datetime
+
+CONFIG_BASE = Path.home() / ".config"
+CREDS_INDEX = CONFIG_BASE / "skippy" / "credentials_index.json"
+
+# Standard namespace definitions with expected keys
+NAMESPACE_SCHEMAS = {
+    "godaddy": {
+        "path": "godaddy/api_credentials.json",
+        "keys": ["api_key", "api_secret", "domain"],
+        "description": "GoDaddy API credentials"
+    },
+    "github": {
+        "path": "github/credentials.json",
+        "keys": ["token", "username"],
+        "description": "GitHub personal access token"
+    },
+    "coinbase": {
+        "path": "coinbase/credentials.json",
+        "keys": ["api_key", "api_secret", "account_type"],
+        "description": "Coinbase API credentials"
+    },
+    "kraken": {
+        "path": "kraken/credentials.json",
+        "keys": ["api_key", "api_secret"],
+        "description": "Kraken API credentials"
+    },
+    "crypto.com": {
+        "path": "crypto.com/credentials.json",
+        "keys": ["api_key", "api_secret"],
+        "description": "Crypto.com API credentials"
+    },
+    "gemini": {
+        "path": "gemini/credentials.json",
+        "keys": ["api_key", "api_secret"],
+        "description": "Gemini API credentials"
+    },
+    "wordpress": {
+        "path": "wordpress/credentials.json",
+        "keys": ["site_url", "username", "app_password"],
+        "description": "WordPress application password"
+    },
+    "ssh": {
+        "path": "skippy/ssh_keys.json",
+        "keys": ["key_path", "host", "user"],
+        "description": "SSH key references"
+    }
+}
+
+
+def mask_value(value, show_chars=4):
+    """Mask a credential value for safe display."""
+    if not value or len(value) <= show_chars * 2:
+        return "*" * 8
+    return value[:show_chars] + "*" * (len(value) - show_chars * 2) + value[-show_chars:]
+
+
+def get_creds_path(namespace):
+    """Get the file path for a namespace's credentials."""
+    if namespace in NAMESPACE_SCHEMAS:
+        return CONFIG_BASE / NAMESPACE_SCHEMAS[namespace]["path"]
+    # Custom namespace
+    return CONFIG_BASE / "skippy" / "custom" / f"{namespace}.json"
+
+
+def load_credentials(namespace):
+    """Load credentials from a namespace."""
+    path = get_creds_path(namespace)
+    if not path.exists():
+        return None
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"Error loading {namespace}: {e}", file=sys.stderr)
+        return None
+
+
+def save_credentials(namespace, data):
+    """Save credentials to a namespace with secure permissions."""
+    path = get_creds_path(namespace)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Write with restricted permissions
+    with open(path, 'w') as f:
+        json.dump(data, f, indent=2)
+        f.write('\n')
+
+    # Set file permissions to 600 (owner read/write only)
+    os.chmod(path, 0o600)
+
+    # Update index
+    update_index(namespace, path)
+
+    return path
+
+
+def update_index(namespace, path):
+    """Update the credentials index."""
+    CREDS_INDEX.parent.mkdir(parents=True, exist_ok=True)
+
+    index = {}
+    if CREDS_INDEX.exists():
+        try:
+            with open(CREDS_INDEX) as f:
+                index = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            index = {}
+
+    index[namespace] = {
+        "path": str(path),
+        "updated": datetime.now().isoformat(),
+        "schema": namespace if namespace in NAMESPACE_SCHEMAS else "custom"
+    }
+
+    with open(CREDS_INDEX, 'w') as f:
+        json.dump(index, f, indent=2)
+        f.write('\n')
+
+
+def cmd_list(args):
+    """List all credential namespaces."""
+    print("\n📁 Credential Namespaces\n")
+
+    # Check standard namespaces
+    print("Standard namespaces:")
+    for ns, schema in NAMESPACE_SCHEMAS.items():
+        path = get_creds_path(ns)
+        status = "✅" if path.exists() else "⊘ "
+        print(f"  {status} {ns:15} {schema['description']}")
+
+    # Check custom namespaces
+    custom_dir = CONFIG_BASE / "skippy" / "custom"
+    if custom_dir.exists():
+        custom_files = list(custom_dir.glob("*.json"))
+        if custom_files:
+            print("\nCustom namespaces:")
+            for f in custom_files:
+                ns = f.stem
+                print(f"  ✅ custom/{ns}")
+
+    print()
+
+
+def cmd_get(args):
+    """Get credentials from a namespace."""
+    namespace = args.namespace
+    key = args.key
+
+    creds = load_credentials(namespace)
+    if creds is None:
+        print(f"Namespace '{namespace}' not found or empty", file=sys.stderr)
+        sys.exit(1)
+
+    if key:
+        # Get specific key
+        if key in creds:
+            if args.raw:
+                print(creds[key])
+            else:
+                print(f"{key}: {mask_value(str(creds[key]))}")
+        else:
+            print(f"Key '{key}' not found in namespace '{namespace}'", file=sys.stderr)
+            sys.exit(1)
+    else:
+        # Get all keys (masked)
+        print(f"\n🔑 {namespace} credentials:\n")
+        for k, v in creds.items():
+            if args.raw:
+                print(f"{k}={v}")
+            else:
+                print(f"  {k}: {mask_value(str(v))}")
+        print()
+
+
+def cmd_set(args):
+    """Set a credential value."""
+    namespace = args.namespace
+    key = args.key
+    value = args.value
+
+    creds = load_credentials(namespace) or {}
+    creds[key] = value
+
+    path = save_credentials(namespace, creds)
+    print(f"✅ Set {namespace}/{key} (saved to {path})")
+
+
+def cmd_init(args):
+    """Initialize a new namespace with prompts for required keys."""
+    namespace = args.namespace
+
+    if namespace in NAMESPACE_SCHEMAS:
+        schema = NAMESPACE_SCHEMAS[namespace]
+        print(f"\n📝 Initializing {namespace}: {schema['description']}\n")
+
+        creds = load_credentials(namespace) or {}
+
+        for key in schema["keys"]:
+            current = creds.get(key, "")
+            current_display = mask_value(current) if current else "(not set)"
+
+            print(f"  {key} [{current_display}]: ", end="")
+            value = input().strip()
+
+            if value:
+                creds[key] = value
+            elif not current:
+                print(f"    ⚠️  {key} left empty")
+
+        path = save_credentials(namespace, creds)
+        print(f"\n✅ Initialized {namespace} at {path}")
+    else:
+        # Custom namespace
+        print(f"\n📝 Initializing custom namespace: {namespace}\n")
+        print("Enter key=value pairs (empty line to finish):\n")
+
+        creds = load_credentials(namespace) or {}
+
+        while True:
+            line = input("  ").strip()
+            if not line:
+                break
+            if "=" in line:
+                key, value = line.split("=", 1)
+                creds[key.strip()] = value.strip()
+            else:
+                print("    ⚠️  Invalid format, use key=value")
+
+        if creds:
+            path = save_credentials(namespace, creds)
+            print(f"\n✅ Created custom/{namespace} at {path}")
+        else:
+            print("\n⚠️  No credentials entered, namespace not created")
+
+
+def cmd_delete(args):
+    """Delete a namespace or specific key."""
+    namespace = args.namespace
+    key = args.key
+
+    path = get_creds_path(namespace)
+
+    if not path.exists():
+        print(f"Namespace '{namespace}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    if key:
+        # Delete specific key
+        creds = load_credentials(namespace)
+        if key in creds:
+            del creds[key]
+            save_credentials(namespace, creds)
+            print(f"✅ Deleted key '{key}' from {namespace}")
+        else:
+            print(f"Key '{key}' not found in {namespace}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        # Delete entire namespace
+        confirm = input(f"Delete entire namespace '{namespace}'? (yes/no): ")
+        if confirm.lower() == 'yes':
+            path.unlink()
+            print(f"✅ Deleted namespace '{namespace}'")
+        else:
+            print("Cancelled")
+
+
+def cmd_export(args):
+    """Export namespace with masked values."""
+    namespace = args.namespace
+
+    creds = load_credentials(namespace)
+    if creds is None:
+        print(f"Namespace '{namespace}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    export = {k: mask_value(str(v)) for k, v in creds.items()}
+    print(json.dumps(export, indent=2))
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Skippy credential management",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  skippy-creds list                    # Show all namespaces
+  skippy-creds init godaddy            # Set up GoDaddy credentials
+  skippy-creds get godaddy             # View GoDaddy credentials (masked)
+  skippy-creds get godaddy api_key --raw  # Get raw value for scripts
+  skippy-creds set myservice token abc123 # Set custom credential
+        """
+    )
+
+    subparsers = parser.add_subparsers(dest="command", help="Command")
+
+    # list
+    subparsers.add_parser("list", help="List all credential namespaces")
+
+    # get
+    get_parser = subparsers.add_parser("get", help="Get credentials")
+    get_parser.add_argument("namespace", help="Credential namespace")
+    get_parser.add_argument("key", nargs="?", help="Specific key to retrieve")
+    get_parser.add_argument("--raw", action="store_true", help="Output raw value (for scripts)")
+
+    # set
+    set_parser = subparsers.add_parser("set", help="Set a credential")
+    set_parser.add_argument("namespace", help="Credential namespace")
+    set_parser.add_argument("key", help="Key name")
+    set_parser.add_argument("value", help="Value to set")
+
+    # init
+    init_parser = subparsers.add_parser("init", help="Initialize a namespace")
+    init_parser.add_argument("namespace", help="Namespace to initialize")
+
+    # delete
+    del_parser = subparsers.add_parser("delete", help="Delete namespace or key")
+    del_parser.add_argument("namespace", help="Namespace")
+    del_parser.add_argument("key", nargs="?", help="Specific key to delete")
+
+    # export
+    exp_parser = subparsers.add_parser("export", help="Export namespace (masked)")
+    exp_parser.add_argument("namespace", help="Namespace to export")
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(0)
+
+    commands = {
+        "list": cmd_list,
+        "get": cmd_get,
+        "set": cmd_set,
+        "init": cmd_init,
+        "delete": cmd_delete,
+        "export": cmd_export
+    }
+
+    commands[args.command](args)
+
+
+if __name__ == "__main__":
+    main()

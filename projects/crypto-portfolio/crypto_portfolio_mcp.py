@@ -814,17 +814,71 @@ async def crypto_exchange_holdings(params: ExchangeHoldingsInput) -> str:
         str: Holdings data in requested format
     """
     try:
+        # Use real data if aggregator is available
+        if _aggregator and _aggregator.exchanges:
+            raw_data = _aggregator.get_combined_portfolio()
+
+            # Filter by exchange if specified
+            if params.exchange != Exchange.ALL:
+                exchange_key = params.exchange.value.replace('.', '_')
+                if exchange_key not in raw_data.get('exchanges', {}):
+                    return f"Exchange '{params.exchange.value}' not configured or has no holdings."
+                exchanges_data = {exchange_key: raw_data['exchanges'][exchange_key]}
+            else:
+                exchanges_data = raw_data.get('exchanges', {})
+
+            if params.response_format == ResponseFormat.JSON:
+                return json.dumps({
+                    "data_source": "live",
+                    "exchange": params.exchange.value,
+                    "exchanges": exchanges_data
+                }, indent=2, default=str)
+
+            # Markdown format for real data
+            md = f"# Holdings: {params.exchange.value.title()} (LIVE DATA)\n\n"
+
+            for ex_id, ex_data in exchanges_data.items():
+                ex_name = ex_data.get('exchange', ex_id)
+                ex_value = ex_data.get('total_value_usd', 0)
+                holdings = ex_data.get('holdings', [])
+
+                # Apply filters
+                if params.asset:
+                    holdings = [h for h in holdings if h.get('currency', '').upper() == params.asset.upper()]
+                if params.min_value_usd:
+                    holdings = [h for h in holdings if h.get('value_usd', 0) >= params.min_value_usd]
+
+                md += f"## {ex_name}\n"
+                md += f"**Total Value:** {format_currency(ex_value)}\n\n"
+
+                if holdings:
+                    md += "| Asset | Balance | Value (USD) | Staked |\n"
+                    md += "|-------|---------|-------------|--------|\n"
+                    for h in sorted(holdings, key=lambda x: x.get('value_usd', 0), reverse=True):
+                        currency = h.get('currency', 'UNK')
+                        balance = h.get('balance', 0)
+                        value = h.get('value_usd', 0)
+                        staked = "Yes" if h.get('is_staked') else ""
+                        md += f"| {currency} | {balance:.6f} | {format_currency(value)} | {staked} |\n"
+                else:
+                    md += "*No holdings matching filters*\n"
+                md += "\n"
+
+            return md
+
+        # Fallback to mock data
         data = get_mock_portfolio_data()
-        
+
         if params.response_format == ResponseFormat.JSON:
             return json.dumps({
+                "data_source": "mock",
                 "exchange": params.exchange.value,
                 "holdings": data['holdings'],
                 "by_exchange": data['by_exchange']
             }, indent=2)
-        
-        md = f"# Holdings: {params.exchange.value.title()}\n\n"
-        
+
+        md = f"# Holdings: {params.exchange.value.title()} (DEMO DATA)\n\n"
+
         if params.exchange == Exchange.ALL:
             for exchange, info in data['by_exchange'].items():
                 md += f"## {exchange.title()}\n"
@@ -833,9 +887,9 @@ async def crypto_exchange_holdings(params: ExchangeHoldingsInput) -> str:
         else:
             exchange_data = data['by_exchange'].get(params.exchange.value, {})
             md += f"- **Total Value:** {format_currency(exchange_data.get('value_usd', 0))}\n"
-        
+
         return md
-        
+
     except Exception as e:
         return handle_api_error(e, "fetching exchange holdings")
 
@@ -866,12 +920,70 @@ async def crypto_staking_positions(params: StakingPositionsInput) -> str:
         str: Staking positions data in requested format
     """
     try:
+        # Use real data if aggregator is available
+        if _aggregator and _aggregator.exchanges:
+            raw_data = _aggregator.get_combined_portfolio()
+
+            # Extract staking positions from holdings
+            staking_positions = []
+            total_staked = 0
+
+            for ex_id, ex_data in raw_data.get('exchanges', {}).items():
+                ex_name = ex_data.get('exchange', ex_id)
+
+                # Filter by exchange if specified
+                if params.exchange != Exchange.ALL:
+                    exchange_key = params.exchange.value.replace('.', '_')
+                    if ex_id != exchange_key:
+                        continue
+
+                for h in ex_data.get('holdings', []):
+                    if h.get('is_staked'):
+                        value = h.get('value_usd', 0)
+                        total_staked += value
+                        staking_positions.append({
+                            'exchange': ex_name,
+                            'asset': h.get('currency', 'UNK'),
+                            'amount_staked': h.get('balance', 0),
+                            'value_usd': value,
+                            'apy': h.get('apy', 0),
+                            'status': 'active'
+                        })
+
+            if params.response_format == ResponseFormat.JSON:
+                return json.dumps({
+                    "data_source": "live",
+                    "total_staked_usd": total_staked,
+                    "positions": staking_positions
+                }, indent=2, default=str)
+
+            # Markdown format
+            md = f"""# Staking Positions (LIVE DATA)
+
+**Total Staked Value:** {format_currency(total_staked)}
+**Positions:** {len(staking_positions)}
+
+"""
+            if staking_positions:
+                md += """## Active Positions
+| Exchange | Asset | Staked | Value | Status |
+|----------|-------|--------|-------|--------|
+"""
+                for pos in sorted(staking_positions, key=lambda x: x['value_usd'], reverse=True):
+                    md += f"| {pos['exchange']} | {pos['asset']} | {pos['amount_staked']:.6f} | {format_currency(pos['value_usd'])} | {pos['status']} |\n"
+            else:
+                md += "*No staking positions found*\n"
+
+            return md
+
+        # Fallback to mock data
         data = get_mock_staking_data()
-        
+
         if params.response_format == ResponseFormat.JSON:
+            data['data_source'] = 'mock'
             return json.dumps(data, indent=2)
-        
-        md = f"""# Staking Positions
+
+        md = f"""# Staking Positions (DEMO DATA)
 
 **Total Staked Value:** {format_currency(data['total_staked_usd'])}
 **Total Rewards Earned:** {format_currency(data['total_rewards_usd'])}
@@ -884,9 +996,9 @@ async def crypto_staking_positions(params: StakingPositionsInput) -> str:
             if params.exchange != Exchange.ALL and pos['exchange'] != params.exchange.value:
                 continue
             md += f"| {pos['exchange'].title()} | {pos['asset']} | {pos['amount_staked']:.4f} | {format_currency(pos['value_usd'])} | {pos['apy']:.1f}% | {format_currency(pos['rewards_usd'])} | {pos['status']} |\n"
-        
+
         return md
-        
+
     except Exception as e:
         return handle_api_error(e, "fetching staking positions")
 
