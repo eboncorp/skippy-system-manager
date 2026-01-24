@@ -277,7 +277,7 @@ for i, url in enumerate(pages, 1):
 
 ### Credentials
 ```
-/home/dave/skippy/.credentials/
+~/.config/skippy/credentials/
 ├── credentials.json             # Google OAuth client (not configured)
 └── (google_drive_token.json)    # Will be created after OAuth
 ```

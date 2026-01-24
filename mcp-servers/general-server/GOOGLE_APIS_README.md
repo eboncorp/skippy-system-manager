@@ -33,13 +33,13 @@ Both use the same OAuth credentials and follow identical setup patterns.
 ### Google Drive
 - **Quick Start:** `GOOGLE_DRIVE_SETUP.md`
 - **Status:** ✅ Already configured
-- **Token:** `/home/dave/skippy/.credentials/google_drive_token.json`
+- **Token:** `~/.config/skippy/credentials/google_drive_token.json`
 
 ### Google Photos
 - **Quick Start:** `GOOGLE_PHOTOS_QUICKSTART.md` ⭐ START HERE
 - **Complete Guide:** `GOOGLE_PHOTOS_SETUP.md`
 - **Status:** ⏳ Needs authorization (4 minutes)
-- **Token:** `/home/dave/skippy/.credentials/google_photos_token.json` (created on first use)
+- **Token:** `~/.config/skippy/credentials/google_photos_token.json` (created on first use)
 
 ---
 
@@ -73,20 +73,20 @@ Both use the same OAuth credentials and follow identical setup patterns.
 
 ```bash
 # Google Drive
-GOOGLE_DRIVE_CREDENTIALS_PATH=/home/dave/skippy/.credentials/google_drive_credentials.json
-GOOGLE_DRIVE_TOKEN_PATH=/home/dave/skippy/.credentials/google_drive_token.json
+GOOGLE_DRIVE_CREDENTIALS_PATH=~/.config/skippy/credentials/google_drive_credentials.json
+GOOGLE_DRIVE_TOKEN_PATH=~/.config/skippy/credentials/google_drive_token.json
 GOOGLE_DRIVE_SCOPES=https://www.googleapis.com/auth/drive
 
 # Google Photos
-GOOGLE_PHOTOS_CREDENTIALS_PATH=/home/dave/skippy/.credentials/google_drive_credentials.json
-GOOGLE_PHOTOS_TOKEN_PATH=/home/dave/skippy/.credentials/google_photos_token.json
+GOOGLE_PHOTOS_CREDENTIALS_PATH=~/.config/skippy/credentials/google_drive_credentials.json
+GOOGLE_PHOTOS_TOKEN_PATH=~/.config/skippy/credentials/google_photos_token.json
 GOOGLE_PHOTOS_SCOPES=https://www.googleapis.com/auth/photoslibrary.readonly
 ```
 
 ### Credentials Structure
 
 ```
-/home/dave/skippy/.credentials/
+~/.config/skippy/credentials/
 ├── credentials.json                    # OAuth client secret
 ├── google_drive_credentials.json       # Symlink to credentials.json
 ├── google_drive_token.json             # Drive access token ✅
@@ -233,14 +233,14 @@ Anytime: https://myaccount.google.com/permissions
 ### "insufficient_scope"
 **Solution:** Delete token and re-authorize
 ```bash
-rm /home/dave/skippy/.credentials/google_photos_token.json
+rm ~/.config/skippy/credentials/google_photos_token.json
 # Run tool again
 ```
 
 ### "Credentials not found"
 **Solution:** Check symlink exists
 ```bash
-ls -la /home/dave/skippy/.credentials/google_drive_credentials.json
+ls -la ~/.config/skippy/credentials/google_drive_credentials.json
 # Should point to credentials.json
 ```
 

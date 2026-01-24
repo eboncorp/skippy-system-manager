@@ -9,7 +9,7 @@
 
 You already have:
 - [x] Google Cloud project created
-- [x] OAuth credentials at `/home/dave/skippy/.credentials/credentials.json`
+- [x] OAuth credentials at `~/.config/skippy/credentials/credentials.json`
 - [x] Google Drive API enabled and working
 
 ---
@@ -184,7 +184,7 @@ metadata = gphotos_get_media_metadata(media_id)
 **Solution:**
 ```bash
 # Delete token and re-authorize
-rm /home/dave/skippy/.credentials/google_photos_token.json
+rm ~/.config/skippy/credentials/google_photos_token.json
 # Run tool again - browser will open
 ```
 

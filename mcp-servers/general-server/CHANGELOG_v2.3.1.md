@@ -57,8 +57,8 @@ Added 6 new tools for managing Google Photos:
 
 ```bash
 # Google Photos Integration (OAuth)
-GOOGLE_PHOTOS_CREDENTIALS_PATH=/home/dave/skippy/.credentials/google_drive_credentials.json
-GOOGLE_PHOTOS_TOKEN_PATH=/home/dave/skippy/.credentials/google_photos_token.json
+GOOGLE_PHOTOS_CREDENTIALS_PATH=~/.config/skippy/credentials/google_drive_credentials.json
+GOOGLE_PHOTOS_TOKEN_PATH=~/.config/skippy/credentials/google_photos_token.json
 GOOGLE_PHOTOS_SCOPES=https://www.googleapis.com/auth/photoslibrary.readonly
 ```
 
@@ -223,7 +223,7 @@ Before using Photos tools:
 
 6. **Verify token created:**
    ```bash
-   ls -la /home/dave/skippy/.credentials/google_photos_token.json
+   ls -la ~/.config/skippy/credentials/google_photos_token.json
    ```
 
 ---

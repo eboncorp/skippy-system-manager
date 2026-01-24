@@ -100,8 +100,8 @@ google-auth-oauthlib          # OAuth flow (already present)
 PEXELS_API_KEY=2jPwvYEkwxNnWbqP4C0ixa0qq1A5R2EFh1wD2sJAvbZexzCSz0zAZamM
 
 # Google Photos Integration (OAuth)
-GOOGLE_PHOTOS_CREDENTIALS_PATH=/home/dave/skippy/.credentials/google_drive_credentials.json
-GOOGLE_PHOTOS_TOKEN_PATH=/home/dave/skippy/.credentials/google_photos_token.json
+GOOGLE_PHOTOS_CREDENTIALS_PATH=~/.config/skippy/credentials/google_drive_credentials.json
+GOOGLE_PHOTOS_TOKEN_PATH=~/.config/skippy/credentials/google_photos_token.json
 GOOGLE_PHOTOS_SCOPES=https://www.googleapis.com/auth/photoslibrary.readonly
 ```
 
@@ -299,7 +299,7 @@ Helper function to authenticate Google Photos API.
 
 1. **OAuth Credentials** ✅ (completed)
    - Credentials symlinked from Google Drive setup
-   - Path: `/home/dave/skippy/.credentials/google_drive_credentials.json`
+   - Path: `~/.config/skippy/credentials/google_drive_credentials.json`
 
 2. **OAuth Consent Screen** ✅ (configured)
    - Scope added: `https://www.googleapis.com/auth/photoslibrary.readonly`
