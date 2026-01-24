@@ -1,0 +1,141 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/schemas/mcp-config.schema.json",
+  
+  "_comment": [
+    "Claude Code MCP Configuration for Crypto Portfolio Analyzer",
+    "============================================================",
+    "Place this file at: ~/.config/claude-code/mcp.json (global)",
+    "Or: .claude/mcp.json (project-level)",
+    "",
+    "Environment variables can be:",
+    "- Hardcoded in 'env' section below",
+    "- Referenced from shell: ${VARIABLE_NAME}",
+    "- Loaded from .env file in project directory"
+  ],
+  
+  "mcpServers": {
+    "crypto-portfolio": {
+      "_description": "Multi-exchange cryptocurrency portfolio analyzer with AI insights",
+      
+      "command": "python",
+      "args": [
+        "/path/to/crypto-portfolio-analyzer/crypto_portfolio_mcp.py"
+      ],
+      
+      "env": {
+        "PAPER_TRADING": "true",
+        
+        "COINBASE_API_KEY": "${COINBASE_API_KEY}",
+        "COINBASE_API_SECRET": "${COINBASE_API_SECRET}",
+        
+        "KRAKEN_API_KEY": "${KRAKEN_API_KEY}",
+        "KRAKEN_API_SECRET": "${KRAKEN_API_SECRET}",
+        
+        "CRYPTO_COM_API_KEY": "${CRYPTO_COM_API_KEY}",
+        "CRYPTO_COM_API_SECRET": "${CRYPTO_COM_API_SECRET}",
+        
+        "GEMINI_API_KEY": "${GEMINI_API_KEY}",
+        "GEMINI_API_SECRET": "${GEMINI_API_SECRET}",
+        
+        "ETH_WALLET_1": "${ETH_WALLET_1}",
+        
+        "ETHERSCAN_API_KEY": "${ETHERSCAN_API_KEY}",
+        
+        "DATABASE_URL": "sqlite:///portfolio.db",
+        "LOG_LEVEL": "INFO"
+      },
+      
+      "_setup_instructions": [
+        "1. Update the 'args' path to your actual installation directory",
+        "2. Set environment variables in your shell profile or .env file",
+        "3. Alternatively, replace ${VAR} with actual values (less secure)",
+        "4. Restart Claude Code after making changes"
+      ]
+    }
+  },
+  
+  "_alternative_configs": {
+    "_http_transport": {
+      "_description": "Use HTTP transport for remote access or multiple clients",
+      "command": "python",
+      "args": [
+        "/path/to/crypto-portfolio-analyzer/crypto_portfolio_mcp.py",
+        "--http",
+        "--port", "8080"
+      ]
+    },
+    
+    "_docker": {
+      "_description": "Run MCP server in Docker container",
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "--env-file", ".env",
+        "crypto-portfolio-mcp:latest"
+      ]
+    },
+    
+    "_uv_runner": {
+      "_description": "Use uv for faster Python execution",
+      "command": "uv",
+      "args": [
+        "run", "--python", "3.11",
+        "/path/to/crypto-portfolio-analyzer/crypto_portfolio_mcp.py"
+      ]
+    }
+  },
+  
+  "_available_tools": [
+    {
+      "name": "crypto_portfolio_summary",
+      "description": "Get comprehensive portfolio overview across all exchanges"
+    },
+    {
+      "name": "crypto_exchange_holdings", 
+      "description": "View holdings filtered by exchange and asset"
+    },
+    {
+      "name": "crypto_staking_positions",
+      "description": "View staking positions and accumulated rewards"
+    },
+    {
+      "name": "crypto_defi_positions",
+      "description": "View DeFi protocol positions (Aave, Uniswap, Lido, etc.)"
+    },
+    {
+      "name": "crypto_ai_analysis",
+      "description": "Run AI-powered portfolio analysis with recommendations"
+    },
+    {
+      "name": "crypto_cost_basis",
+      "description": "Calculate cost basis using FIFO/LIFO/HIFO/AVG methods"
+    },
+    {
+      "name": "crypto_arbitrage_opportunities",
+      "description": "Scan for cross-exchange arbitrage opportunities"
+    },
+    {
+      "name": "crypto_transaction_history",
+      "description": "Query transaction records with filtering and pagination"
+    },
+    {
+      "name": "crypto_alerts_status",
+      "description": "View price and portfolio alert configurations"
+    },
+    {
+      "name": "crypto_dca_bot_status",
+      "description": "Check DCA bot status and execution history"
+    }
+  ],
+  
+  "_example_queries": [
+    "Show me my portfolio summary",
+    "What's my total staking rewards across all exchanges?",
+    "Calculate my 2024 tax liability using HIFO method",
+    "Are there any BTC arbitrage opportunities above 0.5%?",
+    "Run a comprehensive AI analysis of my portfolio",
+    "Show my ETH transactions from last month",
+    "What are my Aave lending positions?",
+    "How are my DCA bots performing?"
+  ]
+}
