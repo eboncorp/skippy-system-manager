@@ -42,11 +42,15 @@ class Brain:
 
         # Event storage
         self.events_file = self.data_dir / "aggregated_events.jsonl"
+        self.state_file = self.data_dir / "brain_state.json"
         self.events: list[LogEvent] = []
 
         # State
         self.last_ingest: Optional[datetime] = None
         self.last_analysis: Optional[datetime] = None
+
+        # Load persisted state
+        self._load_state()
 
     def ingest_all(self, since: Optional[datetime] = None) -> dict:
         """
@@ -95,9 +99,10 @@ class Brain:
         stats["errors"] = len([e for e in self.events if e.level in ("error", "critical")])
         stats["warnings"] = len([e for e in self.events if e.level == "warning"])
 
-        # Save events
+        # Save events and state
         self._save_events()
         self.last_ingest = datetime.now()
+        self._save_state()
 
         return stats
 
@@ -114,6 +119,7 @@ class Brain:
 
         patterns = self.pattern_engine.analyze(self.events)
         self.last_analysis = datetime.now()
+        self._save_state()
         return patterns
 
     def generate_prevention_rules(self, patterns: Optional[list[Pattern]] = None) -> list[PreventionRule]:
@@ -274,6 +280,27 @@ class Brain:
         with open(self.events_file, 'w') as f:
             for event in self.events:
                 f.write(event.to_json() + "\n")
+
+    def _save_state(self):
+        """Persist brain state to file."""
+        state = {
+            "last_ingest": self.last_ingest.isoformat() if self.last_ingest else None,
+            "last_analysis": self.last_analysis.isoformat() if self.last_analysis else None,
+        }
+        self.state_file.write_text(json.dumps(state, indent=2))
+
+    def _load_state(self):
+        """Load persisted brain state."""
+        if not self.state_file.exists():
+            return
+        try:
+            state = json.loads(self.state_file.read_text())
+            if state.get("last_ingest"):
+                self.last_ingest = datetime.fromisoformat(state["last_ingest"])
+            if state.get("last_analysis"):
+                self.last_analysis = datetime.fromisoformat(state["last_analysis"])
+        except Exception:
+            pass
 
     def _load_events(self):
         """Load events from JSONL file."""
