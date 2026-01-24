@@ -1,0 +1,59 @@
+# Prometheus Configuration
+# ========================
+# Scrape configuration for crypto portfolio MCP server
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  
+  # Attach these labels to any time series or alerts when communicating with
+  # external systems (federation, remote storage, Alertmanager).
+  external_labels:
+    monitor: 'crypto-portfolio'
+
+# Alertmanager configuration (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # - alertmanager:9093
+
+# Rule files (optional)
+rule_files: []
+  # - "alert_rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Crypto Portfolio MCP Server
+  - job_name: 'crypto-portfolio-mcp'
+    static_configs:
+      - targets: ['mcp-server:8080']
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Background Worker
+  - job_name: 'crypto-portfolio-worker'
+    static_configs:
+      - targets: ['worker:8080']
+    metrics_path: /metrics
+    scrape_interval: 30s
+
+  # Redis Exporter (if using redis_exporter)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    metrics_path: /metrics
+    scrape_interval: 30s
+
+  # PostgreSQL Exporter (if using postgres_exporter)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    metrics_path: /metrics
+    scrape_interval: 60s
