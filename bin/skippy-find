@@ -1,0 +1,230 @@
+#!/usr/bin/env python3
+"""
+skippy-find - Search and discover skippy scripts
+Version: 1.0.0
+
+Usage:
+    skippy-find <keyword>           Search by keyword
+    skippy-find --list              List all scripts
+    skippy-find --category <cat>    List scripts in category
+    skippy-find --index             Rebuild search index
+    skippy-find --stats             Show script statistics
+"""
+
+import os
+import sys
+import re
+import json
+import argparse
+from pathlib import Path
+from datetime import datetime
+
+SKIPPY_ROOT = Path("/home/dave/skippy")
+SCRIPTS_DIR = SKIPPY_ROOT / "scripts"
+INDEX_FILE = SKIPPY_ROOT / ".script_index.json"
+
+def extract_script_info(filepath):
+    """Extract metadata from script header."""
+    info = {
+        "path": str(filepath),
+        "name": filepath.name,
+        "category": filepath.parent.name,
+        "description": "",
+        "version": "",
+        "keywords": [],
+        "size": filepath.stat().st_size,
+        "modified": datetime.fromtimestamp(filepath.stat().st_mtime).isoformat()
+    }
+
+    try:
+        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read(2000)  # Read first 2KB for header
+            lines = content.split('\n')[:30]  # First 30 lines
+
+            for line in lines:
+                # Extract description from comments
+                if line.startswith('#') and not info["description"]:
+                    text = line.lstrip('#').strip()
+                    # Skip shebang, empty, and version lines
+                    if text and not text.startswith('!') and 'version' not in text.lower():
+                        if len(text) > 10:  # Reasonable description length
+                            info["description"] = text[:200]
+
+                # Extract version
+                version_match = re.search(r'[Vv]ersion[:\s]*(\d+\.\d+\.\d+)', line)
+                if version_match:
+                    info["version"] = version_match.group(1)
+
+                # Also get version from filename
+                if not info["version"]:
+                    fn_match = re.search(r'_v(\d+\.\d+\.\d+)', filepath.name)
+                    if fn_match:
+                        info["version"] = fn_match.group(1)
+
+            # Extract keywords from content
+            keywords = set()
+            content_lower = content.lower()
+
+            keyword_patterns = [
+                "wordpress", "backup", "deploy", "monitor", "security",
+                "database", "git", "docker", "cron", "api", "ssh",
+                "cleanup", "health", "validate", "sync", "export",
+                "import", "migrate", "audit", "report", "alert"
+            ]
+
+            for kw in keyword_patterns:
+                if kw in content_lower:
+                    keywords.add(kw)
+
+            info["keywords"] = list(keywords)
+
+    except Exception as e:
+        pass
+
+    return info
+
+def build_index():
+    """Build search index of all scripts."""
+    print("Building script index...")
+    index = {
+        "built": datetime.now().isoformat(),
+        "scripts": []
+    }
+
+    extensions = {'.sh', '.py', '.bash'}
+
+    for ext in extensions:
+        for filepath in SCRIPTS_DIR.rglob(f'*{ext}'):
+            if '.git' in str(filepath) or '__pycache__' in str(filepath):
+                continue
+            info = extract_script_info(filepath)
+            index["scripts"].append(info)
+
+    # Sort by category then name
+    index["scripts"].sort(key=lambda x: (x["category"], x["name"]))
+    index["count"] = len(index["scripts"])
+
+    with open(INDEX_FILE, 'w') as f:
+        json.dump(index, f, indent=2)
+
+    print(f"Indexed {index['count']} scripts")
+    return index
+
+def load_index():
+    """Load existing index or build new one."""
+    if not INDEX_FILE.exists():
+        return build_index()
+
+    # Rebuild if older than 1 day
+    age = datetime.now().timestamp() - INDEX_FILE.stat().st_mtime
+    if age > 86400:  # 24 hours
+        return build_index()
+
+    with open(INDEX_FILE) as f:
+        return json.load(f)
+
+def search_scripts(keyword, index):
+    """Search scripts by keyword."""
+    keyword = keyword.lower()
+    results = []
+
+    for script in index["scripts"]:
+        score = 0
+
+        # Check name (highest weight)
+        if keyword in script["name"].lower():
+            score += 10
+
+        # Check description
+        if keyword in script["description"].lower():
+            score += 5
+
+        # Check keywords
+        if keyword in script["keywords"]:
+            score += 3
+
+        # Check category
+        if keyword in script["category"].lower():
+            score += 2
+
+        if score > 0:
+            results.append((score, script))
+
+    # Sort by score descending
+    results.sort(key=lambda x: x[0], reverse=True)
+    return [r[1] for r in results]
+
+def print_script(script, verbose=False):
+    """Print script info."""
+    version = f" v{script['version']}" if script['version'] else ""
+    print(f"  {script['category']}/{script['name']}{version}")
+    if verbose and script['description']:
+        print(f"    └─ {script['description'][:80]}")
+
+def main():
+    parser = argparse.ArgumentParser(description="Search skippy scripts")
+    parser.add_argument("keyword", nargs="?", help="Search keyword")
+    parser.add_argument("--list", "-l", action="store_true", help="List all scripts")
+    parser.add_argument("--category", "-c", help="Filter by category")
+    parser.add_argument("--index", "-i", action="store_true", help="Rebuild index")
+    parser.add_argument("--stats", "-s", action="store_true", help="Show statistics")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show descriptions")
+
+    args = parser.parse_args()
+
+    if args.index:
+        build_index()
+        return
+
+    index = load_index()
+
+    if args.stats:
+        print(f"\n📊 Script Statistics")
+        print(f"   Total: {index['count']} scripts")
+        print(f"   Index built: {index['built'][:10]}")
+
+        # Count by category
+        categories = {}
+        for script in index["scripts"]:
+            cat = script["category"]
+            categories[cat] = categories.get(cat, 0) + 1
+
+        print(f"\n   By category:")
+        for cat, count in sorted(categories.items(), key=lambda x: -x[1]):
+            print(f"     {cat}: {count}")
+        return
+
+    if args.category:
+        results = [s for s in index["scripts"] if s["category"] == args.category]
+        if results:
+            print(f"\n📁 Scripts in {args.category}/ ({len(results)}):\n")
+            for script in results:
+                print_script(script, args.verbose)
+        else:
+            print(f"No scripts found in category: {args.category}")
+        return
+
+    if args.list:
+        print(f"\n📜 All scripts ({index['count']}):\n")
+        current_cat = ""
+        for script in index["scripts"]:
+            if script["category"] != current_cat:
+                current_cat = script["category"]
+                print(f"\n  [{current_cat}]")
+            print(f"    {script['name']}")
+        return
+
+    if args.keyword:
+        results = search_scripts(args.keyword, index)
+        if results:
+            print(f"\n🔍 Found {len(results)} matches for '{args.keyword}':\n")
+            for script in results[:20]:  # Top 20
+                print_script(script, verbose=True)
+        else:
+            print(f"No scripts found matching: {args.keyword}")
+        return
+
+    parser.print_help()
+
+if __name__ == "__main__":
+    main()
