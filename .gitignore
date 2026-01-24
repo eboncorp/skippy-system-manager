@@ -10,6 +10,7 @@ development/tests/results/
 
 # Work sessions (preserve locally, don't commit)
 work/
+work
 
 # Quarantine files (held for review, don't commit)
 documents/quarantine/
@@ -52,14 +53,33 @@ htmlcov/
 # Type checking
 .mypy_cache/
 
-# Private/sensitive (already in root .gitignore but restate here)
+# Private/sensitive (CRITICAL - never commit)
 business/
 personal/
 .env
 .env.*
+!.env.example
 credentials/
+.credentials/
 *.key
 *.pem
+*.p12
+*.pfx
+
+# Financial documents
+*.pdf
+*.csv
+!documentation/*.pdf
+!tests/*.csv
+
+# Browser data and snapshots
+system/snap/
+**/IndexedDB/
+**/.mozilla/
+**/.thunderbird/
+
+# Password manager data
+**/nordpass/
 
 # OS files
 .DS_Store

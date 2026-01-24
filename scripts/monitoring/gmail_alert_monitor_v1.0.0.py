@@ -23,7 +23,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 
 # Configuration
-CREDENTIALS_DIR = Path("/home/dave/skippy/.credentials")
+CREDENTIALS_DIR = Path.home() / ".config/skippy/credentials"
 AUTH_FILE = CREDENTIALS_DIR / "google_auth_eboncorp.json"
 CLIENT_SECRET_FILE = CREDENTIALS_DIR / "client_secret.json"
 LOG_DIR = Path("/home/dave/skippy/logs/monitoring")
