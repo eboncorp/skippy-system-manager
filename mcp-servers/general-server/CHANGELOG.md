@@ -41,8 +41,8 @@
 ```bash
 # .env additions
 PEXELS_API_KEY=<configured>
-GOOGLE_PHOTOS_CREDENTIALS_PATH=/home/dave/skippy/.credentials/google_drive_credentials.json
-GOOGLE_PHOTOS_TOKEN_PATH=/home/dave/skippy/.credentials/google_photos_token.json
+GOOGLE_PHOTOS_CREDENTIALS_PATH=~/.config/skippy/credentials/google_drive_credentials.json
+GOOGLE_PHOTOS_TOKEN_PATH=~/.config/skippy/credentials/google_photos_token.json
 ```
 
 ---

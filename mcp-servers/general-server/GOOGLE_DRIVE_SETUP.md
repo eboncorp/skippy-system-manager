@@ -81,19 +81,19 @@
 
 2. **Create credentials directory:**
    ```bash
-   mkdir -p /home/dave/skippy/.credentials
-   chmod 700 /home/dave/skippy/.credentials
+   mkdir -p ~/.config/skippy/credentials
+   chmod 700 ~/.config/skippy/credentials
    ```
 
 3. **Move credentials file:**
    ```bash
-   mv ~/Downloads/credentials.json /home/dave/skippy/.credentials/
-   chmod 600 /home/dave/skippy/.credentials/credentials.json
+   mv ~/Downloads/credentials.json ~/.config/skippy/credentials/
+   chmod 600 ~/.config/skippy/credentials/credentials.json
    ```
 
 4. **Verify:**
    ```bash
-   ls -la /home/dave/skippy/.credentials/credentials.json
+   ls -la ~/.config/skippy/credentials/credentials.json
    ```
    Should show: `-rw------- 1 dave dave`
 
@@ -113,7 +113,7 @@ When you first use Google Drive tools, a browser will open:
 
 The token will be saved at:
 ```
-/home/dave/skippy/.credentials/google_drive_token.json
+~/.config/skippy/credentials/google_drive_token.json
 ```
 
 You won't need to authorize again unless you delete the token file.
@@ -150,7 +150,7 @@ Expected output:
 **Solution:**
 ```bash
 # Check file exists:
-ls /home/dave/skippy/.credentials/credentials.json
+ls ~/.config/skippy/credentials/credentials.json
 
 # If not, re-download from:
 https://console.cloud.google.com/apis/credentials
@@ -165,7 +165,7 @@ https://console.cloud.google.com/apis/credentials
 **Solution:**
 ```bash
 # Delete token and re-authorize:
-rm /home/dave/skippy/.credentials/google_drive_token.json
+rm ~/.config/skippy/credentials/google_drive_token.json
 # Run tool again - browser will open for new authorization
 ```
 
@@ -214,8 +214,8 @@ Both files are in `.gitignore` and won't be committed to git.
 
 Already configured in `.env`:
 ```bash
-GOOGLE_DRIVE_CREDENTIALS_PATH=/home/dave/skippy/.credentials/credentials.json
-GOOGLE_DRIVE_TOKEN_PATH=/home/dave/skippy/.credentials/google_drive_token.json
+GOOGLE_DRIVE_CREDENTIALS_PATH=~/.config/skippy/credentials/credentials.json
+GOOGLE_DRIVE_TOKEN_PATH=~/.config/skippy/credentials/google_drive_token.json
 GOOGLE_DRIVE_SCOPES=https://www.googleapis.com/auth/drive.readonly
 ```
 
@@ -286,7 +286,7 @@ These limits are very generous for personal use.
 - [ ] Configure OAuth consent screen
 - [ ] Create OAuth client ID (Desktop app)
 - [ ] Download credentials.json
-- [ ] Move to `/home/dave/skippy/.credentials/`
+- [ ] Move to `~/.config/skippy/credentials/`
 - [ ] First run - complete OAuth authorization
 - [ ] Verify token saved in `.credentials/`
 - [ ] Test with `gdrive_search_files()`

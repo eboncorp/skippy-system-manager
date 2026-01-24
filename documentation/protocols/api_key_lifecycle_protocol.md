@@ -25,7 +25,7 @@ This protocol manages the complete lifecycle of API keys, tokens, and credential
 ### Current API Keys (Store securely, update regularly)
 
 ```
-Location: /home/dave/skippy/.credentials/
+Location: ~/.config/skippy/credentials/
 Backup: Encrypted in password manager
 
 1. Google Photos OAuth Token
@@ -105,8 +105,8 @@ Backup: Encrypted in password manager
 grep -r "API_KEY_NAME" /home/dave/skippy/
 
 # 2. Create backup of current configuration
-cp /home/dave/skippy/.credentials/.env \
-   /home/dave/skippy/.credentials/.env.backup.$(date +%Y%m%d)
+cp ~/.config/skippy/credentials/.env \
+   ~/.config/skippy/credentials/.env.backup.$(date +%Y%m%d)
 
 # 3. Document current key (hash only, never full key)
 echo "OLD_KEY_HASH=$(echo -n "$OLD_KEY" | sha256sum | cut -d' ' -f1)" >> rotation_log.txt
@@ -127,10 +127,10 @@ NEW_KEY=$(openssl rand -base64 32 | tr -d '=/+' | cut -c1-40)
 ### Step 3: Update Configuration
 ```bash
 # Update .env file
-sed -i "s/OLD_KEY/NEW_KEY/g" /home/dave/skippy/.credentials/.env
+sed -i "s/OLD_KEY/NEW_KEY/g" ~/.config/skippy/credentials/.env
 
 # Update environment
-source /home/dave/skippy/.credentials/.env
+source ~/.config/skippy/credentials/.env
 
 # Verify new key works
 # Run test specific to the service
@@ -162,7 +162,7 @@ echo "$(date): Revoked old key for SERVICE_NAME" >> /home/dave/skippy/logs/key_r
 #!/bin/bash
 # key_expiration_monitor.sh
 
-CREDENTIALS_DIR="/home/dave/skippy/.credentials"
+CREDENTIALS_DIR="~/.config/skippy/credentials"
 ALERT_FILE="/home/dave/skippy/conversations/key_expiration_alert.md"
 
 echo "# API Key Expiration Report" > "$ALERT_FILE"
@@ -239,8 +239,8 @@ echo "Report saved: $ALERT_FILE"
 ### DO:
 ```bash
 # Store in .env with restricted permissions
-chmod 600 /home/dave/skippy/.credentials/.env
-chmod 700 /home/dave/skippy/.credentials/
+chmod 600 ~/.config/skippy/credentials/.env
+chmod 700 ~/.config/skippy/credentials/
 
 # Use environment variables
 export API_KEY=$(grep API_KEY .env | cut -d'=' -f2)

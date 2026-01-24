@@ -18,7 +18,7 @@
 You should already have:
 - ✅ Google Cloud project created
 - ✅ OAuth consent screen configured
-- ✅ OAuth credentials downloaded at `/home/dave/skippy/.credentials/credentials.json`
+- ✅ OAuth credentials downloaded at `~/.config/skippy/credentials/credentials.json`
 
 If not, follow the Google Drive setup first: `GOOGLE_DRIVE_SETUP.md`
 
@@ -83,8 +83,8 @@ GOOGLE_DRIVE_SCOPES=https://www.googleapis.com/auth/drive.readonly
 GOOGLE_SCOPES=https://www.googleapis.com/auth/drive.readonly,https://www.googleapis.com/auth/photoslibrary.readonly
 
 # Token paths (already configured)
-GOOGLE_CREDENTIALS_PATH=/home/dave/skippy/.credentials/credentials.json
-GOOGLE_TOKEN_PATH=/home/dave/skippy/.credentials/google_token.json
+GOOGLE_CREDENTIALS_PATH=~/.config/skippy/credentials/credentials.json
+GOOGLE_TOKEN_PATH=~/.config/skippy/credentials/google_token.json
 ```
 
 ---
@@ -95,7 +95,7 @@ Since you're adding a new scope (Photos), you need to re-authorize:
 
 ```bash
 # Delete existing token
-rm /home/dave/skippy/.credentials/google_drive_token.json
+rm ~/.config/skippy/credentials/google_drive_token.json
 
 # Restart MCP server
 # The next time you use a Google tool, browser will open for re-authorization
@@ -217,7 +217,7 @@ gphotos_search_by_location(
 **Solution:**
 ```bash
 # Delete token and re-authorize with new scopes:
-rm /home/dave/skippy/.credentials/google_token.json
+rm ~/.config/skippy/credentials/google_token.json
 # Restart MCP server or run tool again
 ```
 
@@ -225,7 +225,7 @@ rm /home/dave/skippy/.credentials/google_token.json
 **Solution:**
 - Your OAuth credentials may have been deleted
 - Re-download credentials.json from Google Cloud Console
-- Place in `/home/dave/skippy/.credentials/credentials.json`
+- Place in `~/.config/skippy/credentials/credentials.json`
 
 ### Photos not showing up
 **Possible causes:**
@@ -253,7 +253,7 @@ To revoke at any time:
 3. Click "Remove Access"
 
 ### Data Storage
-- Token stored locally: `/home/dave/skippy/.credentials/google_token.json`
+- Token stored locally: `~/.config/skippy/credentials/google_token.json`
 - No photos stored by MCP server (only downloads when requested)
 - Metadata cached temporarily during operations
 
