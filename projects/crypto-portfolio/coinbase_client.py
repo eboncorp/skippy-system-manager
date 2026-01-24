@@ -167,6 +167,147 @@ class CoinbaseClientWrapper:
         except:
             return []
 
+    def place_market_order(self, product_id: str, side: str, amount: float,
+                           quote_size: float = None) -> Dict[str, Any]:
+        """Place a market order.
+
+        Args:
+            product_id: Trading pair (e.g., 'BTC-USD')
+            side: 'BUY' or 'SELL'
+            amount: Base currency amount (for SELL) or None if using quote_size
+            quote_size: Quote currency amount (for BUY with dollar amount)
+
+        Returns:
+            Order details or error
+        """
+        import uuid
+        client_order_id = str(uuid.uuid4())
+
+        try:
+            if side.upper() == "BUY" and quote_size:
+                # Buy with quote currency (e.g., $100 of BTC)
+                result = self.client.market_order_buy(
+                    client_order_id=client_order_id,
+                    product_id=product_id,
+                    quote_size=str(quote_size)
+                )
+            elif side.upper() == "BUY":
+                # Buy specific base amount
+                result = self.client.market_order_buy(
+                    client_order_id=client_order_id,
+                    product_id=product_id,
+                    base_size=str(amount)
+                )
+            else:
+                # Sell base currency
+                result = self.client.market_order_sell(
+                    client_order_id=client_order_id,
+                    product_id=product_id,
+                    base_size=str(amount)
+                )
+
+            return {
+                "success": True,
+                "order_id": getattr(result, 'order_id', client_order_id),
+                "client_order_id": client_order_id,
+                "product_id": product_id,
+                "side": side.upper(),
+                "type": "MARKET",
+                "status": getattr(result, 'status', 'PENDING'),
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def place_limit_order(self, product_id: str, side: str, amount: float,
+                          price: float, time_in_force: str = "GTC") -> Dict[str, Any]:
+        """Place a limit order.
+
+        Args:
+            product_id: Trading pair (e.g., 'BTC-USD')
+            side: 'BUY' or 'SELL'
+            amount: Base currency amount
+            price: Limit price
+            time_in_force: GTC, IOC, FOK, or GTD
+
+        Returns:
+            Order details or error
+        """
+        import uuid
+        client_order_id = str(uuid.uuid4())
+
+        try:
+            if side.upper() == "BUY":
+                result = self.client.limit_order_gtc_buy(
+                    client_order_id=client_order_id,
+                    product_id=product_id,
+                    base_size=str(amount),
+                    limit_price=str(price)
+                )
+            else:
+                result = self.client.limit_order_gtc_sell(
+                    client_order_id=client_order_id,
+                    product_id=product_id,
+                    base_size=str(amount),
+                    limit_price=str(price)
+                )
+
+            return {
+                "success": True,
+                "order_id": getattr(result, 'order_id', client_order_id),
+                "client_order_id": client_order_id,
+                "product_id": product_id,
+                "side": side.upper(),
+                "type": "LIMIT",
+                "price": price,
+                "amount": amount,
+                "status": getattr(result, 'status', 'PENDING'),
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def cancel_order(self, order_id: str) -> Dict[str, Any]:
+        """Cancel an order by ID.
+
+        Args:
+            order_id: The order ID to cancel
+
+        Returns:
+            Cancellation result
+        """
+        try:
+            result = self.client.cancel_orders([order_id])
+            return {
+                "success": True,
+                "order_id": order_id,
+                "message": "Order cancelled"
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def get_products(self, product_type: str = None) -> List[Dict[str, Any]]:
+        """Get available trading products/pairs.
+
+        Args:
+            product_type: Filter by type (e.g., 'SPOT')
+
+        Returns:
+            List of tradable products
+        """
+        try:
+            result = self.client.get_products(product_type=product_type)
+            return [
+                {
+                    "product_id": getattr(p, 'product_id', ''),
+                    "base_currency": getattr(p, 'base_currency_id', ''),
+                    "quote_currency": getattr(p, 'quote_currency_id', ''),
+                    "price": float(getattr(p, 'price', 0) or 0),
+                    "status": getattr(p, 'status', ''),
+                }
+                for p in result.products
+            ] if result.products else []
+        except:
+            return []
+
     def get_portfolio_summary(self) -> Dict[str, Any]:
         """Get comprehensive portfolio summary including staked positions.
 
