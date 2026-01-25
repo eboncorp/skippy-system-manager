@@ -274,6 +274,8 @@ WALLET_LABELS = {
     "0x46A15b9002291d619D86164C6606185B6d6e27a0": "parkfield.eth",
     "0x9D552E0D404e20ef7480535CF42813ecFEdC0feF": "pennybrooke.eth",
     "0x8e7F9112D44e122b2Ae0f2f8c0A255dD60E78798": "ebon-link.eth",
+    "0xd2Ef13A83bABb4776D85BBC136646071F2cFF5f7": "exodus-evm",
+    "0x5a94861e9f99fC8749C9e55eC1BfA774a498E296": "crypto-defi-wallet",
 }
 
 
