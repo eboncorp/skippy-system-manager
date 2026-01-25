@@ -194,6 +194,9 @@ class AppCollector(BaseCollector):
         # Cron/maintenance logs
         events.extend(self._collect_maintenance_logs(since))
 
+        # Gmail alert monitor logs (ebon alerts, system notifications)
+        events.extend(self._collect_gmail_monitor_logs(since))
+
         return events
 
     def _collect_skippy_log(self, since: datetime) -> list[LogEvent]:
@@ -289,6 +292,33 @@ class AppCollector(BaseCollector):
         except Exception:
             pass
         return events[-20:]
+
+    def _collect_gmail_monitor_logs(self, since: datetime) -> list[LogEvent]:
+        """Collect Gmail alert monitor logs (ebon server alerts, system notifications)."""
+        events = []
+        log_file = self.skippy_root / "logs" / "monitoring" / "gmail_monitor.log"
+        if not log_file.exists():
+            return events
+
+        try:
+            with open(log_file, 'r', errors='replace') as f:
+                for line in f:
+                    # Parse: "[2026-01-25 12:44:17] [INFO] message"
+                    match = re.match(r'^\[([\d-]+\s+[\d:]+)\]\s+\[(\w+)\]\s*(.+)$', line)
+                    if match:
+                        ts_str, level, message = match.groups()
+                        ts = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
+                        if ts >= since and level.upper() in ("ERROR", "WARNING"):
+                            events.append(LogEvent(
+                                timestamp=ts.isoformat(),
+                                source="app",
+                                category="gmail_monitor",
+                                level=level.lower(),
+                                message=message.strip()[:500],
+                            ))
+        except Exception:
+            pass
+        return events[-50:]
 
 
 class ClaudeCollector(BaseCollector):
