@@ -31,7 +31,7 @@ import { resolve } from "path";
 // Load CDP API key from JSON file
 function loadCdpKey() {
   const keyPath = process.env.CDP_API_KEY_FILE ||
-    resolve(process.env.HOME, ".config/coinbase/cdp_api_key.json");
+    resolve(process.env.HOME, ".config/coinbase/gti_cdp_api_key.json");
 
   try {
     const keyData = JSON.parse(readFileSync(keyPath, "utf-8"));
