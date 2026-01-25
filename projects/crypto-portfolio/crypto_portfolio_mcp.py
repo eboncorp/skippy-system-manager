@@ -51,6 +51,18 @@ try:
 except ImportError:
     ADDITIONAL_TOOLS_AVAILABLE = False
 
+# On-chain and DeFi trackers for real wallet data
+try:
+    from defi_tracker import DeFiTracker
+    from onchain_tracker import OnChainWalletManager
+    ONCHAIN_TRACKING_AVAILABLE = True
+except ImportError:
+    ONCHAIN_TRACKING_AVAILABLE = False
+
+# Global instances for on-chain tracking
+_defi_tracker: Optional["DeFiTracker"] = None
+_onchain_manager: Optional["OnChainWalletManager"] = None
+
 # Global aggregator instance (initialized in lifespan)
 _aggregator: Optional["PortfolioAggregator"] = None
 
@@ -1027,21 +1039,73 @@ async def crypto_staking_positions(params: StakingPositionsInput) -> str:
 )
 async def crypto_defi_positions(params: DeFiPositionsInput) -> str:
     """Get DeFi protocol positions and earnings.
-    
+
     Retrieves positions across DeFi protocols including lending, liquidity
     provision, and liquid staking with APY and earnings data.
-    
+
     Args:
         params (DeFiPositionsInput): Query parameters including:
             - protocol (str): Protocol name or 'all'
             - wallet_address (str): Optional specific wallet
             - response_format (str): 'markdown' or 'json'
-    
+
     Returns:
         str: DeFi positions data in requested format
     """
     try:
-        data = get_mock_defi_data()
+        # Try to get real data if wallet_address is provided and tracking is available
+        if params.wallet_address and ONCHAIN_TRACKING_AVAILABLE:
+            try:
+                # Create a fresh tracker for this specific wallet
+                tracker = DeFiTracker()
+                tracker.add_wallet(params.wallet_address, ["ethereum"])
+
+                # Get positions from all protocols
+                all_pos = tracker.get_all_positions()
+
+                # Flatten all position types into a single list
+                positions = []
+                for pos_type, pos_list in all_pos.items():
+                    positions.extend(pos_list)
+
+                if positions:
+                    total_value = sum(p.usd_value for p in positions)
+                    total_rewards = sum(getattr(p, 'rewards_usd', 0) for p in positions)
+                    data = {
+                        'total_value_usd': total_value,
+                        'total_earnings_usd': total_rewards,
+                        'positions': [
+                            {
+                                'protocol': p.protocol,
+                                'type': getattr(p, 'position_type', 'unknown'),
+                                'chain': p.chain,
+                                'asset': getattr(p, 'asset', 'LP'),
+                                'value_usd': p.usd_value,
+                                'apy': getattr(p, 'apy', 0) or 0,
+                                'health_factor': getattr(p, 'health_factor', None),
+                                'impermanent_loss': getattr(p, 'impermanent_loss_pct', 0)
+                            }
+                            for p in positions
+                        ],
+                        'data_source': 'live'
+                    }
+                else:
+                    # No positions found
+                    data = {
+                        'total_value_usd': 0,
+                        'total_earnings_usd': 0,
+                        'positions': [],
+                        'data_source': 'live',
+                        'message': f'No DeFi positions found for {params.wallet_address}'
+                    }
+            except Exception as e:
+                # Fall back to mock on error
+                data = get_mock_defi_data()
+                data['data_source'] = 'mock'
+                data['error'] = str(e)
+        else:
+            # Fallback to mock data
+            data = get_mock_defi_data()
         
         if params.response_format == ResponseFormat.JSON:
             return json.dumps(data, indent=2)
