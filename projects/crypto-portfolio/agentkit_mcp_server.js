@@ -3,8 +3,13 @@
  * AgentKit MCP Server
  * Provides blockchain tools for Claude Code via Coinbase AgentKit
  *
- * Tools include: wallet operations, token transfers, NFTs,
- * DeFi protocols, and more
+ * Required environment variables:
+ *   CDP_API_KEY_ID     - From CDP Portal API Keys
+ *   CDP_API_KEY_SECRET - PKCS#8 format private key
+ *   CDP_WALLET_SECRET  - From CDP Portal Server Wallet section
+ *
+ * Optional:
+ *   NETWORK_ID - Network to use (default: base-mainnet)
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -20,9 +25,8 @@ import {
   basenameActionProvider,
   cdpApiActionProvider,
 } from "@coinbase/agentkit";
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync } from "fs";
 import { resolve } from "path";
-import { randomBytes } from "crypto";
 
 // Load CDP API key from JSON file
 function loadCdpKey() {
@@ -43,30 +47,45 @@ function loadCdpKey() {
   }
 }
 
-// Get or create wallet secret for persistence
-function getWalletSecret() {
-  const secretPath = resolve(process.env.HOME, ".config/coinbase/wallet_secret.txt");
-
-  if (existsSync(secretPath)) {
-    return readFileSync(secretPath, "utf-8").trim();
+// Load wallet secret from file or environment
+function loadWalletSecret() {
+  // First check environment variable
+  if (process.env.CDP_WALLET_SECRET) {
+    return process.env.CDP_WALLET_SECRET;
   }
 
-  // Generate a new wallet secret
-  const secret = randomBytes(32).toString("hex");
-  writeFileSync(secretPath, secret, { mode: 0o600 });
-  console.error("Generated new wallet secret at", secretPath);
-  return secret;
+  // Then check file
+  const secretPath = resolve(process.env.HOME, ".config/coinbase/wallet_secret.txt");
+  try {
+    return readFileSync(secretPath, "utf-8").trim();
+  } catch (error) {
+    console.error(`
+ERROR: Wallet secret not found.
+
+You must generate a Wallet Secret in the CDP Portal:
+  https://portal.cdp.coinbase.com/products/server-wallet/accounts
+
+Then either:
+  1. Set CDP_WALLET_SECRET environment variable, or
+  2. Save to: ${secretPath}
+`);
+    process.exit(1);
+  }
 }
 
 async function main() {
   const cdpKey = loadCdpKey();
-  const walletSecret = getWalletSecret();
+  const walletSecret = loadWalletSecret();
+  const networkId = process.env.NETWORK_ID || "base-mainnet";
 
-  // Initialize AgentKit with CDP credentials and action providers
+  console.error(`Initializing AgentKit on ${networkId}...`);
+
+  // Initialize AgentKit with CDP credentials
   const agentKit = await AgentKit.from({
     cdpApiKeyId: cdpKey.cdpApiKeyId,
     cdpApiKeySecret: cdpKey.cdpApiKeySecret,
     cdpWalletSecret: walletSecret,
+    networkId,
     actionProviders: [
       walletActionProvider(),
       erc20ActionProvider(),
