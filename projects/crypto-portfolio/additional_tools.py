@@ -31,7 +31,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 # =============================================================================
@@ -138,12 +138,11 @@ class PlaceOrderInput(BaseModel):
         max_length=50
     )
 
-    @field_validator('price')
-    @classmethod
-    def validate_price_for_limit(cls, v, info):
-        if info.data.get('order_type') == OrderType.LIMIT and v is None:
+    @model_validator(mode='after')
+    def validate_price_for_limit(self):
+        if self.order_type == OrderType.LIMIT and self.price is None:
             raise ValueError("Price is required for limit orders")
-        return v
+        return self
 
 
 class CancelOrderInput(BaseModel):
