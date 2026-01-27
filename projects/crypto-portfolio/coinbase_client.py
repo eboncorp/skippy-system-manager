@@ -432,3 +432,6 @@ def load_cdp_key_file(filepath: str) -> dict:
     """Load CDP API key from JSON file."""
     with open(os.path.expanduser(filepath), 'r') as f:
         return json.load(f)
+
+# Alias for backward compatibility
+CoinbaseClient = CoinbaseClientWrapper
