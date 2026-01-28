@@ -236,14 +236,69 @@ class CoinbaseClient(ExchangeClient):
         return Decimal(data["price"])
     
     async def stake(self, asset: str, amount: Decimal) -> bool:
-        """Stake an asset (via Coinbase Earn)."""
-        # Coinbase retail staking is done through a different flow
-        # This would require the Coinbase Earn API
-        raise NotImplementedError("Use Coinbase Prime for programmatic staking")
-    
+        """
+        Stake an asset via Coinbase.
+
+        Note: Coinbase Advanced Trade API does not support programmatic staking.
+        Staking must be done through the Coinbase app or website.
+        This method attempts to use the staking API if available.
+        """
+        # Try the staking endpoint (may be available for some accounts)
+        try:
+            body = {
+                "asset": asset,
+                "amount": str(amount),
+            }
+            data = await self._request("POST", "/api/v3/brokerage/staking/stake", body)
+            return data.get("success", False)
+        except Exception as e:
+            # Staking API not available for this account type
+            print(f"Coinbase staking not available via API: {e}")
+            print("Please stake through the Coinbase app or website.")
+            return False
+
     async def unstake(self, asset: str, amount: Decimal) -> bool:
-        """Unstake an asset."""
-        raise NotImplementedError("Use Coinbase Prime for programmatic staking")
+        """
+        Unstake an asset from Coinbase.
+
+        Note: Similar to staking, unstaking may require using the Coinbase app.
+        """
+        try:
+            body = {
+                "asset": asset,
+                "amount": str(amount),
+            }
+            data = await self._request("POST", "/api/v3/brokerage/staking/unstake", body)
+            return data.get("success", False)
+        except Exception as e:
+            print(f"Coinbase unstaking not available via API: {e}")
+            print("Please unstake through the Coinbase app or website.")
+            return False
+
+    async def get_staking_balances(self) -> Dict[str, Balance]:
+        """Get staked balances separately (for tracking purposes)."""
+        staked = {}
+        try:
+            # Coinbase returns staked assets in the accounts endpoint
+            # with type indicators for staked vs available
+            path = "/api/v3/brokerage/accounts"
+            data = await self._request("GET", path)
+
+            for account in data.get("accounts", []):
+                if "stake" in account.get("type", "").lower():
+                    asset = account["currency"]
+                    amount = Decimal(account["available_balance"]["value"])
+                    if amount > 0:
+                        staked[asset] = Balance(
+                            asset=asset,
+                            total=amount,
+                            available=Decimal("0"),
+                            staked=amount,
+                        )
+        except Exception as e:
+            print(f"Error fetching staking balances: {e}")
+
+        return staked
     
     async def close(self):
         """Close the session."""
