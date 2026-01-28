@@ -12,14 +12,25 @@ Supports:
 Uses public APIs and on-chain data (no private keys required).
 """
 
+import asyncio
+import logging
 import os
 import time
 import json
-import requests
 from datetime import datetime
 from typing import Optional, List, Dict
 from dataclasses import dataclass, asdict
 from dotenv import load_dotenv
+
+# Use aiohttp for non-blocking HTTP calls in async context
+try:
+    import aiohttp
+    AIOHTTP_AVAILABLE = True
+except ImportError:
+    AIOHTTP_AVAILABLE = False
+    import requests
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -55,74 +66,111 @@ class LPPosition:
 
 
 class DefiLlamaClient:
-    """Client for DefiLlama API - aggregates DeFi data."""
-    
+    """
+    Async client for DefiLlama API - aggregates DeFi data.
+
+    QA FIX: Converted from requests.Session to aiohttp for non-blocking HTTP.
+    """
+
     BASE_URL = "https://api.llama.fi"
     YIELDS_URL = "https://yields.llama.fi"
-    
+
     def __init__(self):
-        self.session = requests.Session()
-    
-    def get_protocol_tvl(self, protocol: str) -> Optional[dict]:
+        self._session: Optional[aiohttp.ClientSession] = None
+
+    async def _get_session(self) -> "aiohttp.ClientSession":
+        """Get or create aiohttp session."""
+        if not AIOHTTP_AVAILABLE:
+            raise ImportError("aiohttp required for async operations. Install with: pip install aiohttp")
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self):
+        """Close the HTTP session."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+
+    async def get_protocol_tvl(self, protocol: str) -> Optional[dict]:
         """Get TVL and stats for a protocol."""
         try:
-            response = self.session.get(f"{self.BASE_URL}/protocol/{protocol}")
-            response.raise_for_status()
-            return response.json()
+            session = await self._get_session()
+            async with session.get(f"{self.BASE_URL}/protocol/{protocol}") as response:
+                response.raise_for_status()
+                return await response.json()
         except Exception as e:
-            print(f"DefiLlama error: {e}")
+            logger.error(f"DefiLlama error fetching {protocol}: {e}")
             return None
-    
-    def get_yields(self, pool_id: str = None) -> List[dict]:
+
+    async def get_yields(self, pool_id: str = None) -> List[dict]:
         """Get yield/APY data for pools."""
         try:
-            response = self.session.get(f"{self.YIELDS_URL}/pools")
-            response.raise_for_status()
-            data = response.json().get("data", [])
-            
-            if pool_id:
-                return [p for p in data if p.get("pool") == pool_id]
-            return data
-            
+            session = await self._get_session()
+            async with session.get(f"{self.YIELDS_URL}/pools") as response:
+                response.raise_for_status()
+                result = await response.json()
+                data = result.get("data", [])
+
+                if pool_id:
+                    return [p for p in data if p.get("pool") == pool_id]
+                return data
+
         except Exception as e:
-            print(f"DefiLlama yields error: {e}")
+            logger.error(f"DefiLlama yields error: {e}")
             return []
-    
-    def get_stablecoin_yields(self) -> List[dict]:
+
+    async def get_stablecoin_yields(self) -> List[dict]:
         """Get best stablecoin yields."""
-        pools = self.get_yields()
+        pools = await self.get_yields()
         stables = ["USDC", "USDT", "DAI", "FRAX", "LUSD"]
-        
+
         stable_pools = [
-            p for p in pools 
+            p for p in pools
             if any(s in p.get("symbol", "").upper() for s in stables)
             and p.get("apy", 0) > 0
         ]
-        
+
         return sorted(stable_pools, key=lambda x: x.get("apy", 0), reverse=True)[:20]
 
 
 class AaveTracker:
-    """Track Aave lending/borrowing positions."""
-    
+    """
+    Track Aave lending/borrowing positions.
+
+    QA FIX: Converted to async aiohttp for non-blocking HTTP.
+    """
+
     # Aave subgraph endpoints
     SUBGRAPHS = {
         "ethereum": "https://api.thegraph.com/subgraphs/name/aave/protocol-v3",
         "polygon": "https://api.thegraph.com/subgraphs/name/aave/protocol-v3-polygon",
         "arbitrum": "https://api.thegraph.com/subgraphs/name/aave/protocol-v3-arbitrum",
     }
-    
+
     def __init__(self):
-        self.session = requests.Session()
-    
-    def get_user_positions(self, address: str, chain: str = "ethereum") -> List[DeFiPosition]:
+        self._session: Optional[aiohttp.ClientSession] = None
+
+    async def _get_session(self) -> "aiohttp.ClientSession":
+        """Get or create aiohttp session."""
+        if not AIOHTTP_AVAILABLE:
+            raise ImportError("aiohttp required for async operations")
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self):
+        """Close the HTTP session."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+
+    async def get_user_positions(self, address: str, chain: str = "ethereum") -> List[DeFiPosition]:
         """Get user's Aave positions."""
         positions = []
-        
+
         subgraph = self.SUBGRAPHS.get(chain)
         if not subgraph:
             return positions
-        
+
         query = """
         query GetUserPositions($user: String!) {
             userReserves(where: {user: $user}) {
@@ -141,14 +189,16 @@ class AaveTracker:
             }
         }
         """
-        
+
         try:
-            response = self.session.post(
+            session = await self._get_session()
+            async with session.post(
                 subgraph,
                 json={"query": query, "variables": {"user": address.lower()}}
-            )
-            response.raise_for_status()
-            data = response.json().get("data", {})
+            ) as response:
+                response.raise_for_status()
+                result = await response.json()
+                data = result.get("data", {})
             
             health_factor = None
             if data.get("user"):
@@ -195,24 +245,41 @@ class AaveTracker:
                     ))
                     
         except Exception as e:
-            print(f"Aave query error: {e}")
-        
+            logger.error(f"Aave query error for {address}: {e}")
+
         return positions
 
 
 class UniswapTracker:
-    """Track Uniswap V3 LP positions."""
-    
+    """
+    Track Uniswap V3 LP positions.
+
+    QA FIX: Converted to async aiohttp for non-blocking HTTP.
+    """
+
     SUBGRAPHS = {
         "ethereum": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",
         "polygon": "https://api.thegraph.com/subgraphs/name/ianlapham/uniswap-v3-polygon",
         "arbitrum": "https://api.thegraph.com/subgraphs/name/ianlapham/arbitrum-dev",
     }
-    
+
     def __init__(self):
-        self.session = requests.Session()
-    
-    def get_user_positions(self, address: str, chain: str = "ethereum") -> List[LPPosition]:
+        self._session: Optional[aiohttp.ClientSession] = None
+
+    async def _get_session(self) -> "aiohttp.ClientSession":
+        """Get or create aiohttp session."""
+        if not AIOHTTP_AVAILABLE:
+            raise ImportError("aiohttp required for async operations")
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self):
+        """Close the HTTP session."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+
+    async def get_user_positions(self, address: str, chain: str = "ethereum") -> List[LPPosition]:
         """Get user's Uniswap V3 LP positions."""
         positions = []
         
