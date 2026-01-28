@@ -1,0 +1,209 @@
+# =============================================================================
+# Crypto Portfolio MCP - Docker Compose
+# =============================================================================
+#
+# Quick Start:
+#   docker-compose up -d
+#
+# Development:
+#   docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# View logs:
+#   docker-compose logs -f mcp-server
+#
+# Stop:
+#   docker-compose down
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------------------
+  # MCP Server - Main Application
+  # ---------------------------------------------------------------------------
+  mcp-server:
+    build:
+      context: .
+      target: production
+    container_name: crypto-portfolio-mcp
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PAPER_TRADING=true
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://crypto:${POSTGRES_PASSWORD:-cryptopass}@postgres:5432/crypto_portfolio
+      - REDIS_URL=redis://redis:6379/0
+      # Exchange API keys (from .env file)
+      - COINBASE_API_KEY=${COINBASE_API_KEY:-}
+      - COINBASE_API_SECRET=${COINBASE_API_SECRET:-}
+      - KRAKEN_API_KEY=${KRAKEN_API_KEY:-}
+      - KRAKEN_API_SECRET=${KRAKEN_API_SECRET:-}
+      - CRYPTO_COM_API_KEY=${CRYPTO_COM_API_KEY:-}
+      - CRYPTO_COM_API_SECRET=${CRYPTO_COM_API_SECRET:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_API_SECRET=${GEMINI_API_SECRET:-}
+      # Wallet addresses
+      - ETH_WALLET_1=${ETH_WALLET_1:-}
+      # Notifications
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - NOTIFICATION_EMAIL=${NOTIFICATION_EMAIL:-}
+    volumes:
+      - app-data:/app/data
+      - app-logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - crypto-net
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: crypto-portfolio-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=crypto
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-cryptopass}
+      - POSTGRES_DB=crypto_portfolio
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crypto -d crypto_portfolio"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crypto-net
+
+  # ---------------------------------------------------------------------------
+  # Redis Cache
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: crypto-portfolio-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crypto-net
+
+  # ---------------------------------------------------------------------------
+  # Background Worker (DCA, Alerts, Snapshots)
+  # ---------------------------------------------------------------------------
+  worker:
+    build:
+      context: .
+      target: production
+    container_name: crypto-portfolio-worker
+    restart: unless-stopped
+    command: python -m automation.worker
+    environment:
+      - PAPER_TRADING=true
+      - DATABASE_URL=postgresql://crypto:${POSTGRES_PASSWORD:-cryptopass}@postgres:5432/crypto_portfolio
+      - REDIS_URL=redis://redis:6379/0
+      - COINBASE_API_KEY=${COINBASE_API_KEY:-}
+      - COINBASE_API_SECRET=${COINBASE_API_SECRET:-}
+      - KRAKEN_API_KEY=${KRAKEN_API_KEY:-}
+      - KRAKEN_API_SECRET=${KRAKEN_API_SECRET:-}
+    volumes:
+      - app-data:/app/data
+      - app-logs:/app/logs
+    depends_on:
+      - mcp-server
+      - postgres
+      - redis
+    networks:
+      - crypto-net
+
+  # ---------------------------------------------------------------------------
+  # Prometheus Metrics (Optional)
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: crypto-portfolio-prometheus
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - crypto-net
+
+  # ---------------------------------------------------------------------------
+  # Grafana Dashboard (Optional)
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: crypto-portfolio-grafana
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - crypto-net
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  app-data:
+    name: crypto-portfolio-data
+  app-logs:
+    name: crypto-portfolio-logs
+  postgres-data:
+    name: crypto-portfolio-postgres
+  redis-data:
+    name: crypto-portfolio-redis
+  prometheus-data:
+    name: crypto-portfolio-prometheus
+  grafana-data:
+    name: crypto-portfolio-grafana
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  crypto-net:
+    name: crypto-portfolio-network
+    driver: bridge
