@@ -59,6 +59,13 @@ try:
 except ImportError:
     ONCHAIN_TRACKING_AVAILABLE = False
 
+# Startup validation and system status
+try:
+    from startup_validation import get_system_status, get_system_status_markdown, print_startup_report
+    STARTUP_VALIDATION_AVAILABLE = True
+except ImportError:
+    STARTUP_VALIDATION_AVAILABLE = False
+
 # Global instances for on-chain tracking
 _defi_tracker: Optional["DeFiTracker"] = None
 _onchain_manager: Optional["OnChainWalletManager"] = None
@@ -1775,6 +1782,72 @@ export OPENAI_API_KEY="your-api-key"
 
     except Exception as e:
         return handle_api_error(e, f"executing Cronos query on {params.chain.value}")
+
+
+# =============================================================================
+# SYSTEM STATUS TOOL
+# =============================================================================
+
+
+class SystemStatusInput(BaseModel):
+    """Input parameters for system status check."""
+    model_config = ConfigDict(extra="forbid")
+
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN,
+        description="Output format: 'markdown' for human-readable, 'json' for programmatic use"
+    )
+    include_tools: bool = Field(
+        default=False,
+        description="Include list of available MCP tools"
+    )
+
+
+@mcp.tool(
+    name="crypto_system_status",
+    annotations={
+        "title": "Get System Status",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+async def crypto_system_status(params: SystemStatusInput) -> str:
+    """Get comprehensive status of the crypto portfolio system.
+
+    Reports on:
+    - Available exchanges and their configuration status
+    - Feature availability (DeFi, staking, trading, etc.)
+    - Available MCP tools
+    - System warnings and errors
+    - Configuration recommendations
+
+    Use this tool to understand what capabilities are available and
+    diagnose configuration issues.
+
+    Args:
+        params (SystemStatusInput): Query parameters including:
+            - response_format (str): 'markdown' or 'json'
+            - include_tools (bool): Include tool availability list
+
+    Returns:
+        str: System status report in requested format
+    """
+    if not STARTUP_VALIDATION_AVAILABLE:
+        return "System validation module not available. Check startup_validation.py."
+
+    try:
+        if params.response_format == ResponseFormat.JSON:
+            status = get_system_status()
+            if not params.include_tools:
+                status.pop("tools", None)
+            return json.dumps(status, indent=2, default=str)
+        else:
+            return get_system_status_markdown()
+
+    except Exception as e:
+        return f"Error getting system status: {str(e)}"
 
 
 # =============================================================================
