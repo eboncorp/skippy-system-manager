@@ -5,6 +5,12 @@
 
 set -e
 
+# Load environment for Gmail
+if [ -f /home/dave/skippy/scripts/crypto/.env ]; then
+    source /home/dave/skippy/scripts/crypto/.env
+fi
+export GMAIL_APP_PASSWORD="${GMAIL_APP_PASSWORD:-}"
+
 LOG_DIR="/home/dave/skippy/work/crypto/daily_runs"
 DATE=$(date +%Y%m%d)
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -42,7 +48,12 @@ EMAILEOF
 
 echo "" >> "$LOG_FILE"
 echo "Automation complete at $(date)" >> "$LOG_FILE"
-echo "Email content saved to: $EMAIL_FILE" >> "$LOG_FILE"
 
-# Output for cron email or manual review
-cat "$EMAIL_FILE"
+# Send email via Gmail SMTP
+echo "Sending email report..." >> "$LOG_FILE"
+python3 /home/dave/skippy/scripts/crypto/send_notifications.py --daily "$(cat "$LOG_FILE")" >> "$LOG_FILE" 2>&1
+
+echo "Email sent at $(date)" >> "$LOG_FILE"
+
+# Also output for cron log
+cat "$LOG_FILE"
