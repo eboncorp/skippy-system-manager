@@ -32,9 +32,8 @@ import hashlib
 import json
 import logging
 import os
-import pickle
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict, is_dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
@@ -91,44 +90,108 @@ class CacheKey(str, Enum):
 
 
 class CacheSerializer:
-    """Handles serialization/deserialization of cached values."""
-    
+    """
+    Handles serialization/deserialization of cached values.
+
+    SECURITY: This serializer uses JSON only - NO pickle.
+    Pickle deserialization can execute arbitrary code and is a security risk
+    when caching data that could be tampered with (e.g., Redis, shared cache).
+    """
+
+    @staticmethod
+    def _make_json_safe(value: Any) -> Any:
+        """Convert value to JSON-safe representation recursively."""
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        elif isinstance(value, Decimal):
+            return {"_type": "decimal", "_value": str(value)}
+        elif isinstance(value, datetime):
+            return {"_type": "datetime", "_value": value.isoformat()}
+        elif isinstance(value, (list, tuple)):
+            return [CacheSerializer._make_json_safe(v) for v in value]
+        elif isinstance(value, dict):
+            return {
+                str(k): CacheSerializer._make_json_safe(v)
+                for k, v in value.items()
+            }
+        elif is_dataclass(value) and not isinstance(value, type):
+            return {
+                "_type": "dataclass",
+                "_class": type(value).__name__,
+                "_value": CacheSerializer._make_json_safe(asdict(value))
+            }
+        elif hasattr(value, "__dict__"):
+            # Generic object - serialize as dict (loses type info)
+            return {
+                "_type": "object",
+                "_class": type(value).__name__,
+                "_value": CacheSerializer._make_json_safe(vars(value))
+            }
+        else:
+            # Fallback: convert to string representation
+            return {"_type": "str_repr", "_value": str(value)}
+
+    @staticmethod
+    def _restore_types(obj: Any) -> Any:
+        """Restore original types from JSON-safe representation."""
+        if obj is None or isinstance(obj, (str, int, float, bool)):
+            return obj
+        elif isinstance(obj, list):
+            return [CacheSerializer._restore_types(v) for v in obj]
+        elif isinstance(obj, dict):
+            if "_type" in obj:
+                type_hint = obj["_type"]
+                value = obj.get("_value")
+                if type_hint == "decimal":
+                    return Decimal(value)
+                elif type_hint == "datetime":
+                    return datetime.fromisoformat(value)
+                elif type_hint == "str_repr":
+                    return value  # Return as string
+                elif type_hint in ("dataclass", "object"):
+                    # Return as dict (can't recreate original class safely)
+                    return CacheSerializer._restore_types(value)
+                elif type_hint == "json":
+                    return CacheSerializer._restore_types(value)
+            # Regular dict
+            return {k: CacheSerializer._restore_types(v) for k, v in obj.items()}
+        return obj
+
     @staticmethod
     def serialize(value: Any) -> bytes:
-        """Serialize value for storage."""
-        if isinstance(value, (str, int, float, bool)):
-            return json.dumps({"_type": "json", "_value": value}).encode()
-        elif isinstance(value, Decimal):
-            return json.dumps({"_type": "decimal", "_value": str(value)}).encode()
-        elif isinstance(value, datetime):
-            return json.dumps({"_type": "datetime", "_value": value.isoformat()}).encode()
-        elif isinstance(value, dict):
-            # Try JSON first, fall back to pickle
-            try:
-                return json.dumps({"_type": "json", "_value": value}).encode()
-            except (TypeError, ValueError):
-                return pickle.dumps({"_type": "pickle", "_value": value})
-        else:
-            return pickle.dumps({"_type": "pickle", "_value": value})
-    
+        """Serialize value for storage using JSON only."""
+        try:
+            json_safe = CacheSerializer._make_json_safe(value)
+            return json.dumps({"_type": "json", "_value": json_safe}).encode()
+        except (TypeError, ValueError) as e:
+            # If we still can't serialize, store string representation
+            logger.warning(f"Could not serialize value, using string repr: {e}")
+            return json.dumps({
+                "_type": "str_repr",
+                "_value": str(value)
+            }).encode()
+
     @staticmethod
     def deserialize(data: bytes) -> Any:
-        """Deserialize stored value."""
+        """
+        Deserialize stored value.
+
+        SECURITY: Only JSON deserialization is supported.
+        Legacy pickle data will be rejected for security.
+        """
         try:
             obj = json.loads(data.decode())
             if isinstance(obj, dict) and "_type" in obj:
-                if obj["_type"] == "json":
-                    return obj["_value"]
-                elif obj["_type"] == "decimal":
-                    return Decimal(obj["_value"])
-                elif obj["_type"] == "datetime":
-                    return datetime.fromisoformat(obj["_value"])
+                return CacheSerializer._restore_types(obj)
             return obj
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            obj = pickle.loads(data)
-            if isinstance(obj, dict) and "_type" in obj:
-                return obj["_value"]
-            return obj
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            # SECURITY: Do NOT fall back to pickle - it's a security risk
+            # If data can't be JSON decoded, it may be legacy pickle data
+            logger.error(
+                f"Cache deserialization failed (possible legacy pickle data): {e}. "
+                "Returning None for security. Clear cache if this persists."
+            )
+            return None
 
 
 # =============================================================================

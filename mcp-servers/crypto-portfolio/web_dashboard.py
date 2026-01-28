@@ -7,6 +7,7 @@ Provides real-time portfolio monitoring, analysis tools, and trading interface.
 
 import asyncio
 import json
+import os
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Dict, List, Optional, Any
@@ -980,6 +981,7 @@ if FASTAPI_AVAILABLE:
 def create_dashboard_app(
     portfolio_manager=None,
     stream_manager=None,
+    allowed_origins: Optional[List[str]] = None,
 ) -> "FastAPI":
     """
     Create the FastAPI dashboard application.
@@ -987,6 +989,7 @@ def create_dashboard_app(
     Args:
         portfolio_manager: Optional portfolio manager instance
         stream_manager: Optional real-time stream manager
+        allowed_origins: List of allowed CORS origins (defaults to localhost only)
 
     Returns:
         FastAPI application instance
@@ -1000,14 +1003,73 @@ def create_dashboard_app(
         version="1.0.0",
     )
 
-    # CORS middleware
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # CORS middleware - restrict to specified origins for security
+    # SECURITY: Do not use allow_origins=["*"] with allow_credentials=True
+    # This combination allows any site to make authenticated requests
+    cors_origins = allowed_origins or [
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
+    # Check if we should allow all origins (development mode only)
+    allow_all_origins = os.getenv("DASHBOARD_ALLOW_ALL_ORIGINS", "false").lower() == "true"
+
+    if allow_all_origins:
+        # Development mode: allow all origins but WITHOUT credentials
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=False,  # SECURITY: Never combine * with credentials
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=["Content-Type", "Authorization"],
+        )
+    else:
+        # Production mode: restrict origins
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=cors_origins,
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=["Content-Type", "Authorization"],
+        )
+
+    # SECURITY: Add security headers middleware
+    @app.middleware("http")
+    async def add_security_headers(request, call_next):
+        """Add security headers to all HTTP responses."""
+        response = await call_next(request)
+
+        # Prevent clickjacking
+        response.headers["X-Frame-Options"] = "DENY"
+
+        # Prevent MIME type sniffing
+        response.headers["X-Content-Type-Options"] = "nosniff"
+
+        # Enable XSS filter
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+
+        # Referrer policy
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+        # Content Security Policy (allows inline scripts for embedded dashboard)
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "connect-src 'self' ws: wss:; "
+            "img-src 'self' data:; "
+            "frame-ancestors 'none';"
+        )
+
+        # Strict Transport Security (for HTTPS deployments)
+        if request.url.scheme == "https":
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
+
+        return response
 
     # Store references
     app.state.portfolio_manager = portfolio_manager
@@ -1064,7 +1126,13 @@ def create_dashboard_app(
             portfolio = await app.state.portfolio_manager.get_portfolio_summary()
             return portfolio
         except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+            # SECURITY: Log the actual error internally, return sanitized message to client
+            import logging
+            logging.error(f"Portfolio fetch error: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to fetch portfolio data. Please try again later."
+            )
 
     @app.get("/api/analysis")
     async def get_analysis():
