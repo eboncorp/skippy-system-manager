@@ -314,17 +314,19 @@ class UniswapTracker:
         """
         
         try:
-            response = self.session.post(
+            session = await self._get_session()
+            async with session.post(
                 subgraph,
                 json={"query": query, "variables": {"owner": address.lower()}}
-            )
-            response.raise_for_status()
-            data = response.json().get("data", {})
-            
+            ) as response:
+                response.raise_for_status()
+                result = await response.json()
+                data = result.get("data", {})
+
             for pos in data.get("positions", []):
                 token0 = pos.get("token0", {})
                 token1 = pos.get("token1", {})
-                
+
                 positions.append(LPPosition(
                     protocol="Uniswap V3",
                     chain=chain,
@@ -337,33 +339,50 @@ class UniswapTracker:
                     usd_value=0,  # Would need price calculation
                     fees_earned_usd=0
                 ))
-                
+
         except Exception as e:
-            print(f"Uniswap query error: {e}")
-        
+            logger.error(f"Uniswap query error for {address}: {e}")
+
         return positions
 
 
 class LidoTracker:
-    """Track Lido liquid staking positions."""
-    
+    """
+    Track Lido liquid staking positions.
+
+    QA FIX: Converted to async aiohttp for non-blocking HTTP.
+    """
+
     def __init__(self):
         load_dotenv()
-        self.session = requests.Session()
+        self._session: Optional[aiohttp.ClientSession] = None
         self.etherscan_key = os.getenv("ETHERSCAN_API_KEY")
-        
+
         # Lido contracts
         self.STETH_ADDRESS = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84"
         self.WSTETH_ADDRESS = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0"
-    
-    def get_steth_balance(self, address: str) -> Optional[DeFiPosition]:
+
+    async def _get_session(self) -> "aiohttp.ClientSession":
+        """Get or create aiohttp session."""
+        if not AIOHTTP_AVAILABLE:
+            raise ImportError("aiohttp required for async operations")
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self):
+        """Close the HTTP session."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+
+    async def get_steth_balance(self, address: str) -> Optional[DeFiPosition]:
         """Get stETH balance for an address."""
         if not self.etherscan_key:
             return None
-        
+
         try:
-            # Get stETH balance
-            response = self.session.get(
+            session = await self._get_session()
+            async with session.get(
                 "https://api.etherscan.io/api",
                 params={
                     "module": "account",
@@ -373,78 +392,102 @@ class LidoTracker:
                     "tag": "latest",
                     "apikey": self.etherscan_key
                 }
-            )
-            response.raise_for_status()
-            data = response.json()
-            
+            ) as response:
+                response.raise_for_status()
+                data = await response.json()
+
             if data.get("status") == "1":
                 balance = float(data.get("result", 0)) / 1e18
-                
+
                 if balance > 0:
+                    eth_price = await self._get_eth_price()
+                    lido_apy = await self._get_lido_apy()
                     return DeFiPosition(
                         protocol="Lido",
                         chain="ethereum",
                         position_type="stake",
                         asset="stETH",
                         amount=balance,
-                        usd_value=balance * self._get_eth_price(),
-                        apy=self._get_lido_apy(),
+                        usd_value=balance * eth_price,
+                        apy=lido_apy,
                         metadata={"underlying": "ETH"}
                     )
-                    
+
         except Exception as e:
-            print(f"Lido query error: {e}")
-        
+            logger.error(f"Lido query error for {address}: {e}")
+
         return None
-    
-    def _get_eth_price(self) -> float:
+
+    async def _get_eth_price(self) -> float:
         """Get current ETH price."""
         try:
-            response = self.session.get(
+            session = await self._get_session()
+            async with session.get(
                 "https://api.coingecko.com/api/v3/simple/price",
                 params={"ids": "ethereum", "vs_currencies": "usd"}
-            )
-            return response.json().get("ethereum", {}).get("usd", 0)
-        except:
+            ) as response:
+                data = await response.json()
+                return data.get("ethereum", {}).get("usd", 0)
+        except Exception:
             return 3500  # Fallback
-    
-    def _get_lido_apy(self) -> float:
+
+    async def _get_lido_apy(self) -> float:
         """Get current Lido staking APY."""
         try:
-            response = self.session.get("https://stake.lido.fi/api/apr")
-            return response.json().get("apr", 4.0)
-        except:
+            session = await self._get_session()
+            async with session.get("https://stake.lido.fi/api/apr") as response:
+                data = await response.json()
+                return data.get("apr", 4.0)
+        except Exception:
             return 4.0  # Approximate
 
 
 class YearnTracker:
-    """Track Yearn Finance vault positions."""
-    
+    """
+    Track Yearn Finance vault positions.
+
+    QA FIX: Converted to async aiohttp for non-blocking HTTP.
+    """
+
     API_URL = "https://api.yearn.finance/v1/chains/1/vaults/all"
-    
+
     def __init__(self):
-        self.session = requests.Session()
-    
-    def get_vaults(self) -> List[dict]:
+        self._session: Optional[aiohttp.ClientSession] = None
+
+    async def _get_session(self) -> "aiohttp.ClientSession":
+        """Get or create aiohttp session."""
+        if not AIOHTTP_AVAILABLE:
+            raise ImportError("aiohttp required for async operations")
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self):
+        """Close the HTTP session."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+
+    async def get_vaults(self) -> List[dict]:
         """Get all Yearn vaults with APY."""
         try:
-            response = self.session.get(self.API_URL)
-            response.raise_for_status()
-            return response.json()
+            session = await self._get_session()
+            async with session.get(self.API_URL) as response:
+                response.raise_for_status()
+                return await response.json()
         except Exception as e:
-            print(f"Yearn API error: {e}")
+            logger.error(f"Yearn API error: {e}")
             return []
-    
-    def get_best_yields(self, min_tvl: float = 1000000) -> List[dict]:
+
+    async def get_best_yields(self, min_tvl: float = 1000000) -> List[dict]:
         """Get best yielding vaults above min TVL."""
-        vaults = self.get_vaults()
-        
+        vaults = await self.get_vaults()
+
         filtered = [
             v for v in vaults
             if v.get("tvl", {}).get("tvl", 0) >= min_tvl
             and v.get("apy", {}).get("net_apy", 0) > 0
         ]
-        
+
         return sorted(
             filtered,
             key=lambda x: x.get("apy", {}).get("net_apy", 0),
@@ -453,7 +496,11 @@ class YearnTracker:
 
 
 class SushiSwapTracker:
-    """Track SushiSwap LP positions and staking."""
+    """
+    Track SushiSwap LP positions and staking.
+
+    QA FIX: Converted to async aiohttp for non-blocking HTTP.
+    """
 
     SUBGRAPHS = {
         "ethereum": "https://api.thegraph.com/subgraphs/name/sushiswap/exchange",
@@ -464,9 +511,22 @@ class SushiSwapTracker:
     MASTERCHEF_SUBGRAPH = "https://api.thegraph.com/subgraphs/name/sushiswap/master-chefv2"
 
     def __init__(self):
-        self.session = requests.Session()
+        self._session: Optional[aiohttp.ClientSession] = None
 
-    def get_user_lp_positions(self, address: str, chain: str = "ethereum") -> List[DeFiPosition]:
+    async def _get_session(self) -> "aiohttp.ClientSession":
+        """Get or create aiohttp session."""
+        if not AIOHTTP_AVAILABLE:
+            raise ImportError("aiohttp required for async operations")
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self):
+        """Close the HTTP session."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+
+    async def get_user_lp_positions(self, address: str, chain: str = "ethereum") -> List[DeFiPosition]:
         """Get user's SushiSwap LP positions."""
         positions = []
 
@@ -490,12 +550,14 @@ class SushiSwapTracker:
         """
 
         try:
-            response = self.session.post(
+            session = await self._get_session()
+            async with session.post(
                 subgraph,
                 json={"query": query, "variables": {"user": address.lower()}}
-            )
-            response.raise_for_status()
-            data = response.json().get("data", {})
+            ) as response:
+                response.raise_for_status()
+                result = await response.json()
+                data = result.get("data", {})
 
             for lp in data.get("liquidityPositions", []):
                 pair = lp.get("pair", {})
@@ -522,11 +584,11 @@ class SushiSwapTracker:
                     ))
 
         except Exception as e:
-            print(f"SushiSwap query error: {e}")
+            logger.error(f"SushiSwap query error for {address}: {e}")
 
         return positions
 
-    def get_staking_positions(self, address: str) -> List[DeFiPosition]:
+    async def get_staking_positions(self, address: str) -> List[DeFiPosition]:
         """Get user's xSUSHI and MasterChef positions."""
         positions = []
 
@@ -545,12 +607,14 @@ class SushiSwapTracker:
         """
 
         try:
-            response = self.session.post(
+            session = await self._get_session()
+            async with session.post(
                 self.MASTERCHEF_SUBGRAPH,
                 json={"query": query, "variables": {"user": address.lower()}}
-            )
-            response.raise_for_status()
-            data = response.json().get("data", {})
+            ) as response:
+                response.raise_for_status()
+                result = await response.json()
+                data = result.get("data", {})
 
             for user in data.get("users", []):
                 amount = float(user.get("amount", 0))
@@ -566,26 +630,44 @@ class SushiSwapTracker:
                     ))
 
         except Exception as e:
-            print(f"SushiSwap staking query error: {e}")
+            logger.error(f"SushiSwap staking query error for {address}: {e}")
 
         return positions
 
 
 class ConvexTracker:
-    """Track Convex Finance positions (Curve LP staking + CVX rewards)."""
+    """
+    Track Convex Finance positions (Curve LP staking + CVX rewards).
+
+    QA FIX: Converted to async aiohttp for non-blocking HTTP.
+    """
 
     API_URL = "https://www.convexfinance.com/api/curve-apys"
     SUBGRAPH = "https://api.thegraph.com/subgraphs/name/convex-community/curve-pools"
 
     def __init__(self):
-        self.session = requests.Session()
+        self._session: Optional[aiohttp.ClientSession] = None
 
-    def get_pool_apys(self) -> Dict[str, float]:
+    async def _get_session(self) -> "aiohttp.ClientSession":
+        """Get or create aiohttp session."""
+        if not AIOHTTP_AVAILABLE:
+            raise ImportError("aiohttp required for async operations")
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self):
+        """Close the HTTP session."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+
+    async def get_pool_apys(self) -> Dict[str, float]:
         """Get APYs for all Convex pools."""
         try:
-            response = self.session.get(self.API_URL)
-            response.raise_for_status()
-            data = response.json()
+            session = await self._get_session()
+            async with session.get(self.API_URL) as response:
+                response.raise_for_status()
+                data = await response.json()
 
             apys = {}
             for pool_name, pool_data in data.get("apys", {}).items():
@@ -598,10 +680,10 @@ class ConvexTracker:
             return apys
 
         except Exception as e:
-            print(f"Convex API error: {e}")
+            logger.error(f"Convex API error: {e}")
             return {}
 
-    def get_user_positions(self, address: str) -> List[DeFiPosition]:
+    async def get_user_positions(self, address: str) -> List[DeFiPosition]:
         """Get user's Convex staking positions."""
         positions = []
 
@@ -624,15 +706,17 @@ class ConvexTracker:
         """
 
         try:
-            response = self.session.post(
+            session = await self._get_session()
+            async with session.post(
                 self.SUBGRAPH,
                 json={"query": query, "variables": {"user": address.lower()}}
-            )
-            response.raise_for_status()
-            data = response.json().get("data", {})
+            ) as response:
+                response.raise_for_status()
+                result = await response.json()
+                data = result.get("data", {})
 
             # Get current APYs
-            apys = self.get_pool_apys()
+            apys = await self.get_pool_apys()
 
             for account in data.get("accounts", []):
                 for pool_balance in account.get("poolBalances", []):
@@ -641,7 +725,6 @@ class ConvexTracker:
 
                     if balance > 0:
                         pool_name = pool.get("name", "Unknown")
-                        tvl = float(pool.get("tvl", 0))
                         apy = apys.get(pool_name, 0)
 
                         positions.append(DeFiPosition(
@@ -656,13 +739,13 @@ class ConvexTracker:
                         ))
 
         except Exception as e:
-            print(f"Convex query error: {e}")
+            logger.error(f"Convex query error for {address}: {e}")
 
         return positions
 
-    def get_best_pools(self, min_tvl: float = 10000000) -> List[Dict]:
+    async def get_best_pools(self, min_tvl: float = 10000000) -> List[Dict]:
         """Get highest APY Convex pools."""
-        apys = self.get_pool_apys()
+        apys = await self.get_pool_apys()
 
         pools = [
             {"name": name, "apy": apy}
@@ -674,7 +757,11 @@ class ConvexTracker:
 
 
 class MakerDAOTracker:
-    """Track MakerDAO (DAI) positions - CDPs/Vaults."""
+    """
+    Track MakerDAO (DAI) positions - CDPs/Vaults.
+
+    QA FIX: Converted to async aiohttp for non-blocking HTTP.
+    """
 
     SUBGRAPH = "https://api.thegraph.com/subgraphs/name/protofire/maker-protocol"
 
@@ -682,9 +769,22 @@ class MakerDAOTracker:
     DSR_APY = 5.0  # Approximate, should be fetched dynamically
 
     def __init__(self):
-        self.session = requests.Session()
+        self._session: Optional[aiohttp.ClientSession] = None
 
-    def get_user_vaults(self, address: str) -> List[DeFiPosition]:
+    async def _get_session(self) -> "aiohttp.ClientSession":
+        """Get or create aiohttp session."""
+        if not AIOHTTP_AVAILABLE:
+            raise ImportError("aiohttp required for async operations")
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self):
+        """Close the HTTP session."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+
+    async def get_user_vaults(self, address: str) -> List[DeFiPosition]:
         """Get user's MakerDAO vaults (CDPs)."""
         positions = []
 
@@ -706,12 +806,14 @@ class MakerDAOTracker:
         """
 
         try:
-            response = self.session.post(
+            session = await self._get_session()
+            async with session.post(
                 self.SUBGRAPH,
                 json={"query": query, "variables": {"user": address.lower()}}
-            )
-            response.raise_for_status()
-            data = response.json().get("data", {})
+            ) as response:
+                response.raise_for_status()
+                result = await response.json()
+                data = result.get("data", {})
 
             for vault in data.get("vaults", []):
                 collateral = float(vault.get("collateral", 0))
@@ -753,11 +855,11 @@ class MakerDAOTracker:
                         ))
 
         except Exception as e:
-            print(f"MakerDAO query error: {e}")
+            logger.error(f"MakerDAO query error for {address}: {e}")
 
         return positions
 
-    def get_dsr_balance(self, address: str) -> Optional[DeFiPosition]:
+    async def get_dsr_balance(self, address: str) -> Optional[DeFiPosition]:
         """Get user's DAI Savings Rate balance."""
         # Would need to query DSR contract directly
         # This is a placeholder for the pattern
@@ -771,12 +873,14 @@ class MakerDAOTracker:
         """
 
         try:
-            response = self.session.post(
+            session = await self._get_session()
+            async with session.post(
                 self.SUBGRAPH,
                 json={"query": query, "variables": {"user": address.lower()}}
-            )
-            response.raise_for_status()
-            data = response.json().get("data", {})
+            ) as response:
+                response.raise_for_status()
+                result = await response.json()
+                data = result.get("data", {})
 
             user = data.get("user")
             if user:
@@ -793,11 +897,11 @@ class MakerDAOTracker:
                     )
 
         except Exception as e:
-            print(f"MakerDAO DSR query error: {e}")
+            logger.error(f"MakerDAO DSR query error for {address}: {e}")
 
         return None
 
-    def get_protocol_stats(self) -> Dict:
+    async def get_protocol_stats(self) -> Dict:
         """Get overall MakerDAO protocol statistics."""
         try:
             query = """
@@ -809,12 +913,14 @@ class MakerDAOTracker:
             }
             """
 
-            response = self.session.post(
+            session = await self._get_session()
+            async with session.post(
                 self.SUBGRAPH,
                 json={"query": query}
-            )
-            response.raise_for_status()
-            data = response.json().get("data", {})
+            ) as response:
+                response.raise_for_status()
+                result = await response.json()
+                data = result.get("data", {})
 
             state = data.get("systemState", {})
             return {
@@ -824,12 +930,16 @@ class MakerDAOTracker:
             }
 
         except Exception as e:
-            print(f"MakerDAO stats error: {e}")
+            logger.error(f"MakerDAO stats error: {e}")
             return {}
 
 
 class DeFiPortfolioTracker:
-    """Unified DeFi portfolio tracker."""
+    """
+    Unified DeFi portfolio tracker.
+
+    QA FIX: Converted to async for non-blocking operations.
+    """
 
     def __init__(self):
         load_dotenv()
@@ -843,19 +953,30 @@ class DeFiPortfolioTracker:
         self.makerdao = MakerDAOTracker()
 
         self.wallets: Dict[str, List[str]] = {}  # chain -> [addresses]
-    
+
+    async def close(self):
+        """Close all tracker sessions."""
+        await self.defillama.close()
+        await self.aave.close()
+        await self.uniswap.close()
+        await self.lido.close()
+        await self.yearn.close()
+        await self.sushiswap.close()
+        await self.convex.close()
+        await self.makerdao.close()
+
     def add_wallet(self, address: str, chains: List[str] = None):
         """Add a wallet address to track."""
         if chains is None:
             chains = ["ethereum", "polygon", "arbitrum"]
-        
+
         for chain in chains:
             if chain not in self.wallets:
                 self.wallets[chain] = []
             if address not in self.wallets[chain]:
                 self.wallets[chain].append(address)
-    
-    def get_all_positions(self) -> Dict[str, List]:
+
+    async def get_all_positions(self) -> Dict[str, List]:
         """Get all DeFi positions across protocols."""
         all_positions = {
             "lending": [],
@@ -867,38 +988,38 @@ class DeFiPortfolioTracker:
 
         for chain, addresses in self.wallets.items():
             for address in addresses:
-                print(f"  Scanning {address[:10]}... on {chain}")
+                logger.info(f"Scanning {address[:10]}... on {chain}")
 
                 # Aave positions
-                aave_positions = self.aave.get_user_positions(address, chain)
+                aave_positions = await self.aave.get_user_positions(address, chain)
                 for pos in aave_positions:
                     if pos.position_type in ["supply", "borrow"]:
                         all_positions["lending"].append(pos)
 
                 # Uniswap LP positions
-                uni_positions = self.uniswap.get_user_positions(address, chain)
+                uni_positions = await self.uniswap.get_user_positions(address, chain)
                 all_positions["lp"].extend(uni_positions)
 
                 # SushiSwap LP positions
-                sushi_positions = self.sushiswap.get_user_lp_positions(address, chain)
+                sushi_positions = await self.sushiswap.get_user_lp_positions(address, chain)
                 all_positions["lp"].extend(sushi_positions)
 
                 # Lido staking (Ethereum only)
                 if chain == "ethereum":
-                    lido_pos = self.lido.get_steth_balance(address)
+                    lido_pos = await self.lido.get_steth_balance(address)
                     if lido_pos:
                         all_positions["staking"].append(lido_pos)
 
                     # SushiSwap staking
-                    sushi_staking = self.sushiswap.get_staking_positions(address)
+                    sushi_staking = await self.sushiswap.get_staking_positions(address)
                     all_positions["staking"].extend(sushi_staking)
 
                     # Convex staking
-                    convex_positions = self.convex.get_user_positions(address)
+                    convex_positions = await self.convex.get_user_positions(address)
                     all_positions["staking"].extend(convex_positions)
 
                     # MakerDAO vaults/CDPs
-                    maker_positions = self.makerdao.get_user_vaults(address)
+                    maker_positions = await self.makerdao.get_user_vaults(address)
                     for pos in maker_positions:
                         if pos.position_type == "collateral":
                             all_positions["cdp"].append(pos)
@@ -906,17 +1027,17 @@ class DeFiPortfolioTracker:
                             all_positions["lending"].append(pos)
 
                     # MakerDAO DSR
-                    dsr_balance = self.makerdao.get_dsr_balance(address)
+                    dsr_balance = await self.makerdao.get_dsr_balance(address)
                     if dsr_balance:
                         all_positions["staking"].append(dsr_balance)
 
-                time.sleep(0.5)  # Rate limiting
+                await asyncio.sleep(0.5)  # Rate limiting
 
         return all_positions
-    
-    def get_defi_summary(self) -> dict:
+
+    async def get_defi_summary(self) -> dict:
         """Get summary of all DeFi positions."""
-        positions = self.get_all_positions()
+        positions = await self.get_all_positions()
 
         total_supplied = sum(
             p.usd_value for p in positions["lending"]
@@ -952,10 +1073,10 @@ class DeFiPortfolioTracker:
             "positions": positions
         }
     
-    def find_best_yields(self, asset: str = None, min_tvl: float = 1000000) -> List[dict]:
+    async def find_best_yields(self, asset: str = None, min_tvl: float = 1000000) -> List[dict]:
         """Find best yield opportunities."""
         # Get DefiLlama yields
-        pools = self.defillama.get_yields()
+        pools = await self.defillama.get_yields()
         
         # Filter by asset if specified
         if asset:

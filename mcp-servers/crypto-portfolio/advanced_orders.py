@@ -831,7 +831,8 @@ class AdvancedOrderManager:
 
         except Exception as e:
             # Log but don't block on balance check errors
-            print(f"Balance validation warning: {e}")
+            import logging
+            logging.getLogger(__name__).warning(f"Balance validation warning: {e}")
             return True, ""
 
     async def create_twap_order(
