@@ -13,4 +13,5 @@ __all__ = [
     "skippy_logger",
     "skippy_errors",
     "skippy_performance",
+    "crypto_trading",
 ]
