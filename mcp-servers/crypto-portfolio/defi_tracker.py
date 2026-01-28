@@ -385,9 +385,385 @@ class YearnTracker:
         )[:20]
 
 
+class SushiSwapTracker:
+    """Track SushiSwap LP positions and staking."""
+
+    SUBGRAPHS = {
+        "ethereum": "https://api.thegraph.com/subgraphs/name/sushiswap/exchange",
+        "polygon": "https://api.thegraph.com/subgraphs/name/sushiswap/matic-exchange",
+        "arbitrum": "https://api.thegraph.com/subgraphs/name/sushiswap/arbitrum-exchange",
+    }
+
+    MASTERCHEF_SUBGRAPH = "https://api.thegraph.com/subgraphs/name/sushiswap/master-chefv2"
+
+    def __init__(self):
+        self.session = requests.Session()
+
+    def get_user_lp_positions(self, address: str, chain: str = "ethereum") -> List[DeFiPosition]:
+        """Get user's SushiSwap LP positions."""
+        positions = []
+
+        subgraph = self.SUBGRAPHS.get(chain)
+        if not subgraph:
+            return positions
+
+        query = """
+        query GetUserLPs($user: String!) {
+            liquidityPositions(where: {user: $user, liquidityTokenBalance_gt: "0"}) {
+                pair {
+                    id
+                    token0 { symbol }
+                    token1 { symbol }
+                    reserveUSD
+                    totalSupply
+                }
+                liquidityTokenBalance
+            }
+        }
+        """
+
+        try:
+            response = self.session.post(
+                subgraph,
+                json={"query": query, "variables": {"user": address.lower()}}
+            )
+            response.raise_for_status()
+            data = response.json().get("data", {})
+
+            for lp in data.get("liquidityPositions", []):
+                pair = lp.get("pair", {})
+                token0 = pair.get("token0", {}).get("symbol", "?")
+                token1 = pair.get("token1", {}).get("symbol", "?")
+                balance = float(lp.get("liquidityTokenBalance", 0))
+                total_supply = float(pair.get("totalSupply", 1))
+                reserve_usd = float(pair.get("reserveUSD", 0))
+
+                # Calculate user's share of the pool
+                share = balance / total_supply if total_supply > 0 else 0
+                usd_value = reserve_usd * share
+
+                if usd_value > 1:  # Filter dust
+                    positions.append(DeFiPosition(
+                        protocol="SushiSwap",
+                        chain=chain,
+                        position_type="lp",
+                        asset=f"{token0}-{token1}",
+                        amount=balance,
+                        usd_value=usd_value,
+                        apy=0,  # Would need to query farming APY
+                        pool_share=share * 100
+                    ))
+
+        except Exception as e:
+            print(f"SushiSwap query error: {e}")
+
+        return positions
+
+    def get_staking_positions(self, address: str) -> List[DeFiPosition]:
+        """Get user's xSUSHI and MasterChef positions."""
+        positions = []
+
+        # Query MasterChef v2 for staked positions
+        query = """
+        query GetUserStaking($user: String!) {
+            users(where: {address: $user}) {
+                pool {
+                    pair
+                    allocPoint
+                }
+                amount
+                rewardDebt
+            }
+        }
+        """
+
+        try:
+            response = self.session.post(
+                self.MASTERCHEF_SUBGRAPH,
+                json={"query": query, "variables": {"user": address.lower()}}
+            )
+            response.raise_for_status()
+            data = response.json().get("data", {})
+
+            for user in data.get("users", []):
+                amount = float(user.get("amount", 0))
+                if amount > 0:
+                    positions.append(DeFiPosition(
+                        protocol="SushiSwap MasterChef",
+                        chain="ethereum",
+                        position_type="staking",
+                        asset="SUSHI-LP",
+                        amount=amount,
+                        usd_value=0,  # Need price oracle
+                        apy=0  # Variable based on allocation
+                    ))
+
+        except Exception as e:
+            print(f"SushiSwap staking query error: {e}")
+
+        return positions
+
+
+class ConvexTracker:
+    """Track Convex Finance positions (Curve LP staking + CVX rewards)."""
+
+    API_URL = "https://www.convexfinance.com/api/curve-apys"
+    SUBGRAPH = "https://api.thegraph.com/subgraphs/name/convex-community/curve-pools"
+
+    def __init__(self):
+        self.session = requests.Session()
+
+    def get_pool_apys(self) -> Dict[str, float]:
+        """Get APYs for all Convex pools."""
+        try:
+            response = self.session.get(self.API_URL)
+            response.raise_for_status()
+            data = response.json()
+
+            apys = {}
+            for pool_name, pool_data in data.get("apys", {}).items():
+                base_apy = pool_data.get("baseApy", 0)
+                cvx_apy = pool_data.get("cvxApy", 0)
+                crv_apy = pool_data.get("crvApy", 0)
+                total_apy = base_apy + cvx_apy + crv_apy
+                apys[pool_name] = total_apy
+
+            return apys
+
+        except Exception as e:
+            print(f"Convex API error: {e}")
+            return {}
+
+    def get_user_positions(self, address: str) -> List[DeFiPosition]:
+        """Get user's Convex staking positions."""
+        positions = []
+
+        # Query for user's staked positions
+        query = """
+        query GetUserPositions($user: String!) {
+            accounts(where: {id: $user}) {
+                poolBalances {
+                    pool {
+                        name
+                        lpToken {
+                            symbol
+                        }
+                        tvl
+                    }
+                    balance
+                }
+            }
+        }
+        """
+
+        try:
+            response = self.session.post(
+                self.SUBGRAPH,
+                json={"query": query, "variables": {"user": address.lower()}}
+            )
+            response.raise_for_status()
+            data = response.json().get("data", {})
+
+            # Get current APYs
+            apys = self.get_pool_apys()
+
+            for account in data.get("accounts", []):
+                for pool_balance in account.get("poolBalances", []):
+                    pool = pool_balance.get("pool", {})
+                    balance = float(pool_balance.get("balance", 0))
+
+                    if balance > 0:
+                        pool_name = pool.get("name", "Unknown")
+                        tvl = float(pool.get("tvl", 0))
+                        apy = apys.get(pool_name, 0)
+
+                        positions.append(DeFiPosition(
+                            protocol="Convex",
+                            chain="ethereum",
+                            position_type="staking",
+                            asset=pool.get("lpToken", {}).get("symbol", pool_name),
+                            amount=balance,
+                            usd_value=0,  # Would need to calculate from balance
+                            apy=apy,
+                            rewards_earned={}
+                        ))
+
+        except Exception as e:
+            print(f"Convex query error: {e}")
+
+        return positions
+
+    def get_best_pools(self, min_tvl: float = 10000000) -> List[Dict]:
+        """Get highest APY Convex pools."""
+        apys = self.get_pool_apys()
+
+        pools = [
+            {"name": name, "apy": apy}
+            for name, apy in apys.items()
+            if apy > 0
+        ]
+
+        return sorted(pools, key=lambda x: x["apy"], reverse=True)[:20]
+
+
+class MakerDAOTracker:
+    """Track MakerDAO (DAI) positions - CDPs/Vaults."""
+
+    SUBGRAPH = "https://api.thegraph.com/subgraphs/name/protofire/maker-protocol"
+
+    # Current DSR (DAI Savings Rate) - would normally be fetched from chain
+    DSR_APY = 5.0  # Approximate, should be fetched dynamically
+
+    def __init__(self):
+        self.session = requests.Session()
+
+    def get_user_vaults(self, address: str) -> List[DeFiPosition]:
+        """Get user's MakerDAO vaults (CDPs)."""
+        positions = []
+
+        query = """
+        query GetUserVaults($user: String!) {
+            vaults(where: {owner: $user}) {
+                id
+                collateralType {
+                    id
+                    price {
+                        value
+                    }
+                    liquidationRatio
+                }
+                collateral
+                debt
+            }
+        }
+        """
+
+        try:
+            response = self.session.post(
+                self.SUBGRAPH,
+                json={"query": query, "variables": {"user": address.lower()}}
+            )
+            response.raise_for_status()
+            data = response.json().get("data", {})
+
+            for vault in data.get("vaults", []):
+                collateral = float(vault.get("collateral", 0))
+                debt = float(vault.get("debt", 0))
+
+                if collateral > 0 or debt > 0:
+                    col_type = vault.get("collateralType", {})
+                    col_id = col_type.get("id", "UNKNOWN")
+                    price = float(col_type.get("price", {}).get("value", 0))
+                    liq_ratio = float(col_type.get("liquidationRatio", 150))
+
+                    collateral_usd = collateral * price
+                    health_factor = (collateral_usd / debt * 100 / liq_ratio) if debt > 0 else float('inf')
+
+                    # Collateral position
+                    if collateral > 0:
+                        positions.append(DeFiPosition(
+                            protocol="MakerDAO",
+                            chain="ethereum",
+                            position_type="collateral",
+                            asset=col_id.split("-")[0],
+                            amount=collateral,
+                            usd_value=collateral_usd,
+                            health_factor=health_factor,
+                            liquidation_price=debt * liq_ratio / 100 / collateral if collateral > 0 else 0
+                        ))
+
+                    # Debt position
+                    if debt > 0:
+                        positions.append(DeFiPosition(
+                            protocol="MakerDAO",
+                            chain="ethereum",
+                            position_type="borrow",
+                            asset="DAI",
+                            amount=-debt,
+                            usd_value=-debt,
+                            apy=-5.0,  # Stability fee varies
+                            health_factor=health_factor
+                        ))
+
+        except Exception as e:
+            print(f"MakerDAO query error: {e}")
+
+        return positions
+
+    def get_dsr_balance(self, address: str) -> Optional[DeFiPosition]:
+        """Get user's DAI Savings Rate balance."""
+        # Would need to query DSR contract directly
+        # This is a placeholder for the pattern
+
+        query = """
+        query GetDSRBalance($user: String!) {
+            user(id: $user) {
+                dsrBalance
+            }
+        }
+        """
+
+        try:
+            response = self.session.post(
+                self.SUBGRAPH,
+                json={"query": query, "variables": {"user": address.lower()}}
+            )
+            response.raise_for_status()
+            data = response.json().get("data", {})
+
+            user = data.get("user")
+            if user:
+                balance = float(user.get("dsrBalance", 0))
+                if balance > 0:
+                    return DeFiPosition(
+                        protocol="MakerDAO DSR",
+                        chain="ethereum",
+                        position_type="savings",
+                        asset="DAI",
+                        amount=balance,
+                        usd_value=balance,
+                        apy=self.DSR_APY
+                    )
+
+        except Exception as e:
+            print(f"MakerDAO DSR query error: {e}")
+
+        return None
+
+    def get_protocol_stats(self) -> Dict:
+        """Get overall MakerDAO protocol statistics."""
+        try:
+            query = """
+            query GetProtocolStats {
+                systemState(id: "current") {
+                    totalDebt
+                    totalCollateral
+                }
+            }
+            """
+
+            response = self.session.post(
+                self.SUBGRAPH,
+                json={"query": query}
+            )
+            response.raise_for_status()
+            data = response.json().get("data", {})
+
+            state = data.get("systemState", {})
+            return {
+                "total_dai_debt": float(state.get("totalDebt", 0)),
+                "total_collateral_usd": float(state.get("totalCollateral", 0)),
+                "dsr_apy": self.DSR_APY
+            }
+
+        except Exception as e:
+            print(f"MakerDAO stats error: {e}")
+            return {}
+
+
 class DeFiPortfolioTracker:
     """Unified DeFi portfolio tracker."""
-    
+
     def __init__(self):
         load_dotenv()
         self.defillama = DefiLlamaClient()
@@ -395,7 +771,10 @@ class DeFiPortfolioTracker:
         self.uniswap = UniswapTracker()
         self.lido = LidoTracker()
         self.yearn = YearnTracker()
-        
+        self.sushiswap = SushiSwapTracker()
+        self.convex = ConvexTracker()
+        self.makerdao = MakerDAOTracker()
+
         self.wallets: Dict[str, List[str]] = {}  # chain -> [addresses]
     
     def add_wallet(self, address: str, chains: List[str] = None):
@@ -415,39 +794,65 @@ class DeFiPortfolioTracker:
             "lending": [],
             "lp": [],
             "staking": [],
-            "vaults": []
+            "vaults": [],
+            "cdp": []  # Collateralized debt positions (MakerDAO)
         }
-        
+
         for chain, addresses in self.wallets.items():
             for address in addresses:
                 print(f"  Scanning {address[:10]}... on {chain}")
-                
+
                 # Aave positions
                 aave_positions = self.aave.get_user_positions(address, chain)
                 for pos in aave_positions:
                     if pos.position_type in ["supply", "borrow"]:
                         all_positions["lending"].append(pos)
-                
+
                 # Uniswap LP positions
                 uni_positions = self.uniswap.get_user_positions(address, chain)
                 all_positions["lp"].extend(uni_positions)
-                
+
+                # SushiSwap LP positions
+                sushi_positions = self.sushiswap.get_user_lp_positions(address, chain)
+                all_positions["lp"].extend(sushi_positions)
+
                 # Lido staking (Ethereum only)
                 if chain == "ethereum":
                     lido_pos = self.lido.get_steth_balance(address)
                     if lido_pos:
                         all_positions["staking"].append(lido_pos)
-                
+
+                    # SushiSwap staking
+                    sushi_staking = self.sushiswap.get_staking_positions(address)
+                    all_positions["staking"].extend(sushi_staking)
+
+                    # Convex staking
+                    convex_positions = self.convex.get_user_positions(address)
+                    all_positions["staking"].extend(convex_positions)
+
+                    # MakerDAO vaults/CDPs
+                    maker_positions = self.makerdao.get_user_vaults(address)
+                    for pos in maker_positions:
+                        if pos.position_type == "collateral":
+                            all_positions["cdp"].append(pos)
+                        elif pos.position_type == "borrow":
+                            all_positions["lending"].append(pos)
+
+                    # MakerDAO DSR
+                    dsr_balance = self.makerdao.get_dsr_balance(address)
+                    if dsr_balance:
+                        all_positions["staking"].append(dsr_balance)
+
                 time.sleep(0.5)  # Rate limiting
-        
+
         return all_positions
     
     def get_defi_summary(self) -> dict:
         """Get summary of all DeFi positions."""
         positions = self.get_all_positions()
-        
+
         total_supplied = sum(
-            p.usd_value for p in positions["lending"] 
+            p.usd_value for p in positions["lending"]
             if p.position_type == "supply"
         )
         total_borrowed = sum(
@@ -456,14 +861,27 @@ class DeFiPortfolioTracker:
         )
         total_lp = sum(p.usd_value for p in positions["lp"])
         total_staked = sum(p.usd_value for p in positions["staking"])
-        
+        total_cdp_collateral = sum(p.usd_value for p in positions.get("cdp", []))
+
+        # Group by protocol
+        protocols = {}
+        for category, pos_list in positions.items():
+            for pos in pos_list:
+                protocol = pos.protocol
+                if protocol not in protocols:
+                    protocols[protocol] = {"total_usd": 0, "positions": 0}
+                protocols[protocol]["total_usd"] += abs(pos.usd_value)
+                protocols[protocol]["positions"] += 1
+
         return {
             "total_supplied": total_supplied,
             "total_borrowed": total_borrowed,
             "net_lending": total_supplied - total_borrowed,
             "total_lp": total_lp,
             "total_staked": total_staked,
-            "total_defi": total_supplied - total_borrowed + total_lp + total_staked,
+            "total_cdp_collateral": total_cdp_collateral,
+            "total_defi": total_supplied - total_borrowed + total_lp + total_staked + total_cdp_collateral,
+            "by_protocol": protocols,
             "positions": positions
         }
     
