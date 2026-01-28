@@ -12,7 +12,7 @@ Implements:
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Callable, Any
+from typing import Dict, List, Optional, Callable, Any, Tuple
 from enum import Enum
 import asyncio
 import uuid
@@ -707,12 +707,97 @@ class AdvancedOrderManager:
 
     Provides a unified interface for creating and monitoring
     TWAP, VWAP, Iceberg, and Bracket orders.
+
+    SECURITY: All order creation methods validate balances before execution.
     """
 
-    def __init__(self, exchange_client):
+    def __init__(self, exchange_client, require_balance_check: bool = True):
+        """
+        Initialize order manager.
+
+        Args:
+            exchange_client: Exchange client for order execution
+            require_balance_check: If True, validate balance before orders (recommended)
+        """
         self.exchange = exchange_client
         self.active_orders: Dict[str, Any] = {}
         self.completed_orders: List[AdvancedOrderResult] = []
+        self.require_balance_check = require_balance_check
+
+    async def _validate_balance(
+        self,
+        asset: str,
+        side: str,
+        amount: Decimal,
+        estimated_price: Optional[Decimal] = None,
+    ) -> Tuple[bool, str]:
+        """
+        Validate that user has sufficient balance for the order.
+
+        SECURITY: Prevents orders that would fail due to insufficient funds,
+        which could leave partially executed orders in bad states.
+
+        Args:
+            asset: Asset to trade
+            side: "buy" or "sell"
+            amount: Amount to trade
+            estimated_price: Price estimate for buy orders (to calculate USD needed)
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        if not self.require_balance_check:
+            return True, ""
+
+        try:
+            balances = await self.exchange.get_balances()
+
+            if side.lower() == "sell":
+                # For sells, check we have enough of the asset
+                if asset not in balances:
+                    return False, f"No {asset} balance found"
+
+                available = balances[asset].available
+                if available < amount:
+                    return False, (
+                        f"Insufficient {asset} balance. "
+                        f"Required: {amount}, Available: {available}"
+                    )
+
+            else:  # Buy
+                # For buys, check we have enough quote currency (usually USD/USDC/USDT)
+                quote_currencies = ["USD", "USDC", "USDT"]
+                total_quote = Decimal("0")
+
+                for quote in quote_currencies:
+                    if quote in balances:
+                        total_quote += balances[quote].available
+
+                # Estimate cost if price provided
+                if estimated_price is None:
+                    try:
+                        estimated_price = await self.exchange.get_ticker_price(asset)
+                    except Exception:
+                        # If we can't get price, skip validation
+                        return True, ""
+
+                required_quote = amount * estimated_price
+                # Add 1% buffer for slippage and fees
+                required_quote_with_buffer = required_quote * Decimal("1.01")
+
+                if total_quote < required_quote_with_buffer:
+                    return False, (
+                        f"Insufficient quote currency balance. "
+                        f"Required: ${required_quote_with_buffer:.2f}, "
+                        f"Available: ${total_quote:.2f}"
+                    )
+
+            return True, ""
+
+        except Exception as e:
+            # Log but don't block on balance check errors
+            print(f"Balance validation warning: {e}")
+            return True, ""
 
     async def create_twap_order(
         self,
@@ -723,6 +808,11 @@ class AdvancedOrderManager:
         num_slices: int = 12,
     ) -> str:
         """Create and start a TWAP order."""
+        # SECURITY: Validate balance before creating order
+        is_valid, error_msg = await self._validate_balance(asset, side, amount)
+        if not is_valid:
+            raise ValueError(f"Balance validation failed: {error_msg}")
+
         order = TWAPOrder(
             self.exchange,
             asset,
@@ -746,6 +836,11 @@ class AdvancedOrderManager:
         duration_minutes: int = 60,
     ) -> str:
         """Create and start a VWAP order."""
+        # SECURITY: Validate balance before creating order
+        is_valid, error_msg = await self._validate_balance(asset, side, amount)
+        if not is_valid:
+            raise ValueError(f"Balance validation failed: {error_msg}")
+
         order = VWAPOrder(
             self.exchange,
             asset,
@@ -768,6 +863,13 @@ class AdvancedOrderManager:
         limit_price: Decimal,
     ) -> str:
         """Create and start an Iceberg order."""
+        # SECURITY: Validate balance before creating order
+        is_valid, error_msg = await self._validate_balance(
+            asset, side, total_amount, estimated_price=limit_price
+        )
+        if not is_valid:
+            raise ValueError(f"Balance validation failed: {error_msg}")
+
         order = IcebergOrder(
             self.exchange,
             asset,
@@ -792,6 +894,13 @@ class AdvancedOrderManager:
         take_profit_price: Decimal,
     ) -> str:
         """Create and start a Bracket order."""
+        # SECURITY: Validate balance before creating order
+        is_valid, error_msg = await self._validate_balance(
+            asset, side, amount, estimated_price=entry_price
+        )
+        if not is_valid:
+            raise ValueError(f"Balance validation failed: {error_msg}")
+
         order = BracketOrder(
             self.exchange,
             asset,

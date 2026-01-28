@@ -474,20 +474,47 @@ def format_datetime(dt: datetime) -> str:
 
 
 def handle_api_error(e: Exception, context: str = "") -> str:
-    """Consistent error formatting."""
+    """
+    Consistent error formatting with sanitization.
+
+    SECURITY: This function sanitizes error messages to prevent leaking
+    sensitive internal details (file paths, stack traces, credentials).
+    """
+    import logging
+    import re
+
     error_type = type(e).__name__
+    error_msg = str(e)
     context_str = f" while {context}" if context else ""
-    
-    if "authentication" in str(e).lower() or "api key" in str(e).lower():
+
+    # Log the full error internally for debugging
+    logging.error(f"API Error{context_str}: {error_type} - {error_msg}")
+
+    # Sanitize: remove potential sensitive data from error messages
+    # Remove file paths
+    sanitized_msg = re.sub(r'[/\\][\w/\\.-]+\.(py|json|env|key|pem)', '[path]', error_msg)
+    # Remove potential credentials/keys
+    sanitized_msg = re.sub(r'[a-zA-Z0-9]{20,}', '[redacted]', sanitized_msg)
+    # Remove IP addresses
+    sanitized_msg = re.sub(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', '[ip]', sanitized_msg)
+
+    # Return user-friendly messages for known error types
+    if "authentication" in error_msg.lower() or "api key" in error_msg.lower():
         return f"Error{context_str}: Authentication failed. Please verify your API keys are configured correctly in the .env file."
-    elif "rate limit" in str(e).lower():
+    elif "rate limit" in error_msg.lower():
         return f"Error{context_str}: Rate limit exceeded. Please wait a moment before retrying."
-    elif "timeout" in str(e).lower():
+    elif "timeout" in error_msg.lower():
         return f"Error{context_str}: Request timed out. The exchange may be experiencing high load."
-    elif "not found" in str(e).lower():
+    elif "not found" in error_msg.lower():
         return f"Error{context_str}: Resource not found. Please verify the identifier is correct."
+    elif "connection" in error_msg.lower():
+        return f"Error{context_str}: Connection failed. Please check your network and try again."
+    elif "permission" in error_msg.lower() or "forbidden" in error_msg.lower():
+        return f"Error{context_str}: Permission denied. Your API key may lack required permissions."
     else:
-        return f"Error{context_str}: {error_type} - {str(e)}"
+        # For unknown errors, return sanitized message (limit length)
+        truncated_msg = sanitized_msg[:100] + "..." if len(sanitized_msg) > 100 else sanitized_msg
+        return f"Error{context_str}: {error_type} - {truncated_msg}"
 
 
 # =============================================================================
@@ -654,8 +681,22 @@ async def app_lifespan(app):
     """Manage resources that persist across requests."""
     global _aggregator
 
+    # SECURITY: Default to paper trading mode for safety
+    # Live trading requires explicit TRADING_MODE=live environment variable
+    trading_mode = os.getenv("TRADING_MODE", "confirm").lower()
+    is_live = trading_mode == "live"
+
+    # If PAPER_TRADING is explicitly set to "false" AND TRADING_MODE is "live", allow live
+    # Otherwise default to paper/confirm mode for safety
+    paper_trading = True  # Safe default
+    if trading_mode == "live" and os.getenv("PAPER_TRADING", "true").lower() == "false":
+        paper_trading = False
+    elif os.getenv("PAPER_TRADING", "true").lower() == "true":
+        paper_trading = True
+
     config = {
-        "paper_trading": os.getenv("PAPER_TRADING", "false").lower() == "true",
+        "paper_trading": paper_trading,
+        "trading_mode": trading_mode,
         "exchanges_configured": [],
         "wallets_configured": [],
         "use_real_data": False
