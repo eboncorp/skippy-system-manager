@@ -1,0 +1,23 @@
+{
+  "name": "crypto-portfolio",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A comprehensive multi-exchange cryptocurrency portfolio management suite with AI-powered analysis, staking support, DeFi tracking, and Claude Code integration via MCP.",
+  "main": "index.js",
+  "bin": {
+    "agentkit-mcp": "./agentkit_mcp_server.js"
+  },
+  "scripts": {
+    "agentkit": "node agentkit_mcp_server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["crypto", "portfolio", "coinbase", "mcp", "agentkit"],
+  "author": "Dave",
+  "license": "MIT",
+  "dependencies": {
+    "@coinbase/agentkit": "^0.10.4",
+    "@coinbase/agentkit-model-context-protocol": "^0.2.0",
+    "@coinbase/payments-mcp": "^1.0.5",
+    "@modelcontextprotocol/sdk": "^1.25.2"
+  }
+}
