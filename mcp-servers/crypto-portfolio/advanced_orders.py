@@ -199,7 +199,8 @@ class TWAPOrder:
                     self.status = OrderStatus.PARTIALLY_FILLED
 
             except Exception as e:
-                print(f"TWAP slice {i+1} failed: {e}")
+                import logging
+                logging.getLogger(__name__).error(f"TWAP slice {i+1} failed for order {self.order_id}: {e}")
 
             # Wait for next slice (with optional randomization)
             if i < self.num_slices - 1:
@@ -352,7 +353,8 @@ class VWAPOrder:
                     self.status = OrderStatus.PARTIALLY_FILLED
 
             except Exception as e:
-                print(f"VWAP slice {i+1} failed: {e}")
+                import logging
+                logging.getLogger(__name__).error(f"VWAP slice {i+1} failed for order {self.order_id}: {e}")
 
             if i < len(slice_amounts) - 1:
                 await asyncio.sleep(interval_seconds)
@@ -441,13 +443,40 @@ class IcebergOrder:
         return total_value / total_amount if total_amount > 0 else Decimal("0")
 
     async def execute(self) -> AdvancedOrderResult:
-        """Execute the Iceberg order."""
+        """
+        Execute the Iceberg order.
+
+        QA FIX: Added max iterations guard to prevent infinite loop.
+        QA FIX: Added consecutive zero-fill tracking.
+        QA FIX: Replaced print with logging.
+        """
+        import logging
         import random
+
+        logger = logging.getLogger(__name__)
 
         self.status = OrderStatus.ACTIVE
         started_at = datetime.now()
 
+        # QA FIX: Guards against infinite loops
+        MAX_ITERATIONS = 10000  # Absolute max iterations
+        MAX_CONSECUTIVE_ZERO_FILLS = 10  # Max zero fills before giving up
+        iteration_count = 0
+        consecutive_zero_fills = 0
+
         while self.remaining_amount > Decimal("0") and not self._cancelled:
+            # QA FIX: Infinite loop guard
+            iteration_count += 1
+            if iteration_count > MAX_ITERATIONS:
+                logger.error(f"Iceberg order {self.order_id} hit max iterations ({MAX_ITERATIONS}), aborting")
+                self.status = OrderStatus.FAILED
+                break
+
+            if consecutive_zero_fills >= MAX_CONSECUTIVE_ZERO_FILLS:
+                logger.error(f"Iceberg order {self.order_id} hit {MAX_CONSECUTIVE_ZERO_FILLS} consecutive zero fills, aborting")
+                self.status = OrderStatus.FAILED
+                break
+
             # Calculate this slice
             slice_amount = min(self.visible_amount, self.remaining_amount)
 
@@ -484,11 +513,17 @@ class IcebergOrder:
                         fee=result.fee,
                     ))
                     self.status = OrderStatus.PARTIALLY_FILLED
+                    consecutive_zero_fills = 0  # Reset counter on successful fill
+                else:
+                    # QA FIX: Track zero fills to detect stuck orders
+                    consecutive_zero_fills += 1
+                    logger.warning(f"Iceberg order {self.order_id} slice returned zero fill ({consecutive_zero_fills}/{MAX_CONSECUTIVE_ZERO_FILLS})")
 
                 self.active_order_id = result.order_id
 
             except Exception as e:
-                print(f"Iceberg slice failed: {e}")
+                logger.error(f"Iceberg slice failed for order {self.order_id}: {e}")
+                consecutive_zero_fills += 1
 
             # Wait before next slice
             await asyncio.sleep(1)
@@ -917,10 +952,40 @@ class AdvancedOrderManager:
         return order.order_id
 
     async def _execute_order(self, order):
-        """Execute order and handle completion."""
+        """
+        Execute order and handle completion.
+
+        QA FIX: Added proper exception handling for background tasks.
+        Errors are logged and the order is marked as failed rather than silently ignored.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
         try:
             result = await order.execute()
             self.completed_orders.append(result)
+            logger.info(f"Order {order.order_id} completed: {result.status.value}")
+        except asyncio.CancelledError:
+            # Handle graceful cancellation
+            logger.warning(f"Order {order.order_id} was cancelled")
+            order.status = OrderStatus.CANCELLED
+            raise
+        except Exception as e:
+            # Log the error and create a failed result
+            logger.error(f"Order {order.order_id} failed with error: {e}", exc_info=True)
+            failed_result = AdvancedOrderResult(
+                order_id=order.order_id,
+                status=OrderStatus.FAILED,
+                total_amount=order.total_amount,
+                filled_amount=order.filled_amount if hasattr(order, 'filled_amount') else Decimal("0"),
+                average_price=order.average_price if hasattr(order, 'average_price') else Decimal("0"),
+                total_fees=sum(f.fee for f in order.fills) if hasattr(order, 'fills') else Decimal("0"),
+                fills=order.fills if hasattr(order, 'fills') else [],
+                started_at=order.started_at if hasattr(order, 'started_at') else datetime.now(),
+                completed_at=datetime.now(),
+                error=str(e),
+            )
+            self.completed_orders.append(failed_result)
         finally:
             if order.order_id in self.active_orders:
                 del self.active_orders[order.order_id]
