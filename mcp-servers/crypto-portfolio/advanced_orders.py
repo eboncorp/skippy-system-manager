@@ -603,6 +603,7 @@ class BracketOrder:
         self.exit_fill: Optional[OrderFill] = None
         self.exit_reason: Optional[str] = None  # "stop_loss" or "take_profit"
         self._cancelled = False
+        self.max_monitor_seconds: int = 86400  # 24h default max monitoring time
 
     @property
     def exit_side(self) -> OrderSide:
@@ -650,9 +651,36 @@ class BracketOrder:
             return self._build_result(started_at, error=str(e))
 
         # Monitor for stop-loss or take-profit
+        import logging
+        logger = logging.getLogger(__name__)
+
+        MAX_CONSECUTIVE_ERRORS = 30
+        consecutive_errors = 0
+        monitor_start = datetime.now()
+
         while not self._cancelled:
+            # Guard: timeout after max_monitor_seconds
+            elapsed = (datetime.now() - monitor_start).total_seconds()
+            if elapsed > self.max_monitor_seconds:
+                logger.warning(
+                    f"Bracket order {self.order_id} exceeded max monitor time "
+                    f"({self.max_monitor_seconds}s), cancelling"
+                )
+                self.status = OrderStatus.EXPIRED
+                return self._build_result(started_at, error="Monitoring timeout exceeded")
+
+            # Guard: too many consecutive price fetch failures
+            if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                logger.error(
+                    f"Bracket order {self.order_id} hit {MAX_CONSECUTIVE_ERRORS} "
+                    f"consecutive price fetch errors, aborting"
+                )
+                self.status = OrderStatus.FAILED
+                return self._build_result(started_at, error="Price monitoring failed repeatedly")
+
             try:
                 current_price = await self.exchange.get_ticker_price(self.asset)
+                consecutive_errors = 0  # Reset on success
 
                 # Check stop loss
                 if self.entry_side == OrderSide.BUY:
@@ -670,8 +698,12 @@ class BracketOrder:
                         self.exit_reason = "take_profit"
                         break
 
-            except Exception:
-                pass
+            except Exception as e:
+                consecutive_errors += 1
+                logger.warning(
+                    f"Bracket order {self.order_id} price fetch error "
+                    f"({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}): {e}"
+                )
 
             await asyncio.sleep(1)
 

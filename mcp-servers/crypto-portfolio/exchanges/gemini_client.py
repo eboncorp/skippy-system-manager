@@ -17,9 +17,12 @@ import os
 from datetime import datetime
 from decimal import Decimal
 from typing import Dict, List, Optional
+import logging
 import aiohttp
 
 from .base import ExchangeClient, Balance, StakingReward, Trade, OrderResult
+
+logger = logging.getLogger(__name__)
 
 
 class GeminiClient(ExchangeClient):
@@ -60,7 +63,8 @@ class GeminiClient(ExchangeClient):
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
     def _generate_signature(self, payload: dict) -> tuple:
@@ -104,7 +108,7 @@ class GeminiClient(ExchangeClient):
         async with session.post(url, headers=headers) as resp:
             if resp.status >= 400:
                 error_text = await resp.text()
-                print(f"Gemini API error ({resp.status}): {error_text}")
+                logger.error(f"Gemini API error ({resp.status}): {error_text}")
                 return None
             return await resp.json()
 
@@ -325,7 +329,7 @@ class GeminiClient(ExchangeClient):
             data = await self._private_request("/v1/earn/deposit", params)
             return data is not None
         except Exception as e:
-            print(f"Gemini Earn deposit failed: {e}")
+            logger.error(f"Gemini Earn deposit failed: {e}")
             return False
 
     async def unstake(self, asset: str, amount: Decimal) -> bool:
@@ -339,7 +343,7 @@ class GeminiClient(ExchangeClient):
             data = await self._private_request("/v1/earn/withdraw", params)
             return data is not None
         except Exception as e:
-            print(f"Gemini Earn withdrawal failed: {e}")
+            logger.error(f"Gemini Earn withdrawal failed: {e}")
             return False
 
     async def get_earn_rates(self) -> List[Dict]:

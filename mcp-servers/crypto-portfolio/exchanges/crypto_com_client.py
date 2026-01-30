@@ -16,9 +16,12 @@ import os
 from datetime import datetime
 from decimal import Decimal
 from typing import Dict, List, Optional
+import logging
 import aiohttp
 
 from .base import ExchangeClient, Balance, StakingReward, Trade, OrderResult
+
+logger = logging.getLogger(__name__)
 
 
 class CryptoComClient(ExchangeClient):
@@ -70,7 +73,8 @@ class CryptoComClient(ExchangeClient):
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
     def _get_request_id(self) -> int:
@@ -145,7 +149,7 @@ class CryptoComClient(ExchangeClient):
             if data.get("code") == 0:
                 return data.get("result", {})
             else:
-                print(f"Crypto.com API error: {data.get('code')} - {data.get('message')}")
+                logger.error(f"Crypto.com API error: {data.get('code')} - {data.get('message')}")
                 return None
 
     async def get_balances(self) -> Dict[str, Balance]:
@@ -208,7 +212,7 @@ class CryptoComClient(ExchangeClient):
                                 source="crypto_com",
                             ))
         except Exception as e:
-            print(f"Error fetching Crypto.com staking rewards: {e}")
+            logger.error(f"Error fetching Crypto.com staking rewards: {e}")
 
         return rewards
 
@@ -249,7 +253,7 @@ class CryptoComClient(ExchangeClient):
                         fee_asset=trade_data.get("fee_currency", "USDT"),
                     ))
         except Exception as e:
-            print(f"Error fetching Crypto.com trade history: {e}")
+            logger.error(f"Error fetching Crypto.com trade history: {e}")
 
         return trades
 
@@ -321,7 +325,7 @@ class CryptoComClient(ExchangeClient):
             data = await self._request("private/earn/subscribe", params)
             return data is not None
         except Exception as e:
-            print(f"Staking failed: {e}")
+            logger.error(f"Staking failed: {e}")
             return False
 
     async def unstake(self, asset: str, amount: Decimal) -> bool:
@@ -335,7 +339,7 @@ class CryptoComClient(ExchangeClient):
             data = await self._request("private/earn/unsubscribe", params)
             return data is not None
         except Exception as e:
-            print(f"Unstaking failed: {e}")
+            logger.error(f"Unstaking failed: {e}")
             return False
 
     async def get_earn_positions(self) -> List[Dict]:
@@ -345,7 +349,7 @@ class CryptoComClient(ExchangeClient):
             if data:
                 return data.get("subscriptions", [])
         except Exception as e:
-            print(f"Error fetching earn positions: {e}")
+            logger.error(f"Error fetching earn positions: {e}")
         return []
 
     async def close(self):

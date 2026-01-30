@@ -83,7 +83,8 @@ class DefiLlamaClient:
         if not AIOHTTP_AVAILABLE:
             raise ImportError("aiohttp required for async operations. Install with: pip install aiohttp")
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
     async def close(self):
@@ -155,7 +156,8 @@ class AaveTracker:
         if not AIOHTTP_AVAILABLE:
             raise ImportError("aiohttp required for async operations")
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
     async def close(self):
@@ -271,7 +273,8 @@ class UniswapTracker:
         if not AIOHTTP_AVAILABLE:
             raise ImportError("aiohttp required for async operations")
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
     async def close(self):
@@ -367,7 +370,8 @@ class LidoTracker:
         if not AIOHTTP_AVAILABLE:
             raise ImportError("aiohttp required for async operations")
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
     async def close(self):
@@ -459,7 +463,8 @@ class YearnTracker:
         if not AIOHTTP_AVAILABLE:
             raise ImportError("aiohttp required for async operations")
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
     async def close(self):
@@ -518,7 +523,8 @@ class SushiSwapTracker:
         if not AIOHTTP_AVAILABLE:
             raise ImportError("aiohttp required for async operations")
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
     async def close(self):
@@ -653,7 +659,8 @@ class ConvexTracker:
         if not AIOHTTP_AVAILABLE:
             raise ImportError("aiohttp required for async operations")
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
     async def close(self):
@@ -776,7 +783,8 @@ class MakerDAOTracker:
         if not AIOHTTP_AVAILABLE:
             raise ImportError("aiohttp required for async operations")
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
     async def close(self):

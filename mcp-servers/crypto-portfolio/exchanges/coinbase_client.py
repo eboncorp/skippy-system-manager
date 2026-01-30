@@ -12,9 +12,12 @@ import json
 from datetime import datetime
 from decimal import Decimal
 from typing import Dict, List, Optional
+import logging
 import aiohttp
 
 from .base import ExchangeClient, Balance, StakingReward, Trade, OrderResult
+
+logger = logging.getLogger(__name__)
 
 
 class CoinbaseClient(ExchangeClient):
@@ -27,12 +30,13 @@ class CoinbaseClient(ExchangeClient):
         self.api_key = api_key
         self.api_secret = api_secret
         self._session: Optional[aiohttp.ClientSession] = None
-    
+
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
-    
+
     def _sign_request(self, timestamp: str, method: str, path: str, body: str = "") -> str:
         """Generate signature for Coinbase API request."""
         message = timestamp + method.upper() + path + body
@@ -143,7 +147,7 @@ class CoinbaseClient(ExchangeClient):
                     
             except Exception as e:
                 # If endpoint not available, try alternative
-                print(f"Warning: Could not fetch staking rewards: {e}")
+                logger.warning(f"Could not fetch staking rewards: {e}")
                 break
         
         return rewards
@@ -186,7 +190,7 @@ class CoinbaseClient(ExchangeClient):
                     fee_asset="USD",
                 ))
         except Exception as e:
-            print(f"Warning: Could not fetch trade history: {e}")
+            logger.warning(f"Could not fetch trade history: {e}")
         
         return trades
     
@@ -253,8 +257,8 @@ class CoinbaseClient(ExchangeClient):
             return data.get("success", False)
         except Exception as e:
             # Staking API not available for this account type
-            print(f"Coinbase staking not available via API: {e}")
-            print("Please stake through the Coinbase app or website.")
+            logger.warning(f"Coinbase staking not available via API: {e}")
+            logger.info("Please stake through the Coinbase app or website.")
             return False
 
     async def unstake(self, asset: str, amount: Decimal) -> bool:
@@ -271,8 +275,8 @@ class CoinbaseClient(ExchangeClient):
             data = await self._request("POST", "/api/v3/brokerage/staking/unstake", body)
             return data.get("success", False)
         except Exception as e:
-            print(f"Coinbase unstaking not available via API: {e}")
-            print("Please unstake through the Coinbase app or website.")
+            logger.warning(f"Coinbase unstaking not available via API: {e}")
+            logger.info("Please unstake through the Coinbase app or website.")
             return False
 
     async def get_staking_balances(self) -> Dict[str, Balance]:
@@ -296,7 +300,7 @@ class CoinbaseClient(ExchangeClient):
                             staked=amount,
                         )
         except Exception as e:
-            print(f"Error fetching staking balances: {e}")
+            logger.error(f"Error fetching staking balances: {e}")
 
         return staked
     
@@ -324,12 +328,13 @@ class CoinbasePrimeClient(ExchangeClient):
         self.passphrase = passphrase
         self.portfolio_id = portfolio_id
         self._session: Optional[aiohttp.ClientSession] = None
-    
+
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
-    
+
     def _sign_request(self, timestamp: str, method: str, path: str, body: str = "") -> str:
         """Generate signature for Coinbase Prime API request."""
         message = timestamp + method.upper() + path + body
@@ -422,7 +427,7 @@ class CoinbasePrimeClient(ExchangeClient):
                     source="coinbase_prime",
                 ))
         except Exception as e:
-            print(f"Warning: Could not fetch staking rewards: {e}")
+            logger.warning(f"Could not fetch staking rewards: {e}")
         
         return rewards
     
@@ -465,7 +470,7 @@ class CoinbasePrimeClient(ExchangeClient):
                     fee_asset="USD",
                 ))
         except Exception as e:
-            print(f"Warning: Could not fetch trade history: {e}")
+            logger.warning(f"Could not fetch trade history: {e}")
         
         return trades
     
@@ -526,7 +531,7 @@ class CoinbasePrimeClient(ExchangeClient):
             )
             return True
         except Exception as e:
-            print(f"Staking failed: {e}")
+            logger.error(f"Staking failed: {e}")
             return False
     
     async def unstake(self, asset: str, amount: Decimal) -> bool:
@@ -544,7 +549,7 @@ class CoinbasePrimeClient(ExchangeClient):
             )
             return True
         except Exception as e:
-            print(f"Unstaking failed: {e}")
+            logger.error(f"Unstaking failed: {e}")
             return False
     
     async def close(self):

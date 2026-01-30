@@ -12,9 +12,12 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Dict, List, Optional
 from urllib.parse import urlencode
+import logging
 import aiohttp
 
 from .base import ExchangeClient, Balance, StakingReward, Trade, OrderResult
+
+logger = logging.getLogger(__name__)
 
 
 class BinanceClient(ExchangeClient):
@@ -41,7 +44,8 @@ class BinanceClient(ExchangeClient):
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
     def _sign_params(self, params: dict) -> dict:
@@ -80,6 +84,12 @@ class BinanceClient(ExchangeClient):
 
         if method == "GET":
             async with session.get(url, headers=headers, params=params) as resp:
+                data = await resp.json()
+                if resp.status >= 400:
+                    raise Exception(f"Binance API error: {data}")
+                return data
+        elif method == "DELETE":
+            async with session.delete(url, headers=headers, params=params) as resp:
                 data = await resp.json()
                 if resp.status >= 400:
                     raise Exception(f"Binance API error: {data}")
@@ -135,7 +145,7 @@ class BinanceClient(ExchangeClient):
 
             return positions
         except Exception as e:
-            print(f"Warning: Could not fetch staking positions: {e}")
+            logger.warning(f"Could not fetch staking positions: {e}")
             return {}
 
     async def get_staking_rewards(
@@ -171,7 +181,7 @@ class BinanceClient(ExchangeClient):
                     source="binance_simple_earn",
                 ))
         except Exception as e:
-            print(f"Warning: Could not fetch staking rewards: {e}")
+            logger.warning(f"Could not fetch staking rewards: {e}")
 
         return rewards
 
@@ -212,7 +222,7 @@ class BinanceClient(ExchangeClient):
                         fee_asset=trade["commissionAsset"],
                     ))
             except Exception as e:
-                print(f"Warning: Could not fetch trades for {symbol}: {e}")
+                logger.warning(f"Could not fetch trades for {symbol}: {e}")
 
         # Sort by timestamp
         trades.sort(key=lambda t: t.timestamp, reverse=True)
@@ -378,7 +388,7 @@ class BinanceClient(ExchangeClient):
             )
 
             if not products.get("rows"):
-                print(f"No Simple Earn product found for {asset}")
+                logger.warning(f"No Simple Earn product found for {asset}")
                 return False
 
             product_id = products["rows"][0]["productId"]
@@ -391,7 +401,7 @@ class BinanceClient(ExchangeClient):
             )
             return True
         except Exception as e:
-            print(f"Staking failed: {e}")
+            logger.error(f"Staking failed: {e}")
             return False
 
     async def unstake(self, asset: str, amount: Decimal) -> bool:
@@ -405,7 +415,7 @@ class BinanceClient(ExchangeClient):
             )
 
             if not positions.get("rows"):
-                print(f"No staking position found for {asset}")
+                logger.warning(f"No staking position found for {asset}")
                 return False
 
             product_id = positions["rows"][0]["productId"]
@@ -418,7 +428,7 @@ class BinanceClient(ExchangeClient):
             )
             return True
         except Exception as e:
-            print(f"Unstaking failed: {e}")
+            logger.error(f"Unstaking failed: {e}")
             return False
 
     async def get_24h_stats(self, asset: str) -> dict:
