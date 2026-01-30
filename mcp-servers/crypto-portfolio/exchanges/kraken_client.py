@@ -12,9 +12,12 @@ import urllib.parse
 from datetime import datetime
 from decimal import Decimal
 from typing import Dict, List, Optional
+import logging
 import aiohttp
 
 from .base import ExchangeClient, Balance, StakingReward, Trade, OrderResult
+
+logger = logging.getLogger(__name__)
 
 
 # Kraken uses different symbols than standard
@@ -66,7 +69,8 @@ class KrakenClient(ExchangeClient):
     
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
     
     def _sign_request(self, path: str, data: dict, nonce: str) -> str:
@@ -197,7 +201,7 @@ class KrakenClient(ExchangeClient):
                         source="kraken",
                     ))
         except Exception as e:
-            print(f"Warning: Could not fetch staking rewards: {e}")
+            logger.warning(f"Could not fetch staking rewards: {e}")
         
         return rewards
     
@@ -251,7 +255,7 @@ class KrakenClient(ExchangeClient):
                     fee_asset="USD",
                 ))
         except Exception as e:
-            print(f"Warning: Could not fetch trade history: {e}")
+            logger.warning(f"Could not fetch trade history: {e}")
         
         return trades
     
@@ -331,7 +335,7 @@ class KrakenClient(ExchangeClient):
             await self._request("POST", "/0/private/Stake", params, private=True)
             return True
         except Exception as e:
-            print(f"Staking failed: {e}")
+            logger.error(f"Staking failed: {e}")
             return False
     
     async def unstake(self, asset: str, amount: Decimal) -> bool:
@@ -345,7 +349,7 @@ class KrakenClient(ExchangeClient):
             await self._request("POST", "/0/private/Unstake", params, private=True)
             return True
         except Exception as e:
-            print(f"Unstaking failed: {e}")
+            logger.error(f"Unstaking failed: {e}")
             return False
     
     async def get_stakeable_assets(self) -> Dict[str, dict]:
@@ -354,7 +358,7 @@ class KrakenClient(ExchangeClient):
             data = await self._request("POST", "/0/private/Staking/Assets", private=True)
             return data
         except Exception as e:
-            print(f"Could not get stakeable assets: {e}")
+            logger.error(f"Could not get stakeable assets: {e}")
             return {}
     
     async def close(self):
