@@ -59,6 +59,13 @@ try:
 except ImportError:
     ONCHAIN_TRACKING_AVAILABLE = False
 
+# Startup validation and system status
+try:
+    from startup_validation import get_system_status, get_system_status_markdown, print_startup_report
+    STARTUP_VALIDATION_AVAILABLE = True
+except ImportError:
+    STARTUP_VALIDATION_AVAILABLE = False
+
 # Global instances for on-chain tracking
 _defi_tracker: Optional["DeFiTracker"] = None
 _onchain_manager: Optional["OnChainWalletManager"] = None
@@ -467,20 +474,47 @@ def format_datetime(dt: datetime) -> str:
 
 
 def handle_api_error(e: Exception, context: str = "") -> str:
-    """Consistent error formatting."""
+    """
+    Consistent error formatting with sanitization.
+
+    SECURITY: This function sanitizes error messages to prevent leaking
+    sensitive internal details (file paths, stack traces, credentials).
+    """
+    import logging
+    import re
+
     error_type = type(e).__name__
+    error_msg = str(e)
     context_str = f" while {context}" if context else ""
-    
-    if "authentication" in str(e).lower() or "api key" in str(e).lower():
+
+    # Log the full error internally for debugging
+    logging.error(f"API Error{context_str}: {error_type} - {error_msg}")
+
+    # Sanitize: remove potential sensitive data from error messages
+    # Remove file paths
+    sanitized_msg = re.sub(r'[/\\][\w/\\.-]+\.(py|json|env|key|pem)', '[path]', error_msg)
+    # Remove potential credentials/keys
+    sanitized_msg = re.sub(r'[a-zA-Z0-9]{20,}', '[redacted]', sanitized_msg)
+    # Remove IP addresses
+    sanitized_msg = re.sub(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', '[ip]', sanitized_msg)
+
+    # Return user-friendly messages for known error types
+    if "authentication" in error_msg.lower() or "api key" in error_msg.lower():
         return f"Error{context_str}: Authentication failed. Please verify your API keys are configured correctly in the .env file."
-    elif "rate limit" in str(e).lower():
+    elif "rate limit" in error_msg.lower():
         return f"Error{context_str}: Rate limit exceeded. Please wait a moment before retrying."
-    elif "timeout" in str(e).lower():
+    elif "timeout" in error_msg.lower():
         return f"Error{context_str}: Request timed out. The exchange may be experiencing high load."
-    elif "not found" in str(e).lower():
+    elif "not found" in error_msg.lower():
         return f"Error{context_str}: Resource not found. Please verify the identifier is correct."
+    elif "connection" in error_msg.lower():
+        return f"Error{context_str}: Connection failed. Please check your network and try again."
+    elif "permission" in error_msg.lower() or "forbidden" in error_msg.lower():
+        return f"Error{context_str}: Permission denied. Your API key may lack required permissions."
     else:
-        return f"Error{context_str}: {error_type} - {str(e)}"
+        # For unknown errors, return sanitized message (limit length)
+        truncated_msg = sanitized_msg[:100] + "..." if len(sanitized_msg) > 100 else sanitized_msg
+        return f"Error{context_str}: {error_type} - {truncated_msg}"
 
 
 # =============================================================================
@@ -647,8 +681,22 @@ async def app_lifespan(app):
     """Manage resources that persist across requests."""
     global _aggregator
 
+    # SECURITY: Default to paper trading mode for safety
+    # Live trading requires explicit TRADING_MODE=live environment variable
+    trading_mode = os.getenv("TRADING_MODE", "confirm").lower()
+    is_live = trading_mode == "live"
+
+    # If PAPER_TRADING is explicitly set to "false" AND TRADING_MODE is "live", allow live
+    # Otherwise default to paper/confirm mode for safety
+    paper_trading = True  # Safe default
+    if trading_mode == "live" and os.getenv("PAPER_TRADING", "true").lower() == "false":
+        paper_trading = False
+    elif os.getenv("PAPER_TRADING", "true").lower() == "true":
+        paper_trading = True
+
     config = {
-        "paper_trading": os.getenv("PAPER_TRADING", "false").lower() == "true",
+        "paper_trading": paper_trading,
+        "trading_mode": trading_mode,
         "exchanges_configured": [],
         "wallets_configured": [],
         "use_real_data": False
@@ -1775,6 +1823,72 @@ export OPENAI_API_KEY="your-api-key"
 
     except Exception as e:
         return handle_api_error(e, f"executing Cronos query on {params.chain.value}")
+
+
+# =============================================================================
+# SYSTEM STATUS TOOL
+# =============================================================================
+
+
+class SystemStatusInput(BaseModel):
+    """Input parameters for system status check."""
+    model_config = ConfigDict(extra="forbid")
+
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN,
+        description="Output format: 'markdown' for human-readable, 'json' for programmatic use"
+    )
+    include_tools: bool = Field(
+        default=False,
+        description="Include list of available MCP tools"
+    )
+
+
+@mcp.tool(
+    name="crypto_system_status",
+    annotations={
+        "title": "Get System Status",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+async def crypto_system_status(params: SystemStatusInput) -> str:
+    """Get comprehensive status of the crypto portfolio system.
+
+    Reports on:
+    - Available exchanges and their configuration status
+    - Feature availability (DeFi, staking, trading, etc.)
+    - Available MCP tools
+    - System warnings and errors
+    - Configuration recommendations
+
+    Use this tool to understand what capabilities are available and
+    diagnose configuration issues.
+
+    Args:
+        params (SystemStatusInput): Query parameters including:
+            - response_format (str): 'markdown' or 'json'
+            - include_tools (bool): Include tool availability list
+
+    Returns:
+        str: System status report in requested format
+    """
+    if not STARTUP_VALIDATION_AVAILABLE:
+        return "System validation module not available. Check startup_validation.py."
+
+    try:
+        if params.response_format == ResponseFormat.JSON:
+            status = get_system_status()
+            if not params.include_tools:
+                status.pop("tools", None)
+            return json.dumps(status, indent=2, default=str)
+        else:
+            return get_system_status_markdown()
+
+    except Exception as e:
+        return f"Error getting system status: {str(e)}"
 
 
 # =============================================================================

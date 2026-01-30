@@ -1159,6 +1159,345 @@ def register_tax_tools(mcp: FastMCP):
         }, indent=2)
 
 
+# =============================================================================
+# BACKTESTING AND SIGNAL ANALYSIS TOOLS
+# =============================================================================
+
+
+def register_backtesting_tools(mcp: FastMCP):
+    """Register backtesting and signal analysis tools."""
+
+    class BacktestInput(BaseModel):
+        """Input for running a backtest."""
+        model_config = ConfigDict(extra="forbid")
+
+        strategy: str = Field(
+            description="Strategy to test: 'dca', 'swing', 'mean_reversion', 'grid', 'rebalance'"
+        )
+        days: int = Field(
+            default=365,
+            ge=30,
+            le=1825,
+            description="Number of days to backtest (30-1825)"
+        )
+        initial_capital: float = Field(
+            default=10000.0,
+            ge=100,
+            description="Starting capital in USD"
+        )
+        asset: str = Field(
+            default="BTC",
+            description="Primary asset to test"
+        )
+
+    class SignalAnalysisInput(BaseModel):
+        """Input for signal analysis."""
+        model_config = ConfigDict(extra="forbid")
+
+        asset: str = Field(
+            default="BTC",
+            description="Asset to analyze (e.g., 'BTC', 'ETH')"
+        )
+        include_categories: bool = Field(
+            default=True,
+            description="Include breakdown by signal category"
+        )
+
+    class MonteCarloInput(BaseModel):
+        """Input for Monte Carlo simulation."""
+        model_config = ConfigDict(extra="forbid")
+
+        strategy: str = Field(
+            description="Strategy to simulate"
+        )
+        simulations: int = Field(
+            default=100,
+            ge=10,
+            le=1000,
+            description="Number of simulations (10-1000)"
+        )
+        days: int = Field(
+            default=365,
+            description="Days per simulation"
+        )
+
+    @mcp.tool(
+        name="crypto_run_backtest",
+        annotations={
+            "title": "Run Strategy Backtest",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": False,
+            "openWorldHint": True
+        }
+    )
+    async def crypto_run_backtest(params: BacktestInput) -> str:
+        """Run a historical backtest of a trading strategy.
+
+        Tests strategy performance against historical data and returns
+        comprehensive metrics including returns, Sharpe ratio, max drawdown.
+
+        Available strategies:
+        - dca: Signal-adjusted Dollar Cost Averaging (0.25x-3x multiplier)
+        - swing: Buy in fear, sell in greed
+        - mean_reversion: Buy below moving average, sell above
+        - grid: Ladder orders at fixed intervals
+        - rebalance: Maintain target allocation
+
+        Args:
+            params: Backtest parameters
+
+        Returns:
+            str: Backtest results with performance metrics
+        """
+        try:
+            from agents.backtester import run_strategy_backtest
+
+            result = await run_strategy_backtest(
+                strategy=params.strategy,
+                days=params.days,
+                initial_capital=params.initial_capital,
+                asset=params.asset
+            )
+
+            return json.dumps({
+                "strategy": params.strategy,
+                "asset": params.asset,
+                "period_days": params.days,
+                "initial_capital": params.initial_capital,
+                "metrics": {
+                    "final_value": result.metrics.final_value,
+                    "total_return_pct": result.metrics.total_return_pct,
+                    "sharpe_ratio": result.metrics.sharpe_ratio,
+                    "max_drawdown_pct": result.metrics.max_drawdown_pct,
+                    "win_rate": result.metrics.win_rate,
+                    "total_trades": result.metrics.total_trades,
+                    "profitable_trades": result.metrics.profitable_trades,
+                },
+                "benchmark_comparison": {
+                    "buy_and_hold_return": result.benchmark.buy_and_hold_return,
+                    "outperformance": result.metrics.total_return_pct - result.benchmark.buy_and_hold_return
+                }
+            }, indent=2)
+
+        except ImportError:
+            return json.dumps({
+                "error": "Backtesting module not available",
+                "suggestion": "Ensure agents/backtester.py is properly installed"
+            }, indent=2)
+        except Exception as e:
+            return json.dumps({"error": str(e)}, indent=2)
+
+    @mcp.tool(
+        name="crypto_signal_analysis",
+        annotations={
+            "title": "Analyze Market Signals",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": False,
+            "openWorldHint": True
+        }
+    )
+    async def crypto_signal_analysis(params: SignalAnalysisInput) -> str:
+        """Analyze market signals for an asset using 130+ indicators.
+
+        Signal categories include:
+        - Technical (RSI, MACD, Bollinger, etc.)
+        - Sentiment (Fear & Greed, social metrics)
+        - On-Chain (whale movements, exchange flows)
+        - Derivatives (funding rates, open interest)
+        - Macro (DXY, interest rates)
+        - Mining (hash rate, difficulty)
+        - Institutional (Grayscale, ETF flows)
+        - And more...
+
+        Returns composite score and DCA multiplier recommendation.
+
+        Args:
+            params: Analysis parameters
+
+        Returns:
+            str: Signal analysis with scores and recommendation
+        """
+        try:
+            from agents.unified_analyzer import UnifiedSignalAnalyzer
+
+            analyzer = UnifiedSignalAnalyzer()
+            try:
+                result = await analyzer.analyze(params.asset)
+            finally:
+                await analyzer.close()
+
+            response = {
+                "asset": params.asset,
+                "timestamp": datetime.now().isoformat(),
+                "composite_score": result.composite_score,
+                "market_regime": result.market_regime,
+                "recommendation": {
+                    "action": result.primary_recommendation.action,
+                    "dca_multiplier": result.primary_recommendation.dca_multiplier,
+                    "confidence": result.primary_recommendation.confidence,
+                    "reasoning": result.primary_recommendation.reasoning
+                },
+                "score_interpretation": {
+                    "range": "-100 to +100",
+                    "meaning": {
+                        "-100 to -60": "EXTREME FEAR → 3.0x DCA",
+                        "-60 to -40": "FEAR → 2.5x DCA",
+                        "-40 to -20": "MILD FEAR → 2.0x DCA",
+                        "-20 to 0": "SLIGHT FEAR → 1.5x DCA",
+                        "0 to 20": "NEUTRAL → 1.0x DCA",
+                        "20 to 40": "MILD GREED → 0.75x DCA",
+                        "40 to 60": "GREED → 0.5x DCA",
+                        "60 to 100": "EXTREME GREED → 0.25x DCA"
+                    }
+                }
+            }
+
+            if params.include_categories:
+                response["category_scores"] = {
+                    cat: {
+                        "score": score.value,
+                        "weight": score.weight,
+                        "signals_available": score.signals_available
+                    }
+                    for cat, score in result.category_scores.items()
+                }
+
+            return json.dumps(response, indent=2)
+
+        except ImportError:
+            return json.dumps({
+                "error": "Signal analysis module not available",
+                "suggestion": "Ensure agents/unified_analyzer.py is properly installed"
+            }, indent=2)
+        except Exception as e:
+            return json.dumps({"error": str(e)}, indent=2)
+
+    @mcp.tool(
+        name="crypto_monte_carlo",
+        annotations={
+            "title": "Monte Carlo Simulation",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": False,
+            "openWorldHint": True
+        }
+    )
+    async def crypto_monte_carlo(params: MonteCarloInput) -> str:
+        """Run Monte Carlo simulation for strategy robustness testing.
+
+        Runs multiple simulations with randomized market conditions
+        to estimate the distribution of possible outcomes.
+
+        Args:
+            params: Simulation parameters
+
+        Returns:
+            str: Statistical summary of simulation results
+        """
+        try:
+            from agents.backtester import run_monte_carlo_simulation
+
+            results = await run_monte_carlo_simulation(
+                strategy=params.strategy,
+                simulations=params.simulations,
+                days=params.days
+            )
+
+            return json.dumps({
+                "strategy": params.strategy,
+                "simulations": params.simulations,
+                "days_per_simulation": params.days,
+                "statistics": {
+                    "mean_return": results.mean_return,
+                    "median_return": results.median_return,
+                    "std_dev": results.std_dev,
+                    "best_case": results.percentile_95,
+                    "worst_case": results.percentile_5,
+                    "probability_profit": results.probability_profit,
+                    "probability_double": results.probability_double,
+                    "value_at_risk_95": results.var_95
+                },
+                "interpretation": {
+                    "risk_level": "High" if results.std_dev > 50 else "Medium" if results.std_dev > 25 else "Low",
+                    "recommendation": "Suitable for risk-tolerant investors" if results.probability_profit > 0.6 else "Consider lower risk strategy"
+                }
+            }, indent=2)
+
+        except ImportError:
+            return json.dumps({
+                "error": "Monte Carlo module not available",
+                "suggestion": "Ensure agents/backtester.py is properly installed"
+            }, indent=2)
+        except Exception as e:
+            return json.dumps({"error": str(e)}, indent=2)
+
+    class CompareStrategiesInput(BaseModel):
+        """Input for strategy comparison."""
+        model_config = ConfigDict(extra="forbid")
+
+        days: int = Field(
+            default=365,
+            ge=30,
+            le=1825,
+            description="Number of days to backtest (30-1825)"
+        )
+
+    @mcp.tool(
+        name="crypto_compare_strategies",
+        annotations={
+            "title": "Compare Trading Strategies",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": False,
+            "openWorldHint": True
+        }
+    )
+    async def crypto_compare_strategies(params: CompareStrategiesInput) -> str:
+        """Compare all available trading strategies over a time period.
+
+        Runs backtests for each strategy and ranks them by performance.
+
+        Args:
+            days: Number of days to backtest (default: 365)
+
+        Returns:
+            str: Comparison table of strategy performance
+        """
+        try:
+            from agents.backtester import compare_all_strategies
+
+            results = await compare_all_strategies(days=params.days)
+
+            strategies = []
+            for name, metrics in results.items():
+                strategies.append({
+                    "strategy": name,
+                    "return_pct": metrics.total_return_pct,
+                    "sharpe_ratio": metrics.sharpe_ratio,
+                    "max_drawdown": metrics.max_drawdown_pct,
+                    "win_rate": metrics.win_rate
+                })
+
+            # Sort by Sharpe ratio
+            strategies.sort(key=lambda x: x["sharpe_ratio"], reverse=True)
+
+            return json.dumps({
+                "period_days": params.days,
+                "strategies_ranked": strategies,
+                "recommendation": strategies[0]["strategy"] if strategies else None,
+                "note": "Rankings based on risk-adjusted returns (Sharpe ratio)"
+            }, indent=2)
+
+        except ImportError:
+            return json.dumps({
+                "error": "Strategy comparison module not available"
+            }, indent=2)
+        except Exception as e:
+            return json.dumps({"error": str(e)}, indent=2)
+
+
 def register_all_additional_tools(mcp: FastMCP):
     """Register all additional tools with the MCP server."""
     register_trading_tools(mcp)
@@ -1168,3 +1507,4 @@ def register_all_additional_tools(mcp: FastMCP):
     register_market_data_tools(mcp)
     register_nft_tools(mcp)
     register_tax_tools(mcp)
+    register_backtesting_tools(mcp)
