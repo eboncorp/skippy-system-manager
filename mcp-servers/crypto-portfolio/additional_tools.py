@@ -1323,8 +1323,10 @@ def register_backtesting_tools(mcp: FastMCP):
             from agents.unified_analyzer import UnifiedSignalAnalyzer
 
             analyzer = UnifiedSignalAnalyzer()
-            result = await analyzer.analyze(params.asset)
-            await analyzer.close()
+            try:
+                result = await analyzer.analyze(params.asset)
+            finally:
+                await analyzer.close()
 
             response = {
                 "asset": params.asset,
@@ -1431,6 +1433,17 @@ def register_backtesting_tools(mcp: FastMCP):
         except Exception as e:
             return json.dumps({"error": str(e)}, indent=2)
 
+    class CompareStrategiesInput(BaseModel):
+        """Input for strategy comparison."""
+        model_config = ConfigDict(extra="forbid")
+
+        days: int = Field(
+            default=365,
+            ge=30,
+            le=1825,
+            description="Number of days to backtest (30-1825)"
+        )
+
     @mcp.tool(
         name="crypto_compare_strategies",
         annotations={
@@ -1441,7 +1454,7 @@ def register_backtesting_tools(mcp: FastMCP):
             "openWorldHint": True
         }
     )
-    async def crypto_compare_strategies(days: int = 365) -> str:
+    async def crypto_compare_strategies(params: CompareStrategiesInput) -> str:
         """Compare all available trading strategies over a time period.
 
         Runs backtests for each strategy and ranks them by performance.
@@ -1455,7 +1468,7 @@ def register_backtesting_tools(mcp: FastMCP):
         try:
             from agents.backtester import compare_all_strategies
 
-            results = await compare_all_strategies(days=days)
+            results = await compare_all_strategies(days=params.days)
 
             strategies = []
             for name, metrics in results.items():
@@ -1471,7 +1484,7 @@ def register_backtesting_tools(mcp: FastMCP):
             strategies.sort(key=lambda x: x["sharpe_ratio"], reverse=True)
 
             return json.dumps({
-                "period_days": days,
+                "period_days": params.days,
                 "strategies_ranked": strategies,
                 "recommendation": strategies[0]["strategy"] if strategies else None,
                 "note": "Rankings based on risk-adjusted returns (Sharpe ratio)"
