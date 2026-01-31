@@ -707,6 +707,8 @@ async def app_lifespan(app):
         try:
             _aggregator = PortfolioAggregator()
             config["exchanges_configured"] = list(_aggregator.exchanges.keys())
+            config["wallets_configured"] = list(_aggregator.wallets.keys()) if _aggregator.wallets else []
+            config["manual_sources_configured"] = list(_aggregator.manual_holdings.keys()) if _aggregator.manual_holdings else []
             config["use_real_data"] = len(_aggregator.exchanges) > 0
         except Exception as e:
             print(f"Warning: Failed to initialize portfolio aggregator: {e}")
@@ -769,7 +771,7 @@ async def crypto_portfolio_summary(params: PortfolioSummaryInput) -> str:
     try:
         # Use real data if aggregator is available
         if _aggregator and _aggregator.exchanges:
-            raw_data = _aggregator.get_combined_portfolio()
+            raw_data = await _aggregator.get_combined_portfolio()
 
             if params.response_format == ResponseFormat.JSON:
                 raw_data['data_source'] = 'live'
@@ -778,19 +780,34 @@ async def crypto_portfolio_summary(params: PortfolioSummaryInput) -> str:
             # Format real data as markdown
             total_value = raw_data.get('total_value_usd', 0)
             total_staked = raw_data.get('total_staked_usd', 0)
+            wallets_total = raw_data.get('wallets_total_usd', 0)
+            manual_total = raw_data.get('manual_total_usd', 0)
+
+            # Count data sources
+            num_exchanges = len(raw_data.get('exchanges', {}))
+            num_wallets = len(raw_data.get('wallets', {}))
+            num_manual = len(raw_data.get('manual_sources', {}))
+            source_parts = []
+            if num_exchanges:
+                source_parts.append(f"{num_exchanges} exchanges")
+            if num_wallets:
+                source_parts.append(f"{num_wallets} wallets")
+            if num_manual:
+                source_parts.append(f"{num_manual} manual sources")
+            source_desc = ", ".join(source_parts) if source_parts else "no sources"
 
             md = f"""# Portfolio Summary (LIVE DATA)
 
 **Last Updated:** {raw_data.get('timestamp', datetime.utcnow().isoformat())}
-**Data Source:** Live from {len(raw_data.get('exchanges', {}))} exchanges
+**Data Source:** Live from {source_desc}
 
 ## Total Value
 - **Portfolio Value:** {format_currency(total_value)}
 - **Total Staked:** {format_currency(total_staked)}
 
 ## Top Holdings by Asset
-| Asset | Total Amount | Value (USD) | Exchanges |
-|-------|--------------|-------------|-----------|
+| Asset | Total Amount | Value (USD) | Sources |
+|-------|--------------|-------------|---------|
 """
             # Show top 15 assets
             for asset in raw_data.get('assets_summary', [])[:15]:
@@ -799,9 +816,8 @@ async def crypto_portfolio_summary(params: PortfolioSummaryInput) -> str:
                 total_val = asset.get('total_value_usd', 0)
                 if total_val < 0.01:
                     continue
-                exchanges = ", ".join([e.get('exchange', '')[:8] for e in asset.get('exchanges', [])])
-                allocation = (total_val / total_value * 100) if total_value > 0 else 0
-                md += f"| {currency} | {total_bal:.6f} | {format_currency(total_val)} | {exchanges} |\n"
+                sources = ", ".join([e.get('exchange', '')[:10] for e in asset.get('exchanges', [])])
+                md += f"| {currency} | {total_bal:.6f} | {format_currency(total_val)} | {sources} |\n"
 
             md += f"""
 ## Holdings by Exchange
@@ -814,6 +830,37 @@ async def crypto_portfolio_summary(params: PortfolioSummaryInput) -> str:
                 count = len(ex_data.get('holdings', []))
                 staked = ex_data.get('total_staked_usd', 0)
                 md += f"| {name} | {format_currency(value)} | {count} | {format_currency(staked)} |\n"
+
+            # On-chain wallets section
+            wallets_data = raw_data.get('wallets', {})
+            if wallets_data:
+                md += f"""
+## On-Chain Wallets ({format_currency(wallets_total)})
+| Wallet | Value (USD) | Tokens |
+|--------|-------------|--------|
+"""
+                for label, w_data in wallets_data.items():
+                    w_value = w_data.get('total_value_usd', 0)
+                    w_count = len(w_data.get('holdings', []))
+                    if w_data.get('error'):
+                        md += f"| {label} | Error | - |\n"
+                    else:
+                        md += f"| {label} | {format_currency(w_value)} | {w_count} |\n"
+
+            # Manual holdings section
+            manual_data = raw_data.get('manual_sources', {})
+            if manual_data:
+                md += f"""
+## Manual Holdings ({format_currency(manual_total)})
+| Source | Value (USD) | Assets | Last Updated |
+|--------|-------------|--------|--------------|
+"""
+                for src_id, m_data in manual_data.items():
+                    m_label = m_data.get('label', src_id)
+                    m_value = m_data.get('total_value_usd', 0)
+                    m_count = len(m_data.get('holdings', []))
+                    m_updated = m_data.get('last_updated', 'unknown')
+                    md += f"| {m_label} | {format_currency(m_value)} | {m_count} | {m_updated} |\n"
 
             if params.include_staking and total_staked > 0:
                 md += f"\n## Staking Summary\n- **Total Staked:** {format_currency(total_staked)}\n"
@@ -894,7 +941,7 @@ async def crypto_exchange_holdings(params: ExchangeHoldingsInput) -> str:
     try:
         # Use real data if aggregator is available
         if _aggregator and _aggregator.exchanges:
-            raw_data = _aggregator.get_combined_portfolio()
+            raw_data = await _aggregator.get_combined_portfolio()
 
             # Filter by exchange if specified
             if params.exchange != Exchange.ALL:
@@ -1004,7 +1051,7 @@ async def crypto_staking_positions(params: StakingPositionsInput) -> str:
     try:
         # Use real data if aggregator is available
         if _aggregator and _aggregator.exchanges:
-            raw_data = _aggregator.get_combined_portfolio()
+            raw_data = await _aggregator.get_combined_portfolio()
 
             # Extract staking positions from holdings
             staking_positions = []
