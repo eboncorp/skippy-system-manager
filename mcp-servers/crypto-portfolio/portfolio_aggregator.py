@@ -33,10 +33,10 @@ class PortfolioAggregator:
         coinbase_key = os.path.expanduser("~/.config/coinbase/cdp_api_key.json")
         if os.path.exists(coinbase_key):
             try:
-                from coinbase_client import create_coinbase_client
+                from exchanges import CoinbaseClient
                 self.exchanges['coinbase'] = {
                     'name': 'Coinbase',
-                    'client': create_coinbase_client(cdp_key_file=coinbase_key),
+                    'client': CoinbaseClient.from_env() if hasattr(CoinbaseClient, 'from_env') else None,
                     'enabled': True,
                 }
             except Exception as e:
@@ -46,10 +46,10 @@ class PortfolioAggregator:
         gti_key = os.path.expanduser("~/.config/coinbase/gti_cdp_api_key.json")
         if os.path.exists(gti_key):
             try:
-                from coinbase_client import create_coinbase_client
+                from exchanges import CoinbaseClient
                 self.exchanges['coinbase_gti'] = {
                     'name': 'Coinbase GTI',
-                    'client': create_coinbase_client(cdp_key_file=gti_key),
+                    'client': CoinbaseClient.from_env() if hasattr(CoinbaseClient, 'from_env') else None,
                     'enabled': True,
                 }
             except Exception as e:
@@ -59,10 +59,10 @@ class PortfolioAggregator:
         crypto_com_key = os.path.expanduser("~/.config/crypto_com/api_key.json")
         if os.path.exists(crypto_com_key):
             try:
-                from crypto_com_client import create_crypto_com_client
+                from exchanges import CryptoComClient
                 self.exchanges['crypto_com'] = {
                     'name': 'Crypto.com Exchange',
-                    'client': create_crypto_com_client(key_file=crypto_com_key),
+                    'client': CryptoComClient.from_env(),
                     'enabled': True,
                 }
             except Exception as e:
@@ -72,10 +72,10 @@ class PortfolioAggregator:
         kraken_key = os.path.expanduser("~/.config/kraken/api_key.json")
         if os.path.exists(kraken_key):
             try:
-                from kraken_client import create_kraken_client
+                from exchanges import KrakenClient
                 self.exchanges['kraken'] = {
                     'name': 'Kraken',
-                    'client': create_kraken_client(key_file=kraken_key),
+                    'client': KrakenClient.from_env() if hasattr(KrakenClient, 'from_env') else None,
                     'enabled': True,
                 }
             except Exception as e:
