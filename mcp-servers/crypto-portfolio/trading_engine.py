@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple
 from dataclasses import dataclass, field
 
-from coinbase_client import CoinbaseClient
+from exchanges import CoinbaseClient
 from config import TradingConfig, TradingMode, SafetyLimits
 
 

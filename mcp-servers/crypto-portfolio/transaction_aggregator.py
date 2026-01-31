@@ -32,31 +32,31 @@ class TransactionAggregator:
         coinbase_key = os.getenv("COINBASE_API_KEY")
         coinbase_secret = os.getenv("COINBASE_API_SECRET")
         if coinbase_key and coinbase_secret:
-            from coinbase_client import CoinbaseClient
+            from exchanges import CoinbaseClient
             self.clients["coinbase"] = CoinbaseClient(coinbase_key, coinbase_secret)
             logger.info("Coinbase client initialized")
-        
+
         # Kraken
         kraken_key = os.getenv("KRAKEN_API_KEY")
         kraken_secret = os.getenv("KRAKEN_API_SECRET")
         if kraken_key and kraken_secret:
-            from kraken_client import KrakenClient
+            from exchanges import KrakenClient
             self.clients["kraken"] = KrakenClient(kraken_key, kraken_secret)
             logger.info("Kraken client initialized")
-        
+
         # Crypto.com
         cryptocom_key = os.getenv("CRYPTOCOM_API_KEY")
         cryptocom_secret = os.getenv("CRYPTOCOM_API_SECRET")
         if cryptocom_key and cryptocom_secret:
-            from cryptocom_client import CryptoComClient
+            from exchanges import CryptoComClient
             self.clients["cryptocom"] = CryptoComClient(cryptocom_key, cryptocom_secret)
             logger.info("Crypto.com client initialized")
-        
+
         # Gemini
         gemini_key = os.getenv("GEMINI_API_KEY")
         gemini_secret = os.getenv("GEMINI_API_SECRET")
         if gemini_key and gemini_secret:
-            from gemini_client import GeminiClient
+            from exchanges import GeminiClient
             self.clients["gemini"] = GeminiClient(gemini_key, gemini_secret)
             logger.info("Gemini client initialized")
     

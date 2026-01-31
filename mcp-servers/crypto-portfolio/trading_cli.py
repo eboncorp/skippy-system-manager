@@ -29,7 +29,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-from coinbase_client import CoinbaseClient
+from exchanges import CoinbaseClient
 from portfolio_analyzer import PortfolioAnalyzer
 from trading_engine import TradingEngine
 from rebalancer import Rebalancer

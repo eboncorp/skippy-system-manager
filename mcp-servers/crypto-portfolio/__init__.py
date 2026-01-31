@@ -3,7 +3,7 @@ Crypto Portfolio Manager
 ========================
 
 A comprehensive cryptocurrency portfolio management system with:
-- Multi-exchange support (Coinbase, Kraken, Binance, Crypto.com, Gemini)
+- Multi-exchange support (Coinbase, Kraken, Binance, Crypto.com, Gemini, OKX)
 - Tax loss harvesting detection and optimization
 - Portfolio optimization using Modern Portfolio Theory
 - AI-powered analysis and predictions
@@ -51,7 +51,10 @@ from exchanges import (
     BinanceUSClient,
     CoinbaseClient,
     CoinbasePrimeClient,
+    CryptoComClient,
+    GeminiClient,
     KrakenClient,
+    OKXClient,
 )
 
 __all__ = [
@@ -83,5 +86,8 @@ __all__ = [
     "BinanceUSClient",
     "CoinbaseClient",
     "CoinbasePrimeClient",
+    "CryptoComClient",
+    "GeminiClient",
     "KrakenClient",
+    "OKXClient",
 ]

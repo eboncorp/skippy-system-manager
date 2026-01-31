@@ -6,6 +6,7 @@ from .kraken_client import KrakenClient
 from .binance_client import BinanceClient, BinanceUSClient
 from .crypto_com_client import CryptoComClient
 from .gemini_client import GeminiClient
+from .okx_client import OKXClient
 
 __all__ = [
     "ExchangeClient",
@@ -13,11 +14,12 @@ __all__ = [
     "StakingReward",
     "Trade",
     "OrderResult",
-    "CoinbaseClient",
-    "CoinbasePrimeClient",
-    "KrakenClient",
     "BinanceClient",
     "BinanceUSClient",
+    "CoinbaseClient",
+    "CoinbasePrimeClient",
     "CryptoComClient",
     "GeminiClient",
+    "KrakenClient",
+    "OKXClient",
 ]

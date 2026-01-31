@@ -13,10 +13,7 @@ from unittest.mock import Mock, patch, MagicMock
 import sys
 sys.path.insert(0, '..')
 
-from coinbase_client import CoinbaseClient
-from kraken_client import KrakenClient
-from cryptocom_client import CryptoComClient
-from gemini_client import GeminiClient
+from exchanges import CoinbaseClient, KrakenClient, CryptoComClient, GeminiClient
 
 
 # ==================== COINBASE TESTS ====================
