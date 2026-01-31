@@ -26,33 +26,31 @@ class PortfolioAnalyzer:
     
     def _init_clients(self):
         """Initialize available exchange clients."""
+        from exchanges import CoinbaseClient, KrakenClient, CryptoComClient, GeminiClient
+
         # Coinbase
         if os.getenv("COINBASE_API_KEY"):
-            from coinbase_client import CoinbaseClient
             self.clients["coinbase"] = CoinbaseClient(
                 os.getenv("COINBASE_API_KEY"),
                 os.getenv("COINBASE_API_SECRET")
             )
-        
+
         # Kraken
         if os.getenv("KRAKEN_API_KEY"):
-            from kraken_client import KrakenClient
             self.clients["kraken"] = KrakenClient(
                 os.getenv("KRAKEN_API_KEY"),
                 os.getenv("KRAKEN_API_SECRET")
             )
-        
+
         # Crypto.com
         if os.getenv("CRYPTOCOM_API_KEY"):
-            from cryptocom_client import CryptoComClient
             self.clients["cryptocom"] = CryptoComClient(
                 os.getenv("CRYPTOCOM_API_KEY"),
                 os.getenv("CRYPTOCOM_API_SECRET")
             )
-        
+
         # Gemini
         if os.getenv("GEMINI_API_KEY"):
-            from gemini_client import GeminiClient
             self.clients["gemini"] = GeminiClient(
                 os.getenv("GEMINI_API_KEY"),
                 os.getenv("GEMINI_API_SECRET")

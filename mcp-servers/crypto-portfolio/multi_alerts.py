@@ -130,10 +130,7 @@ class MultiExchangeAlertMonitor:
     
     def _init_clients(self):
         """Initialize exchange clients."""
-        from coinbase_client import CoinbaseClient
-        from kraken_client import KrakenClient
-        from cryptocom_client import CryptoComClient
-        from gemini_client import GeminiClient
+        from exchanges import CoinbaseClient, KrakenClient, CryptoComClient, GeminiClient
         
         if os.getenv("COINBASE_API_KEY"):
             self.clients["coinbase"] = CoinbaseClient(

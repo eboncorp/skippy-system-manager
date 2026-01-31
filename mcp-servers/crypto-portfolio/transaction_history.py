@@ -19,10 +19,7 @@ from enum import Enum
 from dotenv import load_dotenv
 
 # Import exchange clients
-from coinbase_client import CoinbaseClient
-from kraken_client import KrakenClient
-from cryptocom_client import CryptoComClient
-from gemini_client import GeminiClient
+from exchanges import CoinbaseClient, KrakenClient, CryptoComClient, GeminiClient
 
 
 class CostBasisMethod(Enum):

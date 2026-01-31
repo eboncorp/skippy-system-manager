@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Callable
 from dataclasses import dataclass
 from enum import Enum
 
-from coinbase_client import CoinbaseClient
+from exchanges import CoinbaseClient
 from trading_engine import TradingEngine, TradeRecord
 from config import TradingConfig, AlertConfig
 

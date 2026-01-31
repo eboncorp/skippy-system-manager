@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-from coinbase_client import CoinbaseClient
+from exchanges import CoinbaseClient
 from trading_engine import TradingEngine, TradeRecord
 from config import TradingConfig, RebalanceConfig
 

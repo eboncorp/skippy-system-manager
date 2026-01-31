@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
 
-from coinbase_client import CoinbaseClient
+from exchanges import CoinbaseClient
 from trading_engine import TradingEngine, TradeRecord
 from config import TradingConfig, DCAConfig
 
