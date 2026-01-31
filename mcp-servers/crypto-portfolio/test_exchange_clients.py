@@ -7,7 +7,8 @@ import pytest
 import responses
 import json
 from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
+from decimal import Decimal
+from unittest.mock import AsyncMock, Mock, patch, MagicMock
 
 # Import clients
 import sys
@@ -163,74 +164,47 @@ class TestKrakenClient:
         assert client.BASE_URL == "https://api.kraken.com"
     
     def test_symbol_normalization(self, client):
-        """Test symbol conversion to Kraken format."""
-        assert client._normalize_symbol("BTC") == "XBT"
-        assert client._normalize_symbol("DOGE") == "XDG"
-        assert client._normalize_symbol("ETH") == "ETH"  # Unchanged
-    
+        """Test symbol conversion from Kraken to standard format."""
+        from exchanges.kraken_client import normalize_symbol, to_kraken_symbol
+        assert to_kraken_symbol("BTC") == "XBT"
+        assert to_kraken_symbol("ETH") == "ETH"  # Unchanged
+
     def test_symbol_denormalization(self, client):
         """Test Kraken symbol back to common format."""
-        assert client._denormalize_symbol("XBT") == "BTC"
-        assert client._denormalize_symbol("XXBT") == "BTC"  # With X prefix
-        assert client._denormalize_symbol("ETH") == "ETH"
+        from exchanges.kraken_client import normalize_symbol
+        assert normalize_symbol("XBT") == "BTC"
+        assert normalize_symbol("XXBT") == "BTC"  # With X prefix
+        assert normalize_symbol("ETH") == "ETH"
     
-    @responses.activate
-    def test_get_server_time(self, client):
-        """Test server time endpoint (connectivity test)."""
-        responses.add(
-            responses.GET,
-            "https://api.kraken.com/0/public/Time",
-            json={
-                "error": [],
-                "result": {
-                    "unixtime": 1234567890,
-                    "rfc1123": "Mon, 13 Feb 2009 23:31:30 +0000"
-                }
-            },
-            status=200
-        )
-        
-        result = client.get_server_time()
-        
-        assert result is not None
-        assert "unixtime" in result
-    
-    @responses.activate
-    def test_get_spot_price(self, client):
-        """Test spot price retrieval."""
-        responses.add(
-            responses.GET,
-            "https://api.kraken.com/0/public/Ticker",
-            json={
-                "error": [],
-                "result": {
-                    "XXBTZUSD": {
-                        "c": ["45000.00", "0.1"]  # Last trade [price, volume]
-                    }
-                }
-            },
-            status=200
-        )
-        
-        price = client.get_spot_price("BTC", "USD")
-        
-        assert price == 45000.00
-    
-    def test_staked_asset_detection(self, client):
-        """Test detection of staked assets (.S suffix)."""
-        with patch.object(client, '_private_request') as mock_request:
+    @pytest.mark.asyncio
+    async def test_get_ticker_price(self, client):
+        """Test ticker price retrieval via async get_ticker_price."""
+        with patch.object(client, '_request', new_callable=AsyncMock) as mock_request:
             mock_request.return_value = {
-                "ETH": "5.0",
-                "ETH.S": "10.0",  # Staked ETH
-                "XBT": "1.0"
+                "XXBTZUSD": {
+                    "c": ["45000.00", "0.1"]
+                }
             }
-            
-            accounts = client.get_accounts()
-            
-            # Find staked ETH
-            staked = [a for a in accounts if "Staked" in a["currency"]]
-            assert len(staked) == 1
-            assert staked[0]["is_staked"] == True
+
+            price = await client.get_ticker_price("BTC")
+
+            assert price == Decimal("45000.00")
+
+    @pytest.mark.asyncio
+    async def test_staked_asset_detection(self, client):
+        """Test detection of staked assets (.S suffix) via get_balances."""
+        with patch.object(client, '_request', new_callable=AsyncMock) as mock_request:
+            mock_request.return_value = {
+                "XETH": "5.0",
+                "ETH.S": "10.0",
+                "XXBT": "1.0"
+            }
+
+            balances = await client.get_balances()
+
+            assert "ETH" in balances
+            assert balances["ETH"].staked == Decimal("10.0")
+            assert balances["ETH"].available == Decimal("5.0")
 
 
 # ==================== CRYPTO.COM TESTS ====================
@@ -279,38 +253,32 @@ class TestGeminiClient:
         client = GeminiClient("test_key", "test_secret", sandbox=True)
         assert client.BASE_URL == "https://api.sandbox.gemini.com"
     
-    @responses.activate
-    def test_get_spot_price(self, client):
-        """Test spot price retrieval."""
-        responses.add(
-            responses.GET,
-            "https://api.gemini.com/v1/pubticker/btcusd",
-            json={
+    @pytest.mark.asyncio
+    async def test_get_ticker_price(self, client):
+        """Test ticker price retrieval via async get_ticker_price."""
+        with patch.object(client, '_public_request', new_callable=AsyncMock) as mock_request:
+            mock_request.return_value = {
                 "last": "45000.00",
                 "bid": "44999.00",
                 "ask": "45001.00"
-            },
-            status=200
-        )
-        
-        price = client.get_spot_price("BTC", "USD")
-        
-        assert price == 45000.00
-    
-    @responses.activate
-    def test_list_products(self, client):
-        """Test product listing."""
-        responses.add(
-            responses.GET,
-            "https://api.gemini.com/v1/symbols",
-            json=["btcusd", "ethusd", "solusd"],
-            status=200
-        )
-        
-        products = client.list_products()
-        
-        assert len(products) == 3
-        assert any(p["product_id"] == "btcusd" for p in products)
+            }
+
+            price = await client.get_ticker_price("BTC")
+
+            assert price == Decimal("45000.00")
+
+    @pytest.mark.asyncio
+    async def test_get_open_orders(self, client):
+        """Test open orders retrieval."""
+        with patch.object(client, '_private_request', new_callable=AsyncMock) as mock_request:
+            mock_request.return_value = [
+                {"order_id": "123", "symbol": "btcusd", "side": "buy", "price": "45000.00"},
+            ]
+
+            orders = await client.get_open_orders()
+
+            assert len(orders) == 1
+            assert orders[0]["order_id"] == "123"
 
 
 # ==================== INTEGRATION TESTS ====================
