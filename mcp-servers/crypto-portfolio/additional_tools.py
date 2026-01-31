@@ -1508,3 +1508,6 @@ def register_all_additional_tools(mcp: FastMCP):
     register_nft_tools(mcp)
     register_tax_tools(mcp)
     register_backtesting_tools(mcp)
+
+    from risk_analytics import register_risk_analytics_tools
+    register_risk_analytics_tools(mcp)
