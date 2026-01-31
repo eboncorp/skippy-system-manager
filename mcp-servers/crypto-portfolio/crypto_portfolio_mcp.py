@@ -712,12 +712,18 @@ async def app_lifespan(app):
             print(f"Warning: Failed to initialize portfolio aggregator: {e}")
             _aggregator = None
 
-    # Fallback: Check environment variables
+    # Fallback: Check environment variables and key files
     if not config["exchanges_configured"]:
         for exchange in SUPPORTED_EXCHANGES:
             key_var = f"{exchange.upper().replace('.', '_')}_API_KEY"
             if os.getenv(key_var):
                 config["exchanges_configured"].append(exchange)
+
+        # Check for Kraken key files if not already detected
+        if "kraken" not in config["exchanges_configured"]:
+            kraken_dir = Path.home() / ".config" / "kraken"
+            if kraken_dir.is_dir() and any(kraken_dir.glob("*_api_key.json")):
+                config["exchanges_configured"].append("kraken")
 
     yield {"config": config}
 
@@ -893,9 +899,13 @@ async def crypto_exchange_holdings(params: ExchangeHoldingsInput) -> str:
             # Filter by exchange if specified
             if params.exchange != Exchange.ALL:
                 exchange_key = params.exchange.value.replace('.', '_')
-                if exchange_key not in raw_data.get('exchanges', {}):
+                # Match exact key or sub-accounts (e.g. "kraken" matches "kraken_business", "kraken_personal")
+                exchanges_data = {
+                    k: v for k, v in raw_data.get('exchanges', {}).items()
+                    if k == exchange_key or k.startswith(exchange_key + "_")
+                }
+                if not exchanges_data:
                     return f"Exchange '{params.exchange.value}' not configured or has no holdings."
-                exchanges_data = {exchange_key: raw_data['exchanges'][exchange_key]}
             else:
                 exchanges_data = raw_data.get('exchanges', {})
 
@@ -1006,7 +1016,7 @@ async def crypto_staking_positions(params: StakingPositionsInput) -> str:
                 # Filter by exchange if specified
                 if params.exchange != Exchange.ALL:
                     exchange_key = params.exchange.value.replace('.', '_')
-                    if ex_id != exchange_key:
+                    if ex_id != exchange_key and not ex_id.startswith(exchange_key + "_"):
                         continue
 
                 for h in ex_data.get('holdings', []):
