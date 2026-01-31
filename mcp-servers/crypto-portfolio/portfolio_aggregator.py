@@ -68,18 +68,31 @@ class PortfolioAggregator:
             except Exception as e:
                 print(f"Failed to init Crypto.com: {e}")
 
-        # Kraken
-        kraken_key = os.path.expanduser("~/.config/kraken/api_key.json")
-        if os.path.exists(kraken_key):
+        # Kraken Business
+        kraken_biz_key = os.path.expanduser("~/.config/kraken/business_api_key.json")
+        if os.path.exists(kraken_biz_key):
             try:
                 from exchanges import KrakenClient
-                self.exchanges['kraken'] = {
-                    'name': 'Kraken',
-                    'client': KrakenClient.from_env() if hasattr(KrakenClient, 'from_env') else None,
+                self.exchanges['kraken_business'] = {
+                    'name': 'Kraken (Business)',
+                    'client': KrakenClient.from_key_file(kraken_biz_key),
                     'enabled': True,
                 }
             except Exception as e:
-                print(f"Failed to init Kraken: {e}")
+                print(f"Failed to init Kraken Business: {e}")
+
+        # Kraken Personal
+        kraken_personal_key = os.path.expanduser("~/.config/kraken/personal_api_key.json")
+        if os.path.exists(kraken_personal_key):
+            try:
+                from exchanges import KrakenClient
+                self.exchanges['kraken_personal'] = {
+                    'name': 'Kraken (Personal)',
+                    'client': KrakenClient.from_key_file(kraken_personal_key),
+                    'enabled': True,
+                }
+            except Exception as e:
+                print(f"Failed to init Kraken Personal: {e}")
 
     def get_exchange_summary(self, exchange_id: str) -> Optional[Dict[str, Any]]:
         """Get portfolio summary for a single exchange."""

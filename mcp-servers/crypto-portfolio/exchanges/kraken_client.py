@@ -4,9 +4,11 @@ Kraken API client.
 Supports trading, staking, and account management.
 """
 
+import json
 import hmac
 import hashlib
 import base64
+import os
 import time
 import urllib.parse
 from datetime import datetime
@@ -66,6 +68,17 @@ class KrakenClient(ExchangeClient):
         self.api_key = api_key
         self.api_secret = api_secret
         self._session: Optional[aiohttp.ClientSession] = None
+
+    @classmethod
+    def from_key_file(cls, key_file: str) -> "KrakenClient":
+        """Create client from a JSON key file.
+
+        Args:
+            key_file: Path to JSON file containing 'api_key' and 'api_secret'.
+        """
+        with open(os.path.expanduser(key_file)) as f:
+            data = json.load(f)
+        return cls(api_key=data["api_key"], api_secret=data["api_secret"])
     
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
