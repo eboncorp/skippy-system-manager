@@ -103,6 +103,46 @@ _aggregator: Optional["PortfolioAggregator"] = None
 # Global transaction history instance (initialized in lifespan)
 _transaction_history: Optional["TransactionHistory"] = None
 
+# Infrastructure modules (optional, initialized in lifespan)
+try:
+    from cache import CacheManager
+    CACHE_AVAILABLE = True
+except ImportError:
+    CACHE_AVAILABLE = False
+
+try:
+    from notifications import NotificationManager
+    NOTIFICATIONS_AVAILABLE = True
+except ImportError:
+    NOTIFICATIONS_AVAILABLE = False
+
+try:
+    from monitoring import MetricsCollector, HealthChecker
+    MONITORING_AVAILABLE = True
+except ImportError:
+    MONITORING_AVAILABLE = False
+
+try:
+    from jobs import JobScheduler, JobPriority
+    JOBS_AVAILABLE = True
+except ImportError:
+    JOBS_AVAILABLE = False
+
+WEBSOCKET_FEEDS_AVAILABLE = False
+try:
+    from websocket_feeds import PriceFeedManager
+    WEBSOCKET_FEEDS_AVAILABLE = True
+except ImportError:
+    pass
+
+# Global infrastructure instances
+_cache = None
+_notification_manager = None
+_metrics = None
+_health_checker = None
+_scheduler = None
+_price_feeds = None
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -882,7 +922,159 @@ async def app_lifespan(app):
             print(f"Warning: Failed to initialize transaction history: {e}")
             _transaction_history = None
 
+    # --- Infrastructure wiring ---
+
+    # Initialize cache (Redis with in-memory fallback)
+    global _cache
+    if CACHE_AVAILABLE:
+        try:
+            _cache = CacheManager()
+            await _cache.connect()
+            backend_type = "redis" if hasattr(_cache.backend, 'redis') and _cache.backend.redis else "memory"
+            config["cache_backend"] = backend_type
+        except Exception as e:
+            print(f"Warning: Failed to initialize cache: {e}")
+            _cache = None
+
+    # Initialize notification manager
+    global _notification_manager
+    if NOTIFICATIONS_AVAILABLE:
+        try:
+            _notification_manager = NotificationManager()
+            config["notification_channels"] = _notification_manager.get_configured_channels()
+        except Exception as e:
+            print(f"Warning: Failed to initialize notifications: {e}")
+            _notification_manager = None
+
+    # Initialize metrics and health checker
+    global _metrics, _health_checker
+    if MONITORING_AVAILABLE:
+        try:
+            _metrics = MetricsCollector()
+            _health_checker = HealthChecker()
+
+            # Register health checks
+            _health_checker.register("portfolio_aggregator", lambda: _aggregator is not None)
+            _health_checker.register("cache", lambda: _cache is not None)
+            _health_checker.register("transaction_history", lambda: _transaction_history is not None)
+            config["monitoring_enabled"] = True
+        except Exception as e:
+            print(f"Warning: Failed to initialize monitoring: {e}")
+
+    # Initialize background job scheduler
+    global _scheduler
+    import asyncio as _asyncio
+    if JOBS_AVAILABLE:
+        try:
+            _scheduler = JobScheduler(max_concurrent=5)
+
+            @_scheduler.job("portfolio_snapshot", interval=300)
+            async def _snapshot_portfolio():
+                if _aggregator:
+                    data = await _aggregator.get_combined_portfolio()
+                    if _cache:
+                        await _cache.set_portfolio(data)
+                    return {"total_value": data.get("total_value_usd", 0)}
+                return {"skipped": "no aggregator"}
+
+            @_scheduler.job("alert_check", interval=60, priority=JobPriority.HIGH)
+            async def _check_alerts():
+                return {"checked": 0, "triggered": 0}
+
+            # Start scheduler as non-blocking background task
+            async def _run_scheduler():
+                try:
+                    await _scheduler.start()
+                except (asyncio.CancelledError, Exception) as e:
+                    if not isinstance(e, asyncio.CancelledError):
+                        print(f"Scheduler error: {e}")
+
+            _asyncio.create_task(_run_scheduler())
+            config["scheduler_jobs"] = len(_scheduler.jobs)
+        except Exception as e:
+            print(f"Warning: Failed to initialize job scheduler: {e}")
+            _scheduler = None
+
+    # Initialize WebSocket price feeds (opt-in)
+    global _price_feeds
+    if WEBSOCKET_FEEDS_AVAILABLE and os.getenv("PRICE_FEEDS_ENABLED", "false").lower() == "true":
+        try:
+            _price_feeds = PriceFeedManager(exchanges=["coinbase"])
+
+            async def _on_price_update(update):
+                if _cache:
+                    await _cache.set_price(update.symbol, float(update.price))
+
+            _price_feeds.subscribe("BTC-USD", _on_price_update)
+            _price_feeds.subscribe("ETH-USD", _on_price_update)
+            _asyncio.create_task(_price_feeds.start())
+            config["price_feeds_enabled"] = True
+        except Exception as e:
+            print(f"Warning: Failed to initialize price feeds: {e}")
+            _price_feeds = None
+
+    # Optionally start web dashboard alongside MCP server
+    dashboard_server = None
+    if os.getenv("DASHBOARD_ENABLED", "false").lower() == "true":
+        try:
+            from web_dashboard import create_dashboard_app
+            import uvicorn
+
+            dashboard_port = int(os.getenv("DASHBOARD_PORT", "8080"))
+            dashboard = create_dashboard_app(
+                portfolio_manager=_aggregator,
+                transaction_history=_transaction_history,
+                etf_manager=GTIVirtualETF() if ETF_AVAILABLE else None,
+                notification_manager=_notification_manager,
+                cache_manager=_cache,
+                metrics_collector=_metrics,
+                health_checker=_health_checker,
+                job_scheduler=_scheduler,
+            )
+            dashboard_config = uvicorn.Config(
+                dashboard,
+                host="0.0.0.0",
+                port=dashboard_port,
+                log_level="warning",
+            )
+            dashboard_server = uvicorn.Server(dashboard_config)
+
+            _asyncio.create_task(dashboard_server.serve())
+            config["dashboard_enabled"] = True
+            config["dashboard_port"] = dashboard_port
+            print(f"Dashboard started at http://localhost:{dashboard_port}")
+        except Exception as e:
+            print(f"Warning: Failed to start dashboard: {e}")
+            config["dashboard_enabled"] = False
+
     yield {"config": config}
+
+    # --- Shutdown ---
+
+    # Stop price feeds
+    if _price_feeds is not None:
+        try:
+            await _price_feeds.stop()
+        except Exception:
+            pass
+
+    # Stop job scheduler
+    if _scheduler is not None:
+        try:
+            await _scheduler.stop()
+        except Exception:
+            pass
+
+    # Disconnect cache
+    if _cache is not None:
+        try:
+            await _cache.disconnect()
+        except Exception:
+            pass
+
+    # Shutdown dashboard if running
+    if dashboard_server is not None:
+        dashboard_server.should_exit = True
 
 
 mcp = FastMCP("crypto_portfolio_mcp", lifespan=app_lifespan)

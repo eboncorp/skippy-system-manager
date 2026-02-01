@@ -13,9 +13,8 @@ from typing import Dict, List, Optional
 
 # FastAPI and related imports
 try:
-    from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
-    from fastapi.responses import HTMLResponse, JSONResponse
-    from fastapi.staticfiles import StaticFiles
+    from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+    from fastapi.responses import HTMLResponse
     from fastapi.middleware.cors import CORSMiddleware
     from pydantic import BaseModel
     FASTAPI_AVAILABLE = True
@@ -357,6 +356,137 @@ DASHBOARD_HTML = """
         .page { display: none; }
         .page.active { display: block; }
 
+        /* Score gauge */
+        .score-gauge {
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .gauge-value {
+            font-size: 3rem;
+            font-weight: 700;
+        }
+
+        .gauge-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Category bars */
+        .category-bar {
+            margin-bottom: 0.75rem;
+        }
+
+        .category-bar-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .category-bar-track {
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .category-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        /* Filter bar */
+        .filter-bar {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-bar select, .filter-bar input {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .pagination button {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        .pagination .page-info {
+            display: flex;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Chart canvas containers */
+        .chart-wrapper {
+            position: relative;
+            height: 280px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Recommendation card */
+        .rec-card {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-top: 1rem;
+        }
+
+        .rec-action {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .rec-multiplier {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Two-column layout */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 900px) {
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .dashboard {
@@ -370,6 +500,7 @@ DASHBOARD_HTML = """
             }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="dashboard">
@@ -407,6 +538,36 @@ DASHBOARD_HTML = """
                 </svg>
                 Tax Tools
             </a>
+            <a class="nav-item" data-page="signals">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 20h.01"></path>
+                    <path d="M7 20v-4"></path>
+                    <path d="M12 20v-8"></path>
+                    <path d="M17 20V8"></path>
+                    <path d="M22 4v16"></path>
+                </svg>
+                Signals
+            </a>
+            <a class="nav-item" data-page="history">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12,6 12,12 16,14"></polyline>
+                </svg>
+                History
+            </a>
+            <a class="nav-item" data-page="etf">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                </svg>
+                ETF Manager
+            </a>
+            <a class="nav-item" data-page="trade">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23,6 13.5,15.5 8.5,10.5 1,18"></polyline>
+                    <polyline points="17,6 23,6 23,12"></polyline>
+                </svg>
+                Trade
+            </a>
             <a class="nav-item" data-page="alerts">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -420,6 +581,14 @@ DASHBOARD_HTML = """
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                 </svg>
                 Settings
+            </a>
+            <a class="nav-item" data-page="system">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+                System
             </a>
         </nav>
 
@@ -632,11 +801,282 @@ DASHBOARD_HTML = """
                 </div>
             </div>
 
+            <!-- Signals Page -->
+            <div id="page-signals" class="page">
+                <div class="filter-bar">
+                    <select id="signal-asset-select" onchange="Dashboard.loadSignals()">
+                        <option value="BTC">Bitcoin (BTC)</option>
+                        <option value="ETH">Ethereum (ETH)</option>
+                        <option value="SOL">Solana (SOL)</option>
+                        <option value="AVAX">Avalanche (AVAX)</option>
+                        <option value="LINK">Chainlink (LINK)</option>
+                        <option value="DOT">Polkadot (DOT)</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="Dashboard.loadSignals()">Analyze</button>
+                </div>
+
+                <div class="two-col">
+                    <div class="card">
+                        <div class="card-title">Composite Score</div>
+                        <div class="score-gauge">
+                            <div class="gauge-value" id="signal-score">--</div>
+                            <div class="gauge-label" id="signal-score-label">Select an asset to analyze</div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Recommendation</div>
+                        <div class="rec-card">
+                            <div class="rec-action" id="signal-action">--</div>
+                            <div class="rec-multiplier" id="signal-multiplier">DCA Multiplier: --</div>
+                            <div style="margin-top: 0.75rem; color: var(--text-secondary); font-size: 0.875rem;" id="signal-reasoning">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 1rem;">
+                    <div class="card-title">Signal Categories (<span id="signal-count">0</span> signals)</div>
+                    <div id="signal-categories" style="margin-top: 0.75rem;">
+                        <p style="color: var(--text-secondary);">Click Analyze to load signal data</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Page -->
+            <div id="page-history" class="page">
+                <div class="filter-bar">
+                    <select id="history-exchange-filter" onchange="Dashboard.loadHistory()">
+                        <option value="">All Exchanges</option>
+                    </select>
+                    <select id="history-asset-filter" onchange="Dashboard.loadHistory()">
+                        <option value="">All Assets</option>
+                    </select>
+                    <select id="history-type-filter" onchange="Dashboard.loadHistory()">
+                        <option value="">All Types</option>
+                        <option value="buy">Buy</option>
+                        <option value="sell">Sell</option>
+                        <option value="transfer">Transfer</option>
+                        <option value="staking_reward">Staking Reward</option>
+                    </select>
+                </div>
+
+                <div class="card-grid" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="card">
+                        <div class="card-title">Total Transactions</div>
+                        <div class="card-value" id="history-total">0</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Total Volume</div>
+                        <div class="card-value" id="history-volume">$0.00</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Showing</div>
+                        <div class="card-value" id="history-showing">0</div>
+                    </div>
+                </div>
+
+                <div class="holdings-section">
+                    <div class="section-header">Transaction History</div>
+                    <table class="holdings-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Exchange</th>
+                                <th>Asset</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-body">
+                            <tr><td colspan="7" style="text-align:center; color: var(--text-secondary);">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <button id="history-prev" onclick="Dashboard.historyPrev()" disabled>Previous</button>
+                    <span class="page-info" id="history-page-info">Page 1</span>
+                    <button id="history-next" onclick="Dashboard.historyNext()">Next</button>
+                </div>
+            </div>
+
+            <!-- ETF Manager Page -->
+            <div id="page-etf" class="page">
+                <div class="card-grid">
+                    <div class="card">
+                        <div class="card-title">ETF NAV</div>
+                        <div class="card-value" id="etf-nav">$0.00</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Assets</div>
+                        <div class="card-value" id="etf-assets-count">0</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">War Chest</div>
+                        <div class="card-value" id="etf-war-chest">$0.00</div>
+                        <div class="card-change" id="etf-war-chest-pct">0%</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Fear & Greed</div>
+                        <div class="card-value" id="etf-fear-greed">--</div>
+                        <div class="card-change" id="etf-fg-rule">--</div>
+                    </div>
+                </div>
+
+                <div class="two-col">
+                    <div class="chart-wrapper">
+                        <canvas id="etf-allocation-chart"></canvas>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Category Breakdown</div>
+                        <div id="etf-categories" style="margin-top: 0.75rem;"></div>
+                    </div>
+                </div>
+
+                <div class="holdings-section" style="margin-top: 1rem;">
+                    <div class="section-header">Allocation Details</div>
+                    <table class="holdings-table">
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th>Category</th>
+                                <th>Target %</th>
+                                <th>Current %</th>
+                                <th>Drift</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody id="etf-alloc-body">
+                            <tr><td colspan="6" style="text-align:center; color: var(--text-secondary);">Loading ETF data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Trade Page -->
+            <div id="page-trade" class="page">
+                <div class="card-grid">
+                    <div class="card">
+                        <h3 style="margin-bottom: 1rem;">Paper Trade</h3>
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <select id="trade-asset" style="background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.5rem;">
+                                <option value="BTC">BTC</option>
+                                <option value="ETH">ETH</option>
+                                <option value="SOL">SOL</option>
+                            </select>
+                            <input type="number" id="trade-amount" placeholder="Amount (USD)" style="background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.5rem;">
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="btn btn-primary" style="flex:1; background: var(--accent-green);" onclick="Dashboard.submitTrade('buy')">Buy</button>
+                                <button class="btn btn-primary" style="flex:1; background: var(--accent-red);" onclick="Dashboard.submitTrade('sell')">Sell</button>
+                            </div>
+                        </div>
+                        <p style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--text-secondary);">Paper trading only - no real orders placed</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">DCA Status</div>
+                        <div id="trade-dca-status" style="margin-top: 0.5rem; color: var(--text-secondary);">
+                            No active DCA bots configured
+                        </div>
+                    </div>
+                </div>
+
+                <div class="holdings-section" style="margin-top: 1rem;">
+                    <div class="section-header">Recent Paper Trades</div>
+                    <table class="holdings-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Asset</th>
+                                <th>Side</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trade-history-body">
+                            <tr><td colspan="5" style="text-align:center; color: var(--text-secondary);">No paper trades yet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Settings Page -->
             <div id="page-settings" class="page">
                 <div class="card">
                     <h3 style="margin-bottom: 1rem;">Dashboard Settings</h3>
                     <p style="color: var(--text-secondary);">Settings will be available here.</p>
+                </div>
+            </div>
+
+            <!-- System Page -->
+            <div id="page-system" class="page">
+                <div class="stats-grid">
+                    <div class="card">
+                        <div class="card-label">Cache Backend</div>
+                        <div class="card-value" id="sys-cache-backend">--</div>
+                        <div class="card-change" id="sys-cache-hit-rate">Hit rate: --</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label">Active Jobs</div>
+                        <div class="card-value" id="sys-active-jobs">--</div>
+                        <div class="card-change" id="sys-jobs-success">Success rate: --</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label">API Requests</div>
+                        <div class="card-value" id="sys-api-requests">--</div>
+                        <div class="card-change" id="sys-api-errors">Errors: --</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label">Uptime</div>
+                        <div class="card-value" id="sys-uptime">--</div>
+                        <div class="card-change" id="sys-version">--</div>
+                    </div>
+                </div>
+
+                <!-- Health Checks -->
+                <div class="card" style="margin-bottom: 1rem;">
+                    <h3 style="margin-bottom: 1rem;">Health Checks</h3>
+                    <div id="sys-health-checks" style="display: grid; gap: 0.5rem;">
+                        <p style="color: var(--text-secondary);">Loading health checks...</p>
+                    </div>
+                </div>
+
+                <!-- Job Scheduler -->
+                <div class="card" style="margin-bottom: 1rem;">
+                    <h3 style="margin-bottom: 1rem;">Job Scheduler</h3>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Job Name</th>
+                                    <th>Interval</th>
+                                    <th>Last Run</th>
+                                    <th>Next Run</th>
+                                    <th>Runs</th>
+                                    <th>Failures</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sys-jobs-body">
+                                <tr><td colspan="7" style="text-align: center; color: var(--text-secondary);">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Notification Channels -->
+                <div class="card" style="margin-bottom: 1rem;">
+                    <h3 style="margin-bottom: 1rem;">Notification Channels</h3>
+                    <div id="sys-notification-channels" style="display: grid; gap: 0.5rem;">
+                        <p style="color: var(--text-secondary);">Loading channels...</p>
+                    </div>
+                </div>
+
+                <!-- Cache Stats -->
+                <div class="card">
+                    <h3 style="margin-bottom: 1rem;">Cache Statistics</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;" id="sys-cache-details">
+                        <p style="color: var(--text-secondary);">Loading cache stats...</p>
+                    </div>
                 </div>
             </div>
         </main>
@@ -682,10 +1122,33 @@ DASHBOARD_HTML = """
                     holdings: 'Holdings',
                     analysis: 'Portfolio Analysis',
                     tax: 'Tax Tools',
+                    signals: 'Signal Analysis',
+                    history: 'Transaction History',
+                    etf: 'GTI Virtual ETF',
+                    trade: 'Paper Trading',
                     alerts: 'Alerts',
-                    settings: 'Settings'
+                    settings: 'Settings',
+                    system: 'System Status'
                 };
                 document.getElementById('page-title').textContent = titles[pageId] || pageId;
+
+                // Load page-specific data on first visit
+                if (pageId === 'history' && !this._historyLoaded) {
+                    this.loadHistory();
+                    this._historyLoaded = true;
+                }
+                if (pageId === 'etf' && !this._etfLoaded) {
+                    this.loadETF();
+                    this._etfLoaded = true;
+                }
+                if (pageId === 'tax' && !this._taxLoaded) {
+                    this.loadTax();
+                    this._taxLoaded = true;
+                }
+                if (pageId === 'system' && !this._systemLoaded) {
+                    this.loadSystem();
+                    this._systemLoaded = true;
+                }
             },
 
             connectWebSocket() {
@@ -933,8 +1396,582 @@ DASHBOARD_HTML = """
                 }
             },
 
+            // ---- Signals page ----
+
+            async loadSignals() {
+                const asset = document.getElementById('signal-asset-select').value;
+                document.getElementById('signal-score').textContent = '...';
+                document.getElementById('signal-score-label').textContent = 'Analyzing ' + asset + '...';
+
+                try {
+                    const res = await fetch('/api/signals/' + encodeURIComponent(asset));
+                    if (!res.ok) throw new Error('Failed');
+                    const data = await res.json();
+
+                    if (data.error) {
+                        document.getElementById('signal-score').textContent = 'N/A';
+                        document.getElementById('signal-score-label').textContent = data.error;
+                        return;
+                    }
+
+                    const score = data.composite_score;
+                    const scoreEl = document.getElementById('signal-score');
+                    scoreEl.textContent = score.toFixed(1);
+                    scoreEl.className = 'gauge-value ' + (score > 20 ? 'negative' : score < -20 ? 'positive' : '');
+
+                    let label = 'Neutral';
+                    if (score <= -60) label = 'Extreme Fear';
+                    else if (score <= -40) label = 'Fear';
+                    else if (score <= -20) label = 'Mild Fear';
+                    else if (score <= 0) label = 'Slight Fear';
+                    else if (score <= 20) label = 'Neutral';
+                    else if (score <= 40) label = 'Mild Greed';
+                    else if (score <= 60) label = 'Greed';
+                    else label = 'Extreme Greed';
+                    document.getElementById('signal-score-label').textContent = label;
+
+                    document.getElementById('signal-action').textContent = data.recommendation?.action || '--';
+                    document.getElementById('signal-multiplier').textContent =
+                        'DCA Multiplier: ' + (data.recommendation?.dca_multiplier?.toFixed(2) || '--') + 'x';
+                    document.getElementById('signal-reasoning').textContent =
+                        data.recommendation?.reasoning || '';
+                    document.getElementById('signal-count').textContent = data.signal_count || 0;
+
+                    // Render category bars (data is from our own API - safe numeric values)
+                    const catDiv = document.getElementById('signal-categories');
+                    this._renderCategoryBars(catDiv, data.categories);
+                } catch (e) {
+                    document.getElementById('signal-score').textContent = 'Error';
+                    document.getElementById('signal-score-label').textContent = 'Failed to load signal data';
+                    console.error('Signal load error:', e);
+                }
+            },
+
+            _renderCategoryBars(container, categories) {
+                while (container.firstChild) container.removeChild(container.firstChild);
+                if (!categories) return;
+
+                Object.entries(categories).forEach(([name, cat]) => {
+                    const avg = cat.average_score || 0;
+                    const pct = Math.min(100, Math.max(0, (avg + 100) / 2));
+                    const color = avg < -20 ? 'var(--accent-green)' : avg > 20 ? 'var(--accent-red)' : 'var(--accent-blue)';
+
+                    const bar = document.createElement('div');
+                    bar.className = 'category-bar';
+
+                    const header = document.createElement('div');
+                    header.className = 'category-bar-header';
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = name + ' (' + cat.count + ')';
+                    const valSpan = document.createElement('span');
+                    valSpan.textContent = (avg > 0 ? '+' : '') + avg.toFixed(1);
+                    header.appendChild(nameSpan);
+                    header.appendChild(valSpan);
+
+                    const track = document.createElement('div');
+                    track.className = 'category-bar-track';
+                    const fill = document.createElement('div');
+                    fill.className = 'category-bar-fill';
+                    fill.style.width = pct + '%';
+                    fill.style.background = color;
+                    track.appendChild(fill);
+
+                    bar.appendChild(header);
+                    bar.appendChild(track);
+                    container.appendChild(bar);
+                });
+            },
+
+            // ---- History page ----
+
+            _historyOffset: 0,
+            _historyLimit: 50,
+            _historyTotal: 0,
+            _historyLoaded: false,
+
+            async loadHistory() {
+                const exchange = document.getElementById('history-exchange-filter').value;
+                const asset = document.getElementById('history-asset-filter').value;
+                const txType = document.getElementById('history-type-filter').value;
+
+                const params = new URLSearchParams({
+                    limit: this._historyLimit,
+                    offset: this._historyOffset,
+                });
+                if (exchange) params.set('exchange', exchange);
+                if (asset) params.set('asset', asset);
+                if (txType) params.set('tx_type', txType);
+
+                try {
+                    const res = await fetch('/api/history?' + params);
+                    if (!res.ok) throw new Error('Failed');
+                    const data = await res.json();
+
+                    this._historyTotal = data.total;
+                    document.getElementById('history-total').textContent = data.total;
+                    document.getElementById('history-showing').textContent = data.transactions.length;
+
+                    let volume = 0;
+                    const tbody = document.getElementById('history-body');
+                    while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+
+                    if (data.transactions.length === 0) {
+                        const row = tbody.insertRow();
+                        const cell = row.insertCell();
+                        cell.colSpan = 7;
+                        cell.style.textAlign = 'center';
+                        cell.style.color = 'var(--text-secondary)';
+                        cell.textContent = 'No transactions found';
+                    } else {
+                        data.transactions.forEach(tx => {
+                            const totalUsd = parseFloat(tx.total_usd) || 0;
+                            volume += Math.abs(totalUsd);
+                            const row = tbody.insertRow();
+                            const cells = [
+                                new Date(tx.timestamp).toLocaleDateString(),
+                                tx.exchange,
+                                tx.asset,
+                                tx.tx_type,
+                                parseFloat(tx.amount).toFixed(6),
+                                this.formatCurrency(tx.price_usd),
+                                this.formatCurrency(totalUsd),
+                            ];
+                            cells.forEach((text, i) => {
+                                const cell = row.insertCell();
+                                cell.textContent = text;
+                                if (i === 3) {
+                                    cell.className = tx.tx_type === 'buy' ? 'positive' : tx.tx_type === 'sell' ? 'negative' : '';
+                                }
+                            });
+                        });
+                    }
+                    document.getElementById('history-volume').textContent = this.formatCurrency(volume);
+
+                    const page = Math.floor(this._historyOffset / this._historyLimit) + 1;
+                    const totalPages = Math.ceil(this._historyTotal / this._historyLimit) || 1;
+                    document.getElementById('history-page-info').textContent = 'Page ' + page + ' of ' + totalPages;
+                    document.getElementById('history-prev').disabled = this._historyOffset === 0;
+                    document.getElementById('history-next').disabled = this._historyOffset + this._historyLimit >= this._historyTotal;
+                } catch (e) {
+                    console.error('History load error:', e);
+                }
+            },
+
+            historyPrev() {
+                this._historyOffset = Math.max(0, this._historyOffset - this._historyLimit);
+                this.loadHistory();
+            },
+
+            historyNext() {
+                this._historyOffset += this._historyLimit;
+                this.loadHistory();
+            },
+
+            // ---- ETF page ----
+
+            _etfLoaded: false,
+            _etfChart: null,
+
+            async loadETF() {
+                try {
+                    const res = await fetch('/api/etf/status');
+                    if (!res.ok) throw new Error('Failed');
+                    const data = await res.json();
+
+                    if (!data.available) {
+                        document.getElementById('etf-nav').textContent = 'N/A';
+                        document.getElementById('etf-assets-count').textContent = data.error || 'Not available';
+                        return;
+                    }
+
+                    document.getElementById('etf-nav').textContent = this.formatCurrency(data.nav_usd);
+                    document.getElementById('etf-assets-count').textContent = data.assets_count;
+                    document.getElementById('etf-war-chest').textContent = this.formatCurrency(data.war_chest_usd);
+                    document.getElementById('etf-war-chest-pct').textContent = data.war_chest_pct.toFixed(1) + '%';
+                    document.getElementById('etf-fear-greed').textContent = data.fear_greed;
+                    document.getElementById('etf-fg-rule').textContent = data.war_chest_rule;
+
+                    // Category breakdown bars
+                    const catDiv = document.getElementById('etf-categories');
+                    this._renderETFCategories(catDiv, data.categories);
+
+                    // Allocation table
+                    this._renderETFAllocTable(data.allocations);
+
+                    // Donut chart
+                    this.renderETFChart(data);
+                } catch (e) {
+                    console.error('ETF load error:', e);
+                }
+            },
+
+            _renderETFCategories(container, categories) {
+                while (container.firstChild) container.removeChild(container.firstChild);
+                if (!categories) return;
+
+                Object.entries(categories).forEach(([name, cat]) => {
+                    const current = parseFloat(cat.current_pct) || 0;
+                    const target = parseFloat(cat.target_pct) || 0;
+                    const drift = parseFloat(cat.drift_pct) || 0;
+                    const color = drift > 2 ? 'var(--accent-red)' : drift < -2 ? 'var(--accent-green)' : 'var(--accent-blue)';
+
+                    const bar = document.createElement('div');
+                    bar.className = 'category-bar';
+
+                    const header = document.createElement('div');
+                    header.className = 'category-bar-header';
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = name + ' (' + cat.assets + ')';
+                    const valSpan = document.createElement('span');
+                    valSpan.textContent = current.toFixed(1) + '% / ' + target + '% (' + (drift > 0 ? '+' : '') + drift.toFixed(1) + '%)';
+                    header.appendChild(nameSpan);
+                    header.appendChild(valSpan);
+
+                    const track = document.createElement('div');
+                    track.className = 'category-bar-track';
+                    const fill = document.createElement('div');
+                    fill.className = 'category-bar-fill';
+                    fill.style.width = current + '%';
+                    fill.style.background = color;
+                    track.appendChild(fill);
+
+                    bar.appendChild(header);
+                    bar.appendChild(track);
+                    container.appendChild(bar);
+                });
+            },
+
+            _renderETFAllocTable(allocations) {
+                const tbody = document.getElementById('etf-alloc-body');
+                while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+
+                if (!allocations || allocations.length === 0) {
+                    const row = tbody.insertRow();
+                    const cell = row.insertCell();
+                    cell.colSpan = 6;
+                    cell.style.textAlign = 'center';
+                    cell.style.color = 'var(--text-secondary)';
+                    cell.textContent = 'No allocation data';
+                    return;
+                }
+
+                allocations
+                    .sort((a, b) => Math.abs(b.drift_pct) - Math.abs(a.drift_pct))
+                    .forEach(a => {
+                        const row = tbody.insertRow();
+                        const driftClass = a.drift_pct > 2 ? 'negative' : a.drift_pct < -2 ? 'positive' : '';
+                        const cells = [
+                            a.symbol + (a.is_locked ? ' (locked)' : ''),
+                            a.category,
+                            a.target_pct.toFixed(1) + '%',
+                            a.current_pct.toFixed(1) + '%',
+                            (a.drift_pct > 0 ? '+' : '') + a.drift_pct.toFixed(1) + '%',
+                            this.formatCurrency(a.current_value_usd),
+                        ];
+                        cells.forEach((text, i) => {
+                            const cell = row.insertCell();
+                            cell.textContent = text;
+                            if (i === 4) cell.className = driftClass;
+                        });
+                    });
+            },
+
+            renderETFChart(data) {
+                if (typeof Chart === 'undefined' || !data.categories) return;
+
+                const canvas = document.getElementById('etf-allocation-chart');
+                if (!canvas) return;
+
+                if (this._etfChart) this._etfChart.destroy();
+
+                const labels = Object.keys(data.categories);
+                const values = labels.map(k => parseFloat(data.categories[k].value_usd) || 0);
+                const colors = [
+                    '#58a6ff', '#3fb950', '#d29922', '#f85149',
+                    '#bc8cff', '#f778ba', '#79c0ff', '#56d364',
+                    '#e3b341', '#ff7b72', '#d2a8ff', '#db61a2'
+                ];
+
+                this._etfChart = new Chart(canvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: colors.slice(0, labels.length),
+                            borderColor: '#161b22',
+                            borderWidth: 2,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { color: '#8b949e', font: { size: 11 } }
+                            }
+                        }
+                    }
+                });
+            },
+
+            // ---- Tax page ----
+
+            _taxLoaded: false,
+
+            async loadTax() {
+                try {
+                    const [summaryRes, lotsRes] = await Promise.all([
+                        fetch('/api/tax/summary'),
+                        fetch('/api/tax/lots'),
+                    ]);
+
+                    if (summaryRes.ok) {
+                        const summary = await summaryRes.json();
+                        const totalNet = summary.total_net || 0;
+
+                        document.getElementById('ytd-gains').textContent = this.formatCurrency(totalNet);
+                        document.getElementById('ytd-gains').className = 'card-value ' + (totalNet >= 0 ? 'positive' : 'negative');
+
+                        const harvestable = Math.abs((summary.short_term?.losses || 0) + (summary.long_term?.losses || 0));
+                        document.getElementById('harvestable-losses').textContent = this.formatCurrency(harvestable);
+                        document.getElementById('tax-savings').textContent = this.formatCurrency(harvestable * 0.35);
+                    }
+
+                    if (lotsRes.ok) {
+                        const lots = await lotsRes.json();
+                        const tbody = document.getElementById('tlh-body');
+                        if (lots.lots && lots.lots.length > 0) {
+                            const losers = lots.lots.filter(l => l.unrealized_gain < 0);
+                            if (losers.length > 0) {
+                                while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+                                losers.forEach(l => {
+                                    const row = tbody.insertRow();
+                                    const cells = [
+                                        l.asset,
+                                        this.formatCurrency(l.unrealized_gain),
+                                        l.unrealized_percent.toFixed(1) + '%',
+                                        'Harvest loss',
+                                        this.formatCurrency(Math.abs(l.unrealized_gain) * 0.35),
+                                        'Review',
+                                    ];
+                                    cells.forEach((text, i) => {
+                                        const cell = row.insertCell();
+                                        if (i === 5) {
+                                            const btn = document.createElement('button');
+                                            btn.className = 'btn btn-primary';
+                                            btn.style.fontSize = '0.75rem';
+                                            btn.style.padding = '0.25rem 0.5rem';
+                                            btn.disabled = true;
+                                            btn.textContent = text;
+                                            cell.appendChild(btn);
+                                        } else {
+                                            cell.textContent = text;
+                                        }
+                                        if (i === 1 || i === 2) cell.className = 'negative';
+                                    });
+                                });
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Tax load error:', e);
+                }
+            },
+
+            // ---- Trade page ----
+
+            _paperTrades: [],
+
+            submitTrade(side) {
+                const asset = document.getElementById('trade-asset').value;
+                const amount = document.getElementById('trade-amount').value;
+                if (!amount || isNaN(amount) || parseFloat(amount) <= 0) return;
+
+                const trade = {
+                    time: new Date().toLocaleTimeString(),
+                    asset: asset,
+                    side: side,
+                    amount: parseFloat(amount),
+                    status: 'Filled (paper)',
+                };
+                this._paperTrades.unshift(trade);
+                if (this._paperTrades.length > 20) this._paperTrades.pop();
+
+                const tbody = document.getElementById('trade-history-body');
+                while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+                this._paperTrades.forEach(t => {
+                    const row = tbody.insertRow();
+                    const cells = [t.time, t.asset, t.side.toUpperCase(), this.formatCurrency(t.amount), t.status];
+                    cells.forEach((text, i) => {
+                        const cell = row.insertCell();
+                        cell.textContent = text;
+                        if (i === 2) cell.className = t.side === 'buy' ? 'positive' : 'negative';
+                    });
+                });
+
+                document.getElementById('trade-amount').value = '';
+                this.addAlert('success', 'Paper ' + side, side.toUpperCase() + ' $' + amount + ' ' + asset);
+            },
+
+            // ---- System page ----
+
+            _systemLoaded: false,
+
+            async loadSystem() {
+                const [healthRes, cacheRes, jobsRes, notifRes, metricsRes] = await Promise.allSettled([
+                    fetch('/api/health'),
+                    fetch('/api/cache/stats'),
+                    fetch('/api/jobs/status'),
+                    fetch('/api/notifications/channels'),
+                    fetch('/api/metrics'),
+                ]);
+
+                // Health checks
+                if (healthRes.status === 'fulfilled' && healthRes.value.ok) {
+                    const health = await healthRes.value.json();
+                    const container = document.getElementById('sys-health-checks');
+                    while (container.firstChild) container.removeChild(container.firstChild);
+
+                    if (health.checks && Object.keys(health.checks).length > 0) {
+                        Object.entries(health.checks).forEach(([name, check]) => {
+                            const row = document.createElement('div');
+                            row.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid var(--border-color)';
+                            const dot = document.createElement('span');
+                            dot.style.cssText = 'width:10px;height:10px;border-radius:50%;flex-shrink:0;background:' +
+                                (check.status === 'healthy' ? 'var(--accent-green)' : check.status === 'degraded' ? 'var(--accent-yellow)' : 'var(--accent-red)');
+                            const label = document.createElement('span');
+                            label.style.cssText = 'flex:1;color:var(--text-primary)';
+                            label.textContent = name;
+                            const status = document.createElement('span');
+                            status.style.cssText = 'color:var(--text-secondary);font-size:0.85rem';
+                            status.textContent = check.status + (check.response_time ? ' (' + check.response_time.toFixed(0) + 'ms)' : '');
+                            row.appendChild(dot);
+                            row.appendChild(label);
+                            row.appendChild(status);
+                            container.appendChild(row);
+                        });
+                    } else {
+                        container.innerHTML = '<p style="color:var(--text-secondary)">No health checks configured</p>';
+                    }
+                    document.getElementById('sys-uptime').textContent = health.status === 'healthy' ? 'Healthy' : health.status || '--';
+                }
+
+                // Cache stats
+                if (cacheRes.status === 'fulfilled' && cacheRes.value.ok) {
+                    const cache = await cacheRes.value.json();
+                    document.getElementById('sys-cache-backend').textContent = cache.backend || 'memory';
+                    const hitRate = cache.hit_rate != null ? cache.hit_rate.toFixed(1) + '%' : '--';
+                    document.getElementById('sys-cache-hit-rate').textContent = 'Hit rate: ' + hitRate;
+
+                    const details = document.getElementById('sys-cache-details');
+                    while (details.firstChild) details.removeChild(details.firstChild);
+                    const stats = [
+                        ['Keys', cache.keys || 0],
+                        ['Hits', cache.hits || 0],
+                        ['Misses', cache.misses || 0],
+                        ['Backend', cache.backend || 'memory'],
+                    ];
+                    stats.forEach(([label, value]) => {
+                        const div = document.createElement('div');
+                        div.innerHTML = '<div style="color:var(--text-secondary);font-size:0.8rem">' + label +
+                            '</div><div style="color:var(--text-primary);font-size:1.2rem;font-weight:600">' + value + '</div>';
+                        details.appendChild(div);
+                    });
+                }
+
+                // Job scheduler
+                if (jobsRes.status === 'fulfilled' && jobsRes.value.ok) {
+                    const jobs = await jobsRes.value.json();
+                    const tbody = document.getElementById('sys-jobs-body');
+                    while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+
+                    const jobList = jobs.jobs || [];
+                    document.getElementById('sys-active-jobs').textContent = jobList.length;
+                    let totalRuns = 0, totalFails = 0;
+
+                    if (jobList.length === 0) {
+                        const row = tbody.insertRow();
+                        const cell = row.insertCell();
+                        cell.colSpan = 7;
+                        cell.style.textAlign = 'center';
+                        cell.style.color = 'var(--text-secondary)';
+                        cell.textContent = 'No jobs registered';
+                    } else {
+                        jobList.forEach(j => {
+                            totalRuns += j.run_count || 0;
+                            totalFails += j.failure_count || 0;
+                            const row = tbody.insertRow();
+                            const interval = j.interval ? j.interval + 's' : j.cron || '--';
+                            const lastRun = j.last_run ? new Date(j.last_run).toLocaleTimeString() : 'Never';
+                            const nextRun = j.next_run ? new Date(j.next_run).toLocaleTimeString() : '--';
+                            const cells = [
+                                j.name,
+                                interval,
+                                lastRun,
+                                nextRun,
+                                j.run_count || 0,
+                                j.failure_count || 0,
+                                j.enabled !== false ? 'Active' : 'Disabled',
+                            ];
+                            cells.forEach((text, i) => {
+                                const cell = row.insertCell();
+                                cell.textContent = text;
+                                if (i === 5 && (j.failure_count || 0) > 0) cell.className = 'negative';
+                                if (i === 6) cell.className = j.enabled !== false ? 'positive' : 'negative';
+                            });
+                        });
+                    }
+                    const successRate = totalRuns > 0 ? ((totalRuns - totalFails) / totalRuns * 100).toFixed(1) + '%' : '--';
+                    document.getElementById('sys-jobs-success').textContent = 'Success rate: ' + successRate;
+                }
+
+                // Notification channels
+                if (notifRes.status === 'fulfilled' && notifRes.value.ok) {
+                    const notif = await notifRes.value.json();
+                    const container = document.getElementById('sys-notification-channels');
+                    while (container.firstChild) container.removeChild(container.firstChild);
+
+                    const channels = notif.channels || {};
+                    if (Object.keys(channels).length === 0) {
+                        container.innerHTML = '<p style="color:var(--text-secondary)">No notification channels configured</p>';
+                    } else {
+                        Object.entries(channels).forEach(([name, info]) => {
+                            const row = document.createElement('div');
+                            row.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid var(--border-color)';
+                            const dot = document.createElement('span');
+                            dot.style.cssText = 'width:10px;height:10px;border-radius:50%;flex-shrink:0;background:' +
+                                (info.configured ? 'var(--accent-green)' : 'var(--accent-red)');
+                            const label = document.createElement('span');
+                            label.style.cssText = 'flex:1;color:var(--text-primary);text-transform:capitalize';
+                            label.textContent = name;
+                            const status = document.createElement('span');
+                            status.style.cssText = 'color:var(--text-secondary);font-size:0.85rem';
+                            status.textContent = info.configured ? 'Configured' : 'Not configured';
+                            row.appendChild(dot);
+                            row.appendChild(label);
+                            row.appendChild(status);
+                            container.appendChild(row);
+                        });
+                    }
+                }
+
+                // Metrics summary
+                if (metricsRes.status === 'fulfilled' && metricsRes.value.ok) {
+                    const metrics = await metricsRes.value.json();
+                    const counters = metrics.counters || {};
+                    const requests = counters.api_requests || counters.requests || 0;
+                    const errors = counters.api_errors || counters.errors || 0;
+                    document.getElementById('sys-api-requests').textContent = requests;
+                    document.getElementById('sys-api-errors').textContent = 'Errors: ' + errors;
+                    document.getElementById('sys-version').textContent = metrics.version || '';
+                }
+            },
+
             formatCurrency(value) {
                 const num = typeof value === 'string' ? parseFloat(value) : value;
+                if (isNaN(num)) return '$0.00';
                 return new Intl.NumberFormat('en-US', {
                     style: 'currency',
                     currency: 'USD',
@@ -979,14 +2016,28 @@ if FASTAPI_AVAILABLE:
 def create_dashboard_app(
     portfolio_manager=None,
     stream_manager=None,
+    transaction_history=None,
+    etf_manager=None,
+    notification_manager=None,
+    cache_manager=None,
+    metrics_collector=None,
+    health_checker=None,
+    job_scheduler=None,
     allowed_origins: Optional[List[str]] = None,
 ) -> "FastAPI":
     """
     Create the FastAPI dashboard application.
 
     Args:
-        portfolio_manager: Optional portfolio manager instance
+        portfolio_manager: Optional PortfolioAggregator instance for real data
         stream_manager: Optional real-time stream manager
+        transaction_history: Optional TransactionHistory instance
+        etf_manager: Optional GTIVirtualETF instance
+        notification_manager: Optional NotificationManager instance
+        cache_manager: Optional CacheManager instance
+        metrics_collector: Optional MetricsCollector instance
+        health_checker: Optional HealthChecker instance
+        job_scheduler: Optional JobScheduler instance
         allowed_origins: List of allowed CORS origins (defaults to localhost only)
 
     Returns:
@@ -1051,10 +2102,10 @@ def create_dashboard_app(
         # Referrer policy
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
-        # Content Security Policy (allows inline scripts for embedded dashboard)
+        # Content Security Policy (allows inline scripts and Chart.js CDN)
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline'; "
             "connect-src 'self' ws: wss:; "
             "img-src 'self' data:; "
@@ -1072,7 +2123,28 @@ def create_dashboard_app(
     # Store references
     app.state.portfolio_manager = portfolio_manager
     app.state.stream_manager = stream_manager
+    app.state.transaction_history = transaction_history
+    app.state.etf_manager = etf_manager
+    app.state.notification_manager = notification_manager
+    app.state.cache_manager = cache_manager
+    app.state.metrics_collector = metrics_collector
+    app.state.health_checker = health_checker
+    app.state.job_scheduler = job_scheduler
     app.state.connected_clients = set()
+
+    # Include API router with real data and infrastructure endpoints
+    from dashboard_api import create_api_router
+    api_router = create_api_router(
+        portfolio_manager=portfolio_manager,
+        transaction_history=transaction_history,
+        etf_manager=etf_manager,
+        notification_manager=notification_manager,
+        cache_manager=cache_manager,
+        metrics_collector=metrics_collector,
+        health_checker=health_checker,
+        job_scheduler=job_scheduler,
+    )
+    app.include_router(api_router)
 
     # Routes
     @app.get("/", response_class=HTMLResponse)
@@ -1080,130 +2152,70 @@ def create_dashboard_app(
         """Serve the main dashboard page."""
         return HTMLResponse(content=DASHBOARD_HTML)
 
-    @app.get("/api/portfolio")
-    async def get_portfolio():
-        """Get current portfolio data."""
-        # Return mock data if no portfolio manager
-        if app.state.portfolio_manager is None:
-            return {
-                "total_value": "127834.56",
-                "total_cost_basis": "100000.00",
-                "total_unrealized_pnl": "27834.56",
-                "total_unrealized_pnl_pct": 27.83,
-                "total_realized_pnl_today": "1234.56",
-                "holdings": {
-                    "BTC": {
-                        "amount": "1.5",
-                        "price": "45000.00",
-                        "current_value": "67500.00",
-                        "cost_basis": "50000.00",
-                        "unrealized_pnl": "17500.00",
-                        "unrealized_pnl_pct": 35.0,
-                    },
-                    "ETH": {
-                        "amount": "20.0",
-                        "price": "2500.00",
-                        "current_value": "50000.00",
-                        "cost_basis": "40000.00",
-                        "unrealized_pnl": "10000.00",
-                        "unrealized_pnl_pct": 25.0,
-                    },
-                    "SOL": {
-                        "amount": "100.0",
-                        "price": "103.35",
-                        "current_value": "10334.56",
-                        "cost_basis": "10000.00",
-                        "unrealized_pnl": "334.56",
-                        "unrealized_pnl_pct": 3.35,
-                    },
-                },
-            }
+    async def _fetch_portfolio_snapshot():
+        """Fetch portfolio data for WebSocket broadcast."""
+        from dashboard_api import _mock_portfolio, _record_snapshot, _get_24h_change
+        pm = app.state.portfolio_manager
+        if pm is None:
+            return _mock_portfolio()
 
-        # Get real data from portfolio manager
         try:
-            portfolio = await app.state.portfolio_manager.get_portfolio_summary()
-            return portfolio
-        except Exception as e:
-            # SECURITY: Log the actual error internally, return sanitized message to client
-            import logging
-            logging.error(f"Portfolio fetch error: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to fetch portfolio data. Please try again later."
-            )
+            raw_data = await pm.get_combined_portfolio()
+            total_value = raw_data.get('total_value_usd', 0)
+            _record_snapshot(total_value)
+            change_24h, change_24h_pct = _get_24h_change()
 
-    @app.get("/api/analysis")
-    async def get_analysis():
-        """Get portfolio analysis."""
-        return {
-            "health_score": 78,
-            "sharpe_ratio": 1.45,
-            "max_drawdown": 18.5,
-            "volatility": 42.3,
-            "recommendations": [
-                "Consider rebalancing - BTC allocation is above target",
-                "Tax loss harvesting opportunity in SOL (-5% unrealized)",
-                "Portfolio correlation is high - consider diversification",
-            ],
-        }
+            holdings = {}
+            for asset, data in raw_data.get('by_asset', {}).items():
+                bal = data.get('total_balance', 0)
+                val = data.get('total_value_usd', 0)
+                price = val / bal if bal > 0 else 0
+                holdings[asset] = {
+                    "amount": str(bal),
+                    "price": str(round(price, 6)),
+                    "current_value": str(round(val, 2)),
+                    "cost_basis": "0",
+                    "unrealized_pnl": "0",
+                    "unrealized_pnl_pct": 0,
+                }
 
-    @app.get("/api/tax/opportunities")
-    async def get_tax_opportunities():
-        """Get tax loss harvesting opportunities."""
-        return {
-            "ytd_realized_gains": "5000.00",
-            "harvestable_losses": "2500.00",
-            "estimated_tax_savings": "875.00",
-            "opportunities": [],
-        }
+            total_cost = sum(float(h['cost_basis']) for h in holdings.values())
+            total_unrealized = sum(float(h['unrealized_pnl']) for h in holdings.values())
+            total_unrealized_pct = (total_unrealized / total_cost * 100) if total_cost > 0 else 0
 
-    @app.get("/api/alerts")
-    async def get_alerts():
-        """Get configured alerts."""
-        return {
-            "active_count": 3,
-            "triggered_today": 1,
-            "alerts": [
-                {
-                    "id": "1",
-                    "asset": "BTC",
-                    "condition": "above",
-                    "price": 50000,
-                    "active": True,
-                },
-            ],
-        }
-
-    @app.post("/api/alerts")
-    async def create_alert(alert: AlertCreate):
-        """Create a new price alert."""
-        return {"id": "new_alert_id", "status": "created"}
+            return {
+                "total_value": str(round(total_value, 2)),
+                "total_cost_basis": str(round(total_cost, 2)),
+                "total_unrealized_pnl": str(round(total_unrealized, 2)),
+                "total_unrealized_pnl_pct": round(total_unrealized_pct, 2),
+                "total_realized_pnl_today": "0",
+                "change_24h": str(round(change_24h, 2)),
+                "change_24h_pct": round(change_24h_pct, 2),
+                "holdings": holdings,
+                "timestamp": raw_data.get('timestamp', datetime.now().isoformat()),
+            }
+        except Exception:
+            return _mock_portfolio()
 
     @app.websocket("/ws/portfolio")
     async def websocket_endpoint(websocket: WebSocket):
         """WebSocket endpoint for real-time updates."""
         await websocket.accept()
-        client_id = str(id(websocket))
         app.state.connected_clients.add(websocket)
 
         try:
-            # Send initial snapshot
-            portfolio_data = await get_portfolio()
+            portfolio_data = await _fetch_portfolio_snapshot()
             await websocket.send_json({
                 "type": "initial_snapshot",
                 "data": portfolio_data,
             })
 
-            # Keep connection alive and handle messages
             while True:
                 try:
                     data = await websocket.receive_text()
                     message = json.loads(data)
-
-                    # Handle subscription changes
                     if message.get("action") == "ping":
                         await websocket.send_json({"type": "pong"})
-
                 except Exception:
                     break
 
@@ -1215,60 +2227,103 @@ def create_dashboard_app(
     @app.on_event("startup")
     async def startup():
         """Start background tasks."""
-        # Start price update broadcast loop
         asyncio.create_task(broadcast_updates(app))
 
     return app
 
 
 async def broadcast_updates(app: "FastAPI"):
-    """Periodically broadcast updates to all connected clients."""
-    import random
+    """Periodically broadcast real portfolio updates to connected clients."""
+    _last_value = None
 
     while True:
-        await asyncio.sleep(5)  # Update every 5 seconds
+        await asyncio.sleep(60)  # Real data refresh every 60 seconds
 
         if not app.state.connected_clients:
             continue
 
-        # Generate mock portfolio update
-        update = {
-            "type": "portfolio_update",
-            "data": {
-                "total_value": str(127834.56 + random.uniform(-500, 500)),
-                "total_cost_basis": "100000.00",
-                "total_unrealized_pnl": str(27834.56 + random.uniform(-500, 500)),
-                "total_unrealized_pnl_pct": 27.83 + random.uniform(-1, 1),
-                "total_realized_pnl_today": "1234.56",
-                "holdings": {
-                    "BTC": {
-                        "amount": "1.5",
-                        "price": str(45000 + random.uniform(-200, 200)),
-                        "current_value": str(67500 + random.uniform(-300, 300)),
-                        "cost_basis": "50000.00",
-                        "unrealized_pnl": str(17500 + random.uniform(-300, 300)),
-                        "unrealized_pnl_pct": 35.0 + random.uniform(-1, 1),
+        # Fetch real portfolio data
+        pm = app.state.portfolio_manager
+        if pm is not None:
+            try:
+                from dashboard_api import _record_snapshot, _get_24h_change
+
+                raw_data = await pm.get_combined_portfolio()
+                total_value = raw_data.get('total_value_usd', 0)
+                _record_snapshot(total_value)
+                change_24h, change_24h_pct = _get_24h_change()
+
+                # Skip broadcast if value unchanged (within 0.1%)
+                if _last_value is not None and total_value > 0:
+                    delta_pct = abs(total_value - _last_value) / total_value * 100
+                    if delta_pct < 0.1:
+                        continue
+                _last_value = total_value
+
+                holdings = {}
+                for asset, data in raw_data.get('by_asset', {}).items():
+                    bal = data.get('total_balance', 0)
+                    val = data.get('total_value_usd', 0)
+                    price = val / bal if bal > 0 else 0
+                    holdings[asset] = {
+                        "amount": str(bal),
+                        "price": str(round(price, 6)),
+                        "current_value": str(round(val, 2)),
+                        "cost_basis": "0",
+                        "unrealized_pnl": "0",
+                        "unrealized_pnl_pct": 0,
+                    }
+
+                update = {
+                    "type": "portfolio_update",
+                    "data": {
+                        "total_value": str(round(total_value, 2)),
+                        "total_cost_basis": "0",
+                        "total_unrealized_pnl": "0",
+                        "total_unrealized_pnl_pct": 0,
+                        "total_realized_pnl_today": "0",
+                        "change_24h": str(round(change_24h, 2)),
+                        "change_24h_pct": round(change_24h_pct, 2),
+                        "holdings": holdings,
+                        "timestamp": datetime.now().isoformat(),
                     },
-                    "ETH": {
-                        "amount": "20.0",
-                        "price": str(2500 + random.uniform(-20, 20)),
-                        "current_value": str(50000 + random.uniform(-400, 400)),
-                        "cost_basis": "40000.00",
-                        "unrealized_pnl": str(10000 + random.uniform(-400, 400)),
-                        "unrealized_pnl_pct": 25.0 + random.uniform(-1, 1),
+                }
+            except Exception:
+                continue
+        else:
+            # No portfolio manager - send mock heartbeat
+            import random
+            update = {
+                "type": "portfolio_update",
+                "data": {
+                    "total_value": str(127834.56 + random.uniform(-500, 500)),
+                    "total_cost_basis": "100000.00",
+                    "total_unrealized_pnl": str(27834.56 + random.uniform(-500, 500)),
+                    "total_unrealized_pnl_pct": 27.83 + random.uniform(-1, 1),
+                    "total_realized_pnl_today": "0",
+                    "change_24h": "0",
+                    "change_24h_pct": 0,
+                    "holdings": {
+                        "BTC": {
+                            "amount": "1.5",
+                            "price": str(45000 + random.uniform(-200, 200)),
+                            "current_value": str(67500 + random.uniform(-300, 300)),
+                            "cost_basis": "50000.00",
+                            "unrealized_pnl": str(17500 + random.uniform(-300, 300)),
+                            "unrealized_pnl_pct": 35.0 + random.uniform(-1, 1),
+                        },
+                        "ETH": {
+                            "amount": "20.0",
+                            "price": str(2500 + random.uniform(-20, 20)),
+                            "current_value": str(50000 + random.uniform(-400, 400)),
+                            "cost_basis": "40000.00",
+                            "unrealized_pnl": str(10000 + random.uniform(-400, 400)),
+                            "unrealized_pnl_pct": 25.0 + random.uniform(-1, 1),
+                        },
                     },
-                    "SOL": {
-                        "amount": "100.0",
-                        "price": str(103.35 + random.uniform(-2, 2)),
-                        "current_value": str(10334.56 + random.uniform(-200, 200)),
-                        "cost_basis": "10000.00",
-                        "unrealized_pnl": str(334.56 + random.uniform(-200, 200)),
-                        "unrealized_pnl_pct": 3.35 + random.uniform(-2, 2),
-                    },
+                    "timestamp": datetime.now().isoformat(),
                 },
-                "timestamp": datetime.now().isoformat(),
-            },
-        }
+            }
 
         # Broadcast to all clients
         disconnected = set()
@@ -1278,7 +2333,6 @@ async def broadcast_updates(app: "FastAPI"):
             except Exception:
                 disconnected.add(client)
 
-        # Remove disconnected clients
         app.state.connected_clients -= disconnected
 
 
@@ -1286,6 +2340,8 @@ def run_dashboard(
     host: str = "0.0.0.0",
     port: int = 8080,
     portfolio_manager=None,
+    transaction_history=None,
+    etf_manager=None,
 ):
     """
     Run the dashboard server.
@@ -1293,13 +2349,53 @@ def run_dashboard(
     Args:
         host: Host to bind to
         port: Port to listen on
-        portfolio_manager: Optional portfolio manager instance
+        portfolio_manager: Optional PortfolioAggregator instance
+        transaction_history: Optional TransactionHistory instance
+        etf_manager: Optional GTIVirtualETF instance
     """
     import uvicorn
 
-    app = create_dashboard_app(portfolio_manager)
+    app = create_dashboard_app(
+        portfolio_manager=portfolio_manager,
+        transaction_history=transaction_history,
+        etf_manager=etf_manager,
+    )
     uvicorn.run(app, host=host, port=port)
 
 
 if __name__ == "__main__":
-    run_dashboard()
+    # Standalone mode - creates own data sources
+    _pm = None
+    _tx = None
+    _etf = None
+
+    try:
+        from portfolio_aggregator import PortfolioAggregator
+        _pm = PortfolioAggregator()
+        print(f"Portfolio aggregator initialized ({len(_pm.exchanges)} exchanges)")
+    except Exception as e:
+        print(f"Portfolio aggregator not available: {e}")
+
+    try:
+        from transaction_history import TransactionHistory
+        _tx = TransactionHistory()
+        if _tx.load():
+            print(f"Transaction history loaded ({len(_tx.transactions)} transactions)")
+        else:
+            print("Transaction history: no saved data")
+    except Exception as e:
+        print(f"Transaction history not available: {e}")
+
+    try:
+        from etf_manager import GTIVirtualETF
+        _etf = GTIVirtualETF()
+        print("ETF manager initialized")
+    except Exception as e:
+        print(f"ETF manager not available: {e}")
+
+    print("Starting dashboard at http://localhost:8080")
+    run_dashboard(
+        portfolio_manager=_pm,
+        transaction_history=_tx,
+        etf_manager=_etf,
+    )

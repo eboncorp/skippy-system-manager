@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'crypto-portfolio'
+    metrics_path: '/api/metrics/prometheus'
+    static_configs:
+      - targets: ['mcp-server:8080']
+        labels:
+          service: 'crypto-portfolio-mcp'
