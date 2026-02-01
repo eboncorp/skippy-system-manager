@@ -49,7 +49,7 @@ class PortfolioAggregator:
         self.exchanges = {}
         self.wallets: Dict[str, dict] = {}
         self.manual_holdings: dict = {}
-        self._debank = None
+        self._evm_tracker = None
         self._init_exchanges()
         self._init_wallets()
         self._init_manual_holdings()
@@ -129,12 +129,34 @@ class PortfolioAggregator:
             try:
                 with open(wallets_path) as f:
                     self.wallets = json.load(f)
-                # Initialize DeBank client for on-chain queries
-                from debank_client import DeBankClient
-                self._debank = DeBankClient()
+                # Initialize EVM wallet tracker for direct RPC queries
+                from wallets.evm_wallet import EVMWalletTracker
+                addresses = list(self.wallets.keys())
+                alchemy_key = self._load_alchemy_key()
+                self._evm_tracker = EVMWalletTracker(addresses, alchemy_api_key=alchemy_key)
+                if alchemy_key:
+                    logging.info("EVM wallet tracker initialized with Alchemy RPC")
+                else:
+                    logging.info("EVM wallet tracker initialized with public RPCs")
             except Exception as e:
                 logging.warning(f"Failed to load wallets: {e}")
                 self.wallets = {}
+
+    @staticmethod
+    def _load_alchemy_key() -> Optional[str]:
+        """Load Alchemy API key from env var or config file."""
+        key = os.environ.get("ALCHEMY_API_KEY")
+        if key:
+            return key
+        key_path = os.path.expanduser("~/.config/alchemy/api_key.json")
+        if os.path.exists(key_path):
+            try:
+                with open(key_path) as f:
+                    data = json.load(f)
+                return data.get("api_key") or data.get("key")
+            except Exception:
+                pass
+        return None
 
     def _init_manual_holdings(self):
         """Load manual holdings (non-API sources) from config."""
@@ -148,7 +170,7 @@ class PortfolioAggregator:
                 self.manual_holdings = {}
 
     async def get_wallet_summary(self, address: str, label: str) -> Dict[str, Any]:
-        """Get portfolio summary for a single on-chain wallet via DeBank.
+        """Get portfolio summary for a single on-chain wallet via direct RPC.
 
         Args:
             address: Wallet address (0x...)
@@ -157,29 +179,38 @@ class PortfolioAggregator:
         Returns:
             Dict with source, label, total_value_usd, and holdings list
         """
-        if not self._debank:
-            return {'source': 'wallet', 'label': label, 'error': 'DeBank client not initialized',
+        if not self._evm_tracker:
+            return {'source': 'wallet', 'label': label, 'error': 'EVM tracker not initialized',
                     'total_value_usd': 0, 'holdings': []}
         try:
-            total = await asyncio.to_thread(self._debank.get_total_balance, address)
-            tokens = await asyncio.to_thread(self._debank.get_token_list, address)
+            wallet_summary = await self._evm_tracker.get_wallet_summary(address)
+
+            # Get prices for the tokens we found
+            symbols = list(wallet_summary.total_by_symbol.keys())
+            prices = await self._fetch_coingecko_prices(symbols) if symbols else {}
 
             holdings = []
-            for t in tokens:
-                if t.value_usd < 0.01:
+            total_value = 0.0
+
+            for bal in wallet_summary.balances:
+                if bal.amount <= 0:
                     continue
+                price = prices.get(bal.symbol, 0)
+                value = float(bal.amount) * price
+
                 holdings.append({
-                    'currency': t.symbol,
-                    'balance': t.amount,
-                    'value_usd': t.value_usd,
-                    'chain': t.chain,
+                    'currency': bal.symbol,
+                    'balance': float(bal.amount),
+                    'value_usd': value,
+                    'chain': bal.chain,
                 })
+                total_value += value
 
             return {
                 'source': 'wallet',
                 'label': label,
                 'address': address,
-                'total_value_usd': total if total is not None else 0,
+                'total_value_usd': total_value,
                 'holdings': sorted(holdings, key=lambda x: x['value_usd'], reverse=True),
             }
         except Exception as e:
@@ -189,8 +220,6 @@ class PortfolioAggregator:
 
     async def get_all_wallet_summaries(self) -> Dict[str, Dict[str, Any]]:
         """Get summaries for all configured on-chain wallets.
-
-        Runs sequentially to respect DeBank free-tier rate limits (0.5s between requests).
 
         Returns:
             Dict of label -> wallet summary
@@ -430,7 +459,7 @@ class PortfolioAggregator:
                     _merge_holding(holding, summary.get('exchange', exchange_id))
 
         # --- 2. Fetch on-chain wallet summaries (sequential for rate limits) ---
-        if self.wallets and self._debank:
+        if self.wallets and self._evm_tracker:
             try:
                 wallet_results = await self.get_all_wallet_summaries()
                 combined['wallets'] = wallet_results
