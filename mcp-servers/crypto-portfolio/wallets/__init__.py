@@ -17,6 +17,15 @@ from .solana_wallet import (
     format_solana_summary,
 )
 
+from .cosmos_wallet import (
+    CosmosWalletTracker,
+    CosmosBalance,
+    CosmosWalletSummary,
+    COSMOS_CHAINS,
+    get_cosmos_balances,
+    format_cosmos_summary,
+)
+
 __all__ = [
     # EVM
     "EVMWalletTracker",
@@ -31,4 +40,11 @@ __all__ = [
     "SolanaWalletSummary",
     "get_solana_balances",
     "format_solana_summary",
+    # Cosmos
+    "CosmosWalletTracker",
+    "CosmosBalance",
+    "CosmosWalletSummary",
+    "COSMOS_CHAINS",
+    "get_cosmos_balances",
+    "format_cosmos_summary",
 ]

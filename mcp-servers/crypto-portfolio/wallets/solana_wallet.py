@@ -4,15 +4,12 @@ Solana wallet tracking for Coinbase Wallet.
 Tracks SOL balance and SPL tokens on Solana mainnet.
 """
 
-import asyncio
-import base64
-import struct
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Dict, List, Optional, Any
-import aiohttp
+import logging
 
-from config import settings
+import aiohttp
 
 
 # Common SPL tokens to track (mint address -> (symbol, decimals))
@@ -28,6 +25,11 @@ TRACKED_SPL_TOKENS: Dict[str, tuple] = {
     "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm": ("WIF", 6),
     "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3": ("PYTH", 6),
     "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof": ("RNDR", 8),
+    "Saber2gLauYim4Mvftnrasomsv6NvAuncvMEZwcLpD1": ("SBR", 6),
+    "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE": ("ORCA", 6),
+    "hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux": ("HNT", 8),
+    "4vMsoUT2BWatFweudnQM1xedRLfJgJ7hswhcpz4xgBTy": ("HONEY", 9),
+    "5MAYDfq5yxtudAhtfyuMBuHZjgAbaS9tbEyEQYAhDS5y": ("ACS", 6),
 }
 
 
@@ -62,7 +64,7 @@ class SolanaWalletTracker:
         rpc_url: Optional[str] = None,
     ):
         self.addresses = addresses
-        self.rpc_url = rpc_url or settings.rpc.solana_rpc_url
+        self.rpc_url = rpc_url or "https://api.mainnet-beta.solana.com"
         self._session: Optional[aiohttp.ClientSession] = None
     
     async def _get_session(self) -> aiohttp.ClientSession:
@@ -127,7 +129,7 @@ class SolanaWalletTracker:
                     decimals=9,
                 ))
         except Exception as e:
-            print(f"Warning: Failed to get SOL balance: {e}")
+            logging.warning(f"Failed to get SOL balance: {e}")
         
         # Get SPL tokens
         try:
@@ -162,11 +164,11 @@ class SolanaWalletTracker:
                     ))
                     
                 except Exception as e:
-                    print(f"Warning: Failed to parse token account: {e}")
+                    logging.warning(f"Failed to parse token account: {e}")
                     continue
                     
         except Exception as e:
-            print(f"Warning: Failed to get token accounts: {e}")
+            logging.warning(f"Failed to get token accounts: {e}")
         
         return balances
     
@@ -201,7 +203,7 @@ class SolanaWalletTracker:
             try:
                 summaries[address] = await self.get_wallet_summary(address)
             except Exception as e:
-                print(f"Warning: Failed to get summary for {address}: {e}")
+                logging.warning(f"Failed to get summary for {address}: {e}")
         
         return summaries
     
@@ -244,7 +246,7 @@ class SolanaWalletTracker:
             return stakes
             
         except Exception as e:
-            print(f"Warning: Failed to get staking info: {e}")
+            logging.warning(f"Failed to get staking info: {e}")
             return []
     
     async def close(self):
