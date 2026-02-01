@@ -11,8 +11,6 @@ from decimal import Decimal
 from typing import Dict, List, Optional, Any
 import aiohttp
 
-from config import settings
-
 
 @dataclass
 class ChainConfig:
@@ -84,6 +82,14 @@ CHAINS: Dict[str, ChainConfig] = {
         explorer_url="https://bscscan.com",
         alchemy_network="",
     ),
+    "cronos": ChainConfig(
+        name="Cronos",
+        chain_id=25,
+        rpc_url="https://evm.cronos.org",
+        native_symbol="CRO",
+        explorer_url="https://cronoscan.com",
+        alchemy_network="",
+    ),
 }
 
 
@@ -92,7 +98,7 @@ TRACKED_TOKENS: Dict[str, Dict[str, tuple]] = {
     "ethereum": {
         "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": ("USDC", 6),
         "0xdAC17F958D2ee523a2206206994597C13D831ec7": ("USDT", 6),
-        "0x6B175474E89094C44Da98b954EescdeCb5BadAce": ("DAI", 18),
+        "0x6B175474E89094C44Da98b954EedeAC495271d0F": ("DAI", 18),
         "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599": ("WBTC", 8),
         "0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0": ("MATIC", 18),
         "0x514910771AF9Ca656af840dff83E8264EcF986CA": ("LINK", 18),
@@ -114,6 +120,14 @@ TRACKED_TOKENS: Dict[str, Dict[str, tuple]] = {
     "base": {
         "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913": ("USDC", 6),
         "0x4200000000000000000000000000000000000006": ("WETH", 18),
+    },
+    "cronos": {
+        "0x5C7F8A570d578ED84E63fdFA7b1eE72dEae1AE23": ("WCRO", 18),
+        "0xc21223249CA28397B4B6541dfFaEcC539BfF0c59": ("USDC", 6),
+        "0x66e428c3f67a68878562e79A0234c1F83c208770": ("USDT", 6),
+        "0xF2001B145b43032AAF5Ee2884e456CCd805F677D": ("DAI", 18),
+        "0xe44Fd7fCb2b1581822D0c862B68222998a0c299a": ("WETH", 18),
+        "0x062E66477Faf219F25D27dCED647BF57C3107d52": ("WBTC", 8),
     },
 }
 
@@ -235,20 +249,113 @@ class EVMWalletTracker:
         balance = int(result, 16)
         return Decimal(balance) / Decimal(10 ** decimals)
     
+    async def _get_alchemy_token_balances(self, address: str, chain: str) -> List[TokenBalance]:
+        """Use Alchemy's getTokenBalances to discover all ERC-20 tokens for an address."""
+        config = CHAINS.get(chain)
+        if not config or not self.alchemy_api_key or not config.alchemy_network:
+            return []
+
+        url = f"https://{config.alchemy_network}.g.alchemy.com/v2/{self.alchemy_api_key}"
+        session = await self._get_session()
+
+        # Get all token balances (DEFAULT_TOKENS returns top ~100 tokens)
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "alchemy_getTokenBalances",
+            "params": [address, "DEFAULT_TOKENS"],
+        }
+
+        try:
+            async with session.post(url, json=payload) as resp:
+                data = await resp.json()
+
+            if "error" in data:
+                return []
+
+            token_balances = data.get("result", {}).get("tokenBalances", [])
+            non_zero = [
+                tb for tb in token_balances
+                if tb.get("tokenBalance") and tb["tokenBalance"] != "0x0"
+                and int(tb["tokenBalance"], 16) > 0
+            ]
+
+            if not non_zero:
+                return []
+
+            # Get metadata for discovered tokens
+            balances = []
+            for tb in non_zero:
+                contract = tb["contractAddress"]
+                raw_balance = int(tb["tokenBalance"], 16)
+
+                # Fetch token metadata
+                meta_payload = {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "alchemy_getTokenMetadata",
+                    "params": [contract],
+                }
+                try:
+                    async with session.post(url, json=meta_payload) as resp:
+                        meta_data = await resp.json()
+                    meta = meta_data.get("result", {})
+                    symbol = meta.get("symbol", "???")
+                    decimals = meta.get("decimals", 18)
+
+                    amount = Decimal(raw_balance) / Decimal(10 ** decimals)
+                    if amount > 0:
+                        balances.append(TokenBalance(
+                            symbol=symbol,
+                            chain=chain,
+                            amount=amount,
+                            decimals=decimals,
+                            contract_address=contract,
+                        ))
+                except Exception:
+                    continue
+
+            return balances
+        except Exception as e:
+            import logging
+            logging.warning(f"Alchemy token discovery failed on {chain}: {e}")
+            return []
+
+    @staticmethod
+    def _is_spam_token(symbol: str, amount: Decimal) -> bool:
+        """Filter out likely spam/scam airdrop tokens."""
+        if not symbol or len(symbol) > 12:
+            return True
+        low = symbol.lower()
+        spam_patterns = [
+            "http", "www.", ".com", ".io", ".xyz", ".org", ".net",
+            "claim", "airdrop", "visit", "free", "reward",
+            "$", "🔥", "💰",
+        ]
+        if any(p in low for p in spam_patterns):
+            return True
+        # Absurd amounts (>1 billion) of unknown tokens are almost always spam
+        if amount > Decimal("1_000_000_000") and symbol not in ("SHIB", "BTT", "PEPE", "BONK", "FLOKI", "LUNC", "BABYDOGE"):
+            return True
+        return False
+
     async def get_all_balances(self, address: str) -> List[TokenBalance]:
         """Get all balances for an address across all configured chains."""
-        balances = []
         tasks = []
-        
+
         for chain in self.chains:
             config = CHAINS.get(chain)
             if not config:
                 continue
-            
+
             # Native balance task
             tasks.append(self._get_native_balance_task(address, chain, config))
-            
-            # Token balance tasks
+
+            # Use Alchemy token discovery when available (finds all tokens)
+            if self.alchemy_api_key and config.alchemy_network:
+                tasks.append(self._get_alchemy_token_balances(address, chain))
+
+            # Also check hardcoded tokens (catches anything Alchemy misses)
             if chain in TRACKED_TOKENS:
                 for token_addr, (symbol, decimals) in TRACKED_TOKENS[chain].items():
                     tasks.append(
@@ -256,14 +363,24 @@ class EVMWalletTracker:
                             address, chain, token_addr, symbol, decimals
                         )
                     )
-        
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
+        # Collect all results, deduplicate, and filter spam
+        seen = {}  # (symbol, chain, contract) -> TokenBalance
         for result in results:
-            if isinstance(result, TokenBalance) and result.amount > 0:
-                balances.append(result)
-        
-        return balances
+            items = result if isinstance(result, list) else [result]
+            for item in items:
+                if not isinstance(item, TokenBalance) or item.amount <= 0:
+                    continue
+                if self._is_spam_token(item.symbol, item.amount):
+                    continue
+                contract_key = item.contract_address.lower() if item.contract_address else None
+                key = (item.symbol, item.chain, contract_key)
+                if key not in seen or item.amount > seen[key].amount:
+                    seen[key] = item
+
+        return list(seen.values())
     
     async def _get_native_balance_task(
         self,
