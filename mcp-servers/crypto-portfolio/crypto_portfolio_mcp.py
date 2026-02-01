@@ -495,6 +495,99 @@ class CryptoComAIQueryInput(BaseModel):
     )
 
 
+# -----------------------------------------------------------------------------
+# Compliance Tools Input Models
+# -----------------------------------------------------------------------------
+
+
+class TaxExportFormat(str, Enum):
+    """Supported tax export formats."""
+    CPA_CSV = "cpa_csv"
+    TURBOTAX_TXF = "turbotax_txf"
+    KOINLY_CSV = "koinly_csv"
+
+
+class TaxReportInput(BaseModel):
+    """Input for generating Form 8949 and Schedule D tax reports."""
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    tax_year: int = Field(
+        default=2025,
+        description="Tax year to generate report for",
+        ge=2010,
+        le=2030
+    )
+    cost_basis_method: CostBasisMethod = Field(
+        default=CostBasisMethod.FIFO,
+        description="Cost basis method: 'fifo', 'lifo', 'hifo', or 'avg'"
+    )
+    format: str = Field(
+        default="csv",
+        description="Output format: 'csv' for data, 'pdf' for printable form",
+        pattern=r"^(csv|pdf)$"
+    )
+    taxpayer_name: Optional[str] = Field(
+        default=None,
+        description="Taxpayer name for the form header",
+        max_length=100
+    )
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN,
+        description="Output format: 'markdown' or 'json'"
+    )
+
+
+class TaxExportInput(BaseModel):
+    """Input for exporting tax data in third-party formats."""
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    tax_year: int = Field(
+        default=2025,
+        description="Tax year to export",
+        ge=2010,
+        le=2030
+    )
+    export_format: TaxExportFormat = Field(
+        default=TaxExportFormat.CPA_CSV,
+        description="Export format: 'cpa_csv', 'turbotax_txf', or 'koinly_csv'"
+    )
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN,
+        description="Output format: 'markdown' or 'json'"
+    )
+
+
+class AuditLogInput(BaseModel):
+    """Input for viewing the audit trail."""
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    table_name: Optional[str] = Field(
+        default=None,
+        description="Filter by table name (e.g., 'transactions', 'tax_lots')",
+        max_length=50
+    )
+    record_id: Optional[str] = Field(
+        default=None,
+        description="Filter by specific record ID",
+        max_length=100
+    )
+    since_date: Optional[str] = Field(
+        default=None,
+        description="Show entries since this ISO date (e.g., '2025-01-01')",
+        pattern=r"^\d{4}-\d{2}-\d{2}$"
+    )
+    limit: int = Field(
+        default=DEFAULT_LIMIT,
+        description="Maximum entries to return",
+        ge=1,
+        le=MAX_LIMIT
+    )
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN,
+        description="Output format: 'markdown' or 'json'"
+    )
+
+
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
@@ -2519,6 +2612,355 @@ async def crypto_run_paper_dca(params: PaperDCAInput) -> str:
 
     except Exception as e:
         return handle_api_error(e, "running paper DCA cycle")
+
+
+# =============================================================================
+# COMPLIANCE TOOLS
+# =============================================================================
+
+
+@mcp.tool(
+    name="crypto_generate_tax_report",
+    annotations={
+        "title": "Generate Tax Report (Form 8949 / Schedule D)",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+async def crypto_generate_tax_report(params: TaxReportInput) -> str:
+    """Generate IRS Form 8949 and Schedule D tax reports for cryptocurrency transactions.
+
+    Produces a capital gains report separating short-term and long-term dispositions.
+    Supports CSV output for data analysis or PDF for printable IRS forms.
+
+    Args:
+        params (TaxReportInput): Report parameters including:
+            - tax_year (int): Tax year (default: 2025)
+            - cost_basis_method (str): 'fifo', 'lifo', 'hifo', or 'avg'
+            - format (str): 'csv' or 'pdf'
+            - taxpayer_name (str): Optional name for form header
+            - response_format (str): 'markdown' or 'json'
+
+    Returns:
+        str: Tax report summary with Form 8949 and Schedule D data
+    """
+    try:
+        from compliance.form_8949 import Form8949Line, Form8949Generator, ScheduleDGenerator
+        from decimal import Decimal
+
+        # Gather transaction data from transaction history
+        lines = []
+
+        if _transaction_history and hasattr(_transaction_history, 'transactions'):
+            for tx in _transaction_history.transactions:
+                # Filter to dispositions (sells) in the requested tax year
+                tx_date = tx.get('date') or tx.get('timestamp')
+                if isinstance(tx_date, str):
+                    try:
+                        tx_date = datetime.fromisoformat(tx_date.replace('Z', '+00:00'))
+                    except (ValueError, TypeError):
+                        continue
+                elif not isinstance(tx_date, datetime):
+                    continue
+
+                if tx_date.year != params.tax_year:
+                    continue
+
+                tx_type = (tx.get('type') or tx.get('side', '')).lower()
+                if tx_type not in ('sell', 'disposal', 'trade'):
+                    continue
+
+                # Build Form 8949 line
+                asset = tx.get('asset', tx.get('currency', 'UNKNOWN'))
+                amount = Decimal(str(tx.get('amount', tx.get('quantity', 0))))
+                proceeds = Decimal(str(tx.get('proceeds', tx.get('total', 0))))
+                cost_basis = Decimal(str(tx.get('cost_basis', 0)))
+
+                acq_date_raw = tx.get('acquired_date', tx.get('date_acquired'))
+                if isinstance(acq_date_raw, str):
+                    try:
+                        acq_date = datetime.fromisoformat(acq_date_raw.replace('Z', '+00:00'))
+                    except (ValueError, TypeError):
+                        acq_date = tx_date  # Fallback
+                elif isinstance(acq_date_raw, datetime):
+                    acq_date = acq_date_raw
+                else:
+                    acq_date = tx_date
+
+                lines.append(Form8949Line(
+                    description=f"{float(amount):.8f} {asset}",
+                    date_acquired=acq_date,
+                    date_sold=tx_date,
+                    proceeds=proceeds,
+                    cost_basis=cost_basis,
+                    asset=asset,
+                    exchange=tx.get('exchange', ''),
+                    transaction_id=tx.get('id', tx.get('tx_id', '')),
+                ))
+
+        if not lines:
+            no_data_msg = (
+                f"No disposition transactions found for tax year {params.tax_year}. "
+                "Import transaction history first using crypto_import_transactions, "
+                "or ensure sell/disposal transactions are recorded."
+            )
+            if params.response_format == ResponseFormat.JSON:
+                return json.dumps({"status": "no_data", "message": no_data_msg})
+            return no_data_msg
+
+        # Generate Form 8949
+        generator = Form8949Generator(
+            lines=lines,
+            tax_year=params.tax_year,
+            taxpayer_name=params.taxpayer_name or "",
+        )
+
+        # Generate Schedule D
+        schedule_d = ScheduleDGenerator(lines=lines, tax_year=params.tax_year)
+        schedule_d_data = schedule_d.generate()
+
+        result = {
+            "tax_year": params.tax_year,
+            "cost_basis_method": params.cost_basis_method.value,
+            "transaction_count": len(lines),
+            "schedule_d": schedule_d_data,
+        }
+
+        # Generate file if PDF requested
+        if params.format == "pdf":
+            output_dir = os.path.expanduser("~/skippy/work/crypto/tax_reports")
+            os.makedirs(output_dir, exist_ok=True)
+            pdf_path = os.path.join(
+                output_dir,
+                f"form_8949_{params.tax_year}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+            )
+            actual_path = generator.generate_pdf(pdf_path)
+            result["file_path"] = actual_path
+            result["format"] = "pdf" if actual_path.endswith(".pdf") else "csv (reportlab not available)"
+
+        if params.response_format == ResponseFormat.JSON:
+            # Include CSV data in JSON response
+            result["form_8949_csv"] = generator.generate_csv()
+            return json.dumps(result, indent=2, default=str)
+
+        # Markdown response
+        md = generator.generate_summary_markdown()
+        md += "\n\n" + schedule_d.generate_markdown()
+
+        if result.get("file_path"):
+            md += f"\n\n**File saved:** `{result['file_path']}`"
+
+        return md
+
+    except Exception as e:
+        return handle_api_error(e, "generating tax report")
+
+
+@mcp.tool(
+    name="crypto_export_tax_data",
+    annotations={
+        "title": "Export Tax Data (CPA/TurboTax/Koinly)",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+async def crypto_export_tax_data(params: TaxExportInput) -> str:
+    """Export cryptocurrency tax data in third-party formats for CPAs or tax software.
+
+    Supports:
+    - CPA CSV: Standard accountant-friendly spreadsheet
+    - TurboTax TXF: Direct import into TurboTax
+    - Koinly CSV: Import into Koinly crypto tax platform
+
+    Args:
+        params (TaxExportInput): Export parameters including:
+            - tax_year (int): Tax year to export
+            - export_format (str): 'cpa_csv', 'turbotax_txf', or 'koinly_csv'
+            - response_format (str): 'markdown' or 'json'
+
+    Returns:
+        str: Exported data in the requested format
+    """
+    try:
+        from compliance.form_8949 import Form8949Line
+        from compliance.exports import CPAExporter, TurboTaxExporter, KoinlyExporter
+        from decimal import Decimal
+
+        # Gather transaction data (same logic as tax report)
+        lines = []
+
+        if _transaction_history and hasattr(_transaction_history, 'transactions'):
+            for tx in _transaction_history.transactions:
+                tx_date = tx.get('date') or tx.get('timestamp')
+                if isinstance(tx_date, str):
+                    try:
+                        tx_date = datetime.fromisoformat(tx_date.replace('Z', '+00:00'))
+                    except (ValueError, TypeError):
+                        continue
+                elif not isinstance(tx_date, datetime):
+                    continue
+
+                if tx_date.year != params.tax_year:
+                    continue
+
+                tx_type = (tx.get('type') or tx.get('side', '')).lower()
+                if tx_type not in ('sell', 'disposal', 'trade'):
+                    continue
+
+                asset = tx.get('asset', tx.get('currency', 'UNKNOWN'))
+                amount = Decimal(str(tx.get('amount', tx.get('quantity', 0))))
+                proceeds = Decimal(str(tx.get('proceeds', tx.get('total', 0))))
+                cost_basis = Decimal(str(tx.get('cost_basis', 0)))
+
+                acq_date_raw = tx.get('acquired_date', tx.get('date_acquired'))
+                if isinstance(acq_date_raw, str):
+                    try:
+                        acq_date = datetime.fromisoformat(acq_date_raw.replace('Z', '+00:00'))
+                    except (ValueError, TypeError):
+                        acq_date = tx_date
+                elif isinstance(acq_date_raw, datetime):
+                    acq_date = acq_date_raw
+                else:
+                    acq_date = tx_date
+
+                lines.append(Form8949Line(
+                    description=f"{float(amount):.8f} {asset}",
+                    date_acquired=acq_date,
+                    date_sold=tx_date,
+                    proceeds=proceeds,
+                    cost_basis=cost_basis,
+                    asset=asset,
+                    exchange=tx.get('exchange', ''),
+                    transaction_id=tx.get('id', tx.get('tx_id', '')),
+                ))
+
+        if not lines:
+            no_data_msg = (
+                f"No disposition transactions found for tax year {params.tax_year}. "
+                "Import transaction history first."
+            )
+            if params.response_format == ResponseFormat.JSON:
+                return json.dumps({"status": "no_data", "message": no_data_msg})
+            return no_data_msg
+
+        # Export in requested format
+        if params.export_format == TaxExportFormat.CPA_CSV:
+            data = CPAExporter.export(lines, params.tax_year)
+            format_label = "CPA CSV"
+        elif params.export_format == TaxExportFormat.TURBOTAX_TXF:
+            data = TurboTaxExporter.export(lines, params.tax_year)
+            format_label = "TurboTax TXF"
+        elif params.export_format == TaxExportFormat.KOINLY_CSV:
+            data = KoinlyExporter.export(lines, params.tax_year)
+            format_label = "Koinly CSV"
+        else:
+            return f"Unknown export format: {params.export_format}"
+
+        if params.response_format == ResponseFormat.JSON:
+            return json.dumps({
+                "tax_year": params.tax_year,
+                "format": format_label,
+                "transaction_count": len(lines),
+                "data": data,
+            }, indent=2, default=str)
+
+        # Markdown response with the data
+        short = [l for l in lines if not l.is_long_term]
+        long = [l for l in lines if l.is_long_term]
+        st_gain = sum(l.gain_or_loss for l in short)
+        lt_gain = sum(l.gain_or_loss for l in long)
+
+        md = f"## Tax Export - {format_label} ({params.tax_year})\n\n"
+        md += f"- **Transactions:** {len(lines)}\n"
+        md += f"- **Short-term:** {len(short)} transactions, net ${st_gain:,.2f}\n"
+        md += f"- **Long-term:** {len(long)} transactions, net ${lt_gain:,.2f}\n\n"
+        md += f"```\n{data}\n```"
+
+        return md
+
+    except Exception as e:
+        return handle_api_error(e, "exporting tax data")
+
+
+@mcp.tool(
+    name="crypto_audit_log",
+    annotations={
+        "title": "View Audit Trail",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+async def crypto_audit_log(params: AuditLogInput) -> str:
+    """View the tamper-evident audit trail for portfolio data changes.
+
+    Shows a hash-chained log of all INSERT, UPDATE, and DELETE operations
+    on portfolio data. Supports filtering by table, record, and date range.
+    Can also verify chain integrity.
+
+    Args:
+        params (AuditLogInput): Query parameters including:
+            - table_name (str): Filter by table (e.g., 'transactions')
+            - record_id (str): Filter by specific record ID
+            - since_date (str): ISO date for start of range
+            - limit (int): Max entries to return
+            - response_format (str): 'markdown' or 'json'
+
+    Returns:
+        str: Audit log entries with chain verification status
+    """
+    try:
+        from compliance.audit_log import AuditLog
+
+        log = AuditLog()
+
+        # Get filtered entries
+        entries = log.get_entries(
+            table_name=params.table_name,
+            record_id=params.record_id,
+            since=params.since_date + "T00:00:00Z" if params.since_date else None,
+            limit=params.limit,
+        )
+
+        # Verify chain integrity
+        verification = log.verify_chain()
+
+        if params.response_format == ResponseFormat.JSON:
+            return json.dumps({
+                "entries": [e.to_dict() for e in entries],
+                "total_entries": verification["entries_checked"],
+                "chain_valid": verification["valid"],
+                "chain_errors": verification["errors"],
+            }, indent=2, default=str)
+
+        # Markdown response
+        md = "## Audit Trail\n\n"
+
+        # Chain status
+        if verification["valid"]:
+            md += f"**Chain Status:** Valid ({verification['entries_checked']} entries verified)\n\n"
+        else:
+            md += f"**Chain Status:** INTEGRITY ERROR - {len(verification['errors'])} issue(s) detected\n"
+            for err in verification["errors"]:
+                md += f"- {err}\n"
+            md += "\n"
+
+        if not entries:
+            md += "No audit log entries match the filter criteria."
+            return md
+
+        md += f"**Showing:** {len(entries)} of {verification['entries_checked']} entries\n\n"
+        md += log.format_entries_markdown(entries)
+
+        return md
+
+    except Exception as e:
+        return handle_api_error(e, "reading audit log")
 
 
 # =============================================================================
