@@ -64,6 +64,7 @@ class PortfolioAggregator:
         self._init_exchanges()
         self._init_wallets()
         self._init_manual_holdings()
+        self._init_ccxt_clients()
 
     def _init_exchanges(self):
         """Initialize exchange clients based on available credentials."""
@@ -221,6 +222,57 @@ class PortfolioAggregator:
             except Exception as e:
                 logging.warning(f"Failed to load manual holdings: {e}")
                 self.manual_holdings = {}
+
+    def _init_ccxt_clients(self):
+        """Initialize CCXT-based exchange clients from CCXT_EXCHANGES env var.
+
+        Reads CCXT_EXCHANGES (comma-separated exchange IDs) and creates
+        CCXTClient instances for any that aren't already covered by native
+        exchange clients.
+
+        Environment:
+            CCXT_EXCHANGES: e.g. "bitfinex,kucoin,bybit"
+            {EXCHANGE}_API_KEY: API key per exchange
+            {EXCHANGE}_API_SECRET: API secret per exchange
+        """
+        ccxt_exchanges_str = os.environ.get("CCXT_EXCHANGES", "").strip()
+        if not ccxt_exchanges_str:
+            return
+
+        try:
+            from exchanges.ccxt_fallback import create_ccxt_client, CCXT_AVAILABLE
+        except ImportError:
+            logging.info("CCXT not available, skipping CCXT exchange init")
+            return
+
+        if not CCXT_AVAILABLE:
+            logging.info("ccxt package not installed, skipping CCXT exchanges")
+            return
+
+        # Native exchange names to skip (already have dedicated clients)
+        native_names = {
+            "coinbase", "coinbase_gti", "kraken_business", "kraken_personal",
+            "crypto_com",
+        }
+
+        for exchange_id in ccxt_exchanges_str.split(","):
+            exchange_id = exchange_id.strip().lower()
+            if not exchange_id:
+                continue
+
+            # Skip if already covered by a native client
+            if exchange_id in native_names or exchange_id in self.exchanges:
+                logging.debug(f"Skipping CCXT {exchange_id}: native client exists")
+                continue
+
+            client = create_ccxt_client(exchange_id)
+            if client:
+                self.exchanges[f"ccxt_{exchange_id}"] = {
+                    'name': f'CCXT {exchange_id.title()}',
+                    'client': client,
+                    'enabled': True,
+                }
+                logging.info(f"CCXT client initialized for {exchange_id}")
 
     async def get_wallet_summary(self, address: str, label: str) -> Dict[str, Any]:
         """Get portfolio summary for a single on-chain wallet via direct RPC.

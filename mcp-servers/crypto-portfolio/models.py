@@ -500,6 +500,69 @@ class Setting(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class AuditLogEntry(Base):
+    """Audit trail for all data modifications (hash-chained)."""
+
+    __tablename__ = "audit_log"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+    # What changed
+    table_name = Column(String(50), nullable=False, index=True)
+    record_id = Column(String(100), nullable=False, index=True)
+    action = Column(String(10), nullable=False)  # INSERT, UPDATE, DELETE
+
+    # Change details (JSON for flexibility)
+    old_values = Column(JSON, nullable=True)
+    new_values = Column(JSON, nullable=True)
+
+    # Attribution
+    changed_by = Column(String(100), default="system")
+
+    # Hash chain for tamper detection
+    checksum = Column(String(64), nullable=False)
+    prev_checksum = Column(String(64), nullable=False, default="")
+
+    __table_args__ = (
+        Index("ix_audit_log_table_record", "table_name", "record_id"),
+        Index("ix_audit_log_action_timestamp", "action", "timestamp"),
+    )
+
+
+class TaxReport(Base):
+    """Generated tax report metadata and summary."""
+
+    __tablename__ = "tax_reports"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Report identification
+    tax_year = Column(Integer, nullable=False, index=True)
+    report_type = Column(String(30), nullable=False)  # form_8949, schedule_d, staking_income
+    cost_basis_method = Column(String(10), nullable=False, default="fifo")
+
+    # Generation metadata
+    generated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    transaction_count = Column(Integer, default=0)
+
+    # Summary figures
+    short_term_gains = Column(Numeric(20, 8), default=0)
+    short_term_losses = Column(Numeric(20, 8), default=0)
+    long_term_gains = Column(Numeric(20, 8), default=0)
+    long_term_losses = Column(Numeric(20, 8), default=0)
+    total_proceeds = Column(Numeric(20, 8), default=0)
+    total_cost_basis = Column(Numeric(20, 8), default=0)
+
+    # Output file
+    file_path = Column(String(500), nullable=True)
+    file_checksum = Column(String(64), nullable=True)
+
+    __table_args__ = (
+        Index("ix_tax_reports_year_type", "tax_year", "report_type"),
+    )
+
+
 # =============================================================================
 # DATABASE UTILITIES
 # =============================================================================
