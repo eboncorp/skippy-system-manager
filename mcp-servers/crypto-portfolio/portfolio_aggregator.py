@@ -43,6 +43,13 @@ class PortfolioAggregator:
         "ONDO": "ondo-finance", "BONE": "bone-shibaswap", "XNO": "nano",
         "CLOUD": "cloud", "MXC": "mxc", "XAI": "xai",
         "GUSD": "gemini-dollar",
+        # Solana ecosystem
+        "SOL": "solana", "JUP": "jupiter-exchange-solana", "BONK": "bonk",
+        "ORCA": "orca", "HNT": "helium", "SBR": "saber",
+        "HONEY": "hivemapper", "ACS": "access-protocol",
+        # Cosmos ecosystem
+        "JUNO": "juno-network", "TIA": "celestia", "KAVA": "kava",
+        "SEI": "sei-network",
     }
 
     def __init__(self):
@@ -50,6 +57,10 @@ class PortfolioAggregator:
         self.wallets: Dict[str, dict] = {}
         self.manual_holdings: dict = {}
         self._evm_tracker = None
+        self._solana_tracker = None
+        self._cosmos_tracker = None
+        self._solana_wallets: Dict[str, dict] = {}
+        self._cosmos_wallets: Dict[str, dict] = {}
         self._init_exchanges()
         self._init_wallets()
         self._init_manual_holdings()
@@ -124,12 +135,12 @@ class PortfolioAggregator:
 
     def _init_wallets(self):
         """Load on-chain wallet addresses from config."""
+        # EVM wallets from wallets.json
         wallets_path = os.path.expanduser("~/.crypto_portfolio/wallets.json")
         if os.path.exists(wallets_path):
             try:
                 with open(wallets_path) as f:
                     self.wallets = json.load(f)
-                # Initialize EVM wallet tracker for direct RPC queries
                 from wallets.evm_wallet import EVMWalletTracker
                 addresses = list(self.wallets.keys())
                 alchemy_key = self._load_alchemy_key()
@@ -139,8 +150,50 @@ class PortfolioAggregator:
                 else:
                     logging.info("EVM wallet tracker initialized with public RPCs")
             except Exception as e:
-                logging.warning(f"Failed to load wallets: {e}")
+                logging.warning(f"Failed to load EVM wallets: {e}")
                 self.wallets = {}
+
+        # Solana + Cosmos wallets from all_wallets_reference.json
+        ref_path = os.path.expanduser("~/.crypto_portfolio/all_wallets_reference.json")
+        if os.path.exists(ref_path):
+            try:
+                with open(ref_path) as f:
+                    ref_data = json.load(f)
+
+                # Solana
+                solana_section = ref_data.get("solana", {})
+                solana_addresses = [
+                    addr for addr in solana_section
+                    if not addr.startswith("_")
+                ]
+                if solana_addresses:
+                    from wallets.solana_wallet import SolanaWalletTracker
+                    self._solana_wallets = {
+                        addr: solana_section[addr]
+                        for addr in solana_addresses
+                    }
+                    self._solana_tracker = SolanaWalletTracker(solana_addresses)
+                    logging.info(f"Solana wallet tracker initialized with {len(solana_addresses)} address(es)")
+
+                # Cosmos
+                cosmos_section = ref_data.get("cosmos", {})
+                cosmos_addr_to_chain = {}
+                cosmos_meta = {}
+                for addr, info in cosmos_section.items():
+                    if addr.startswith("_"):
+                        continue
+                    chain = info.get("chain", "")
+                    if chain:
+                        cosmos_addr_to_chain[addr] = chain
+                        cosmos_meta[addr] = info
+                if cosmos_addr_to_chain:
+                    from wallets.cosmos_wallet import CosmosWalletTracker
+                    self._cosmos_wallets = cosmos_meta
+                    self._cosmos_tracker = CosmosWalletTracker(cosmos_addr_to_chain)
+                    logging.info(f"Cosmos wallet tracker initialized with {len(cosmos_addr_to_chain)} address(es)")
+
+            except Exception as e:
+                logging.warning(f"Failed to load Solana/Cosmos wallets: {e}")
 
     @staticmethod
     def _load_alchemy_key() -> Optional[str]:
@@ -218,16 +271,109 @@ class PortfolioAggregator:
             return {'source': 'wallet', 'label': label, 'address': address,
                     'error': str(e), 'total_value_usd': 0, 'holdings': []}
 
+    async def _get_solana_wallet_summary(self, address: str, label: str) -> Dict[str, Any]:
+        """Get portfolio summary for a Solana wallet."""
+        if not self._solana_tracker:
+            return {'source': 'wallet-solana', 'label': label, 'error': 'Solana tracker not initialized',
+                    'total_value_usd': 0, 'holdings': []}
+        try:
+            summary = await self._solana_tracker.get_wallet_summary(address)
+            symbols = list(summary.total_by_symbol.keys())
+            prices = await self._fetch_coingecko_prices(symbols) if symbols else {}
+
+            holdings = []
+            total_value = 0.0
+            for bal in summary.balances:
+                if bal.amount <= 0:
+                    continue
+                price = prices.get(bal.symbol, 0)
+                value = float(bal.amount) * price
+                holdings.append({
+                    'currency': bal.symbol,
+                    'balance': float(bal.amount),
+                    'value_usd': value,
+                    'chain': 'solana',
+                })
+                total_value += value
+
+            return {
+                'source': 'wallet-solana',
+                'label': label,
+                'address': address,
+                'total_value_usd': total_value,
+                'holdings': sorted(holdings, key=lambda x: x['value_usd'], reverse=True),
+            }
+        except Exception as e:
+            logging.warning(f"Failed to fetch Solana wallet {label} ({address[:10]}...): {e}")
+            return {'source': 'wallet-solana', 'label': label, 'address': address,
+                    'error': str(e), 'total_value_usd': 0, 'holdings': []}
+
+    async def _get_cosmos_wallet_summary(self, address: str, chain: str, label: str) -> Dict[str, Any]:
+        """Get portfolio summary for a Cosmos wallet."""
+        if not self._cosmos_tracker:
+            return {'source': 'wallet-cosmos', 'label': label, 'error': 'Cosmos tracker not initialized',
+                    'total_value_usd': 0, 'holdings': []}
+        try:
+            summary = await self._cosmos_tracker.get_wallet_summary(address, chain)
+            # Collect base symbols (strip -staked/-rewards suffixes for pricing)
+            base_symbols = set()
+            for sym in summary.total_by_symbol:
+                base = sym.split("-")[0]
+                base_symbols.add(base)
+            prices = await self._fetch_coingecko_prices(list(base_symbols)) if base_symbols else {}
+
+            holdings = []
+            total_value = 0.0
+            for bal in summary.balances:
+                if bal.amount <= 0:
+                    continue
+                base_sym = bal.symbol.split("-")[0]
+                price = prices.get(base_sym, 0)
+                value = float(bal.amount) * price
+                holdings.append({
+                    'currency': bal.symbol,
+                    'balance': float(bal.amount),
+                    'value_usd': value,
+                    'chain': chain,
+                })
+                total_value += value
+
+            return {
+                'source': 'wallet-cosmos',
+                'label': label,
+                'address': address,
+                'total_value_usd': total_value,
+                'holdings': sorted(holdings, key=lambda x: x['value_usd'], reverse=True),
+            }
+        except Exception as e:
+            logging.warning(f"Failed to fetch Cosmos wallet {label} ({address[:12]}...): {e}")
+            return {'source': 'wallet-cosmos', 'label': label, 'address': address,
+                    'error': str(e), 'total_value_usd': 0, 'holdings': []}
+
     async def get_all_wallet_summaries(self) -> Dict[str, Dict[str, Any]]:
-        """Get summaries for all configured on-chain wallets.
+        """Get summaries for all configured on-chain wallets (EVM, Solana, Cosmos).
 
         Returns:
             Dict of label -> wallet summary
         """
         results = {}
+
+        # EVM wallets
         for address, info in self.wallets.items():
             label = info.get('label', address[:10])
             results[label] = await self.get_wallet_summary(address, label)
+
+        # Solana wallets
+        for address, info in self._solana_wallets.items():
+            label = info.get('label', address[:10])
+            results[label] = await self._get_solana_wallet_summary(address, label)
+
+        # Cosmos wallets
+        for address, info in self._cosmos_wallets.items():
+            label = info.get('label', address[:12])
+            chain = info.get('chain', '')
+            results[label] = await self._get_cosmos_wallet_summary(address, chain, label)
+
         return results
 
     async def _fetch_coingecko_prices(self, symbols: List[str]) -> Dict[str, float]:
@@ -458,8 +604,13 @@ class PortfolioAggregator:
                 for holding in summary.get('holdings', []):
                     _merge_holding(holding, summary.get('exchange', exchange_id))
 
-        # --- 2. Fetch on-chain wallet summaries (sequential for rate limits) ---
-        if self.wallets and self._evm_tracker:
+        # --- 2. Fetch on-chain wallet summaries (EVM + Solana + Cosmos) ---
+        has_wallets = (
+            (self.wallets and self._evm_tracker)
+            or self._solana_tracker
+            or self._cosmos_tracker
+        )
+        if has_wallets:
             try:
                 wallet_results = await self.get_all_wallet_summaries()
                 combined['wallets'] = wallet_results
