@@ -4,6 +4,7 @@ Fetches and aggregates transaction history across all exchanges with cost basis 
 
 Supports:
 - Trade history from all 4 exchanges
+- CSV/XLSX import from exchange exports (Coinbase, Kraken, Gemini, Crypto.com)
 - Cost basis calculation (FIFO, LIFO, HIFO, Average Cost)
 - Realized/unrealized gain/loss tracking
 - Tax lot tracking
@@ -19,10 +20,7 @@ from enum import Enum
 from dotenv import load_dotenv
 
 # Import exchange clients
-from coinbase_client import CoinbaseClient
-from kraken_client import KrakenClient
-from cryptocom_client import CryptoComClient
-from gemini_client import GeminiClient
+from exchanges import CoinbaseClient, KrakenClient, CryptoComClient, GeminiClient
 
 
 class CostBasisMethod(Enum):
@@ -552,8 +550,65 @@ class TransactionHistory:
                     return lot.acquired_date.strftime("%m/%d/%Y")
         return "Various"
     
+    # ==================== CSV/XLSX IMPORT ====================
+
+    def import_from_files(self, file_paths: List[str], exchange_override: str = None) -> dict:
+        """Import transactions from CSV/XLSX export files.
+
+        Uses transaction_import module to parse exchange export files,
+        merges with existing transactions, deduplicates, and rebuilds tax lots.
+
+        Args:
+            file_paths: List of file paths to import
+            exchange_override: Force a specific parser for all files
+
+        Returns:
+            Summary dict with import statistics
+        """
+        from transaction_import import import_all
+
+        new_transactions, summary = import_all(file_paths, exchange_override)
+
+        # Merge with existing transactions
+        existing_keys = set()
+        for txn in self.transactions:
+            key = (
+                txn.exchange,
+                txn.timestamp.strftime("%Y%m%d%H%M%S"),
+                txn.asset,
+                f"{txn.amount:.8f}",
+                txn.type,
+            )
+            existing_keys.add(key)
+
+        added = 0
+        for txn in new_transactions:
+            key = (
+                txn.exchange,
+                txn.timestamp.strftime("%Y%m%d%H%M%S"),
+                txn.asset,
+                f"{txn.amount:.8f}",
+                txn.type,
+            )
+            if key not in existing_keys:
+                self.transactions.append(txn)
+                existing_keys.add(key)
+                added += 1
+
+        # Re-sort by timestamp
+        self.transactions.sort(key=lambda x: x.timestamp)
+
+        # Rebuild tax lots with merged data
+        self.build_tax_lots()
+        self.calculate_realized_gains()
+
+        summary["newly_added"] = added
+        summary["total_after_merge"] = len(self.transactions)
+
+        return summary
+
     # ==================== PERSISTENCE ====================
-    
+
     def save(self):
         """Save transaction history and tax lots to disk."""
         data = {
