@@ -10,7 +10,7 @@ portfolio analysis, trading, staking, DeFi tracking, and AI-powered insights.
 Usage:
     # stdio transport (for Claude Code local integration)
     python crypto_portfolio_mcp.py
-    
+
     # HTTP transport (for remote access)
     python crypto_portfolio_mcp.py --http --port 8080
 
@@ -20,15 +20,14 @@ License: MIT
 
 import json
 import os
-import sys
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 # Crypto.com AI Agent SDK (optional - for Cronos blockchain operations)
 try:
@@ -168,7 +167,7 @@ class DeFiProtocol(str, Enum):
 class PortfolioSummaryInput(BaseModel):
     """Input for getting portfolio summary across all exchanges."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     include_staking: bool = Field(
         default=True,
         description="Include staking positions in summary"
@@ -190,7 +189,7 @@ class PortfolioSummaryInput(BaseModel):
 class ExchangeHoldingsInput(BaseModel):
     """Input for getting holdings from specific exchange(s)."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     exchange: Exchange = Field(
         default=Exchange.ALL,
         description="Exchange to query: 'coinbase', 'kraken', 'crypto.com', 'gemini', or 'all'"
@@ -215,7 +214,7 @@ class ExchangeHoldingsInput(BaseModel):
 class StakingPositionsInput(BaseModel):
     """Input for getting staking positions."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     exchange: Exchange = Field(
         default=Exchange.ALL,
         description="Exchange to query for staking positions"
@@ -233,7 +232,7 @@ class StakingPositionsInput(BaseModel):
 class DeFiPositionsInput(BaseModel):
     """Input for getting DeFi protocol positions."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     protocol: DeFiProtocol = Field(
         default=DeFiProtocol.ALL,
         description="DeFi protocol: 'aave', 'uniswap', 'lido', 'compound', 'curve', or 'all'"
@@ -257,7 +256,7 @@ class DeFiPositionsInput(BaseModel):
 class AIAnalysisInput(BaseModel):
     """Input for running AI-powered portfolio analysis."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     analysis_type: str = Field(
         default="comprehensive",
         description="Type of analysis: 'comprehensive', 'risk', 'performance', 'rebalancing', 'tax_optimization'",
@@ -282,7 +281,7 @@ class AIAnalysisInput(BaseModel):
 class CostBasisInput(BaseModel):
     """Input for calculating cost basis and tax lots."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     asset: Optional[str] = Field(
         default=None,
         description="Specific asset to calculate (all assets if not specified)",
@@ -308,7 +307,7 @@ class CostBasisInput(BaseModel):
 class HistoricalSnapshotInput(BaseModel):
     """Input for retrieving historical portfolio snapshots."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     start_date: Optional[str] = Field(
         default=None,
         description="Start date in ISO format (e.g., '2024-01-01')",
@@ -338,7 +337,7 @@ class HistoricalSnapshotInput(BaseModel):
 class ArbitrageOpportunitiesInput(BaseModel):
     """Input for finding cross-exchange arbitrage opportunities."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     min_spread_percent: float = Field(
         default=0.5,
         description="Minimum spread percentage to report",
@@ -359,7 +358,7 @@ class ArbitrageOpportunitiesInput(BaseModel):
 class DCABotStatusInput(BaseModel):
     """Input for getting DCA bot status and configuration."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     bot_id: Optional[str] = Field(
         default=None,
         description="Specific bot ID to query (all bots if not specified)",
@@ -379,7 +378,7 @@ class DCABotStatusInput(BaseModel):
 class AlertsInput(BaseModel):
     """Input for managing price and portfolio alerts."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     action: str = Field(
         default="list",
         description="Action: 'list', 'triggered', 'summary'",
@@ -700,7 +699,7 @@ def get_mock_ai_analysis() -> Dict[str, Any]:
                 "potential_impact": "Could reduce max drawdown by 15-20%"
             },
             {
-                "priority": "medium", 
+                "priority": "medium",
                 "action": "Rebalance ETH staking across providers for better decentralization",
                 "potential_impact": "Reduces counterparty risk"
             },
@@ -882,7 +881,7 @@ async def crypto_portfolio_summary(params: PortfolioSummaryInput) -> str:
                 sources = ", ".join([e.get('exchange', '')[:10] for e in asset.get('exchanges', [])])
                 md += f"| {currency} | {total_bal:.6f} | {format_currency(total_val)} | {sources} |\n"
 
-            md += f"""
+            md += """
 ## Holdings by Exchange
 | Exchange | Value (USD) | Holdings | Staked |
 |----------|-------------|----------|--------|
@@ -955,7 +954,7 @@ async def crypto_portfolio_summary(params: PortfolioSummaryInput) -> str:
         for asset, info in data['holdings'].items():
             md += f"| {asset} | {info['amount']:.4f} | {format_currency(info['value_usd'])} | {info['allocation']:.1f}% |\n"
 
-        md += f"""
+        md += """
 ## Holdings by Exchange
 | Exchange | Value (USD) | Assets |
 |----------|-------------|--------|
@@ -968,9 +967,9 @@ async def crypto_portfolio_summary(params: PortfolioSummaryInput) -> str:
 
         if params.include_defi:
             md += f"\n## DeFi Positions\n- **Total DeFi Value:** {format_currency(data['defi_value_usd'])}\n"
-        
+
         return md
-        
+
     except Exception as e:
         return handle_api_error(e, "fetching portfolio summary")
 
@@ -987,17 +986,17 @@ async def crypto_portfolio_summary(params: PortfolioSummaryInput) -> str:
 )
 async def crypto_exchange_holdings(params: ExchangeHoldingsInput) -> str:
     """Get detailed holdings from specific exchange(s).
-    
+
     Retrieves balance information for all assets on the specified exchange,
     with optional filtering by asset and minimum value.
-    
+
     Args:
         params (ExchangeHoldingsInput): Query parameters including:
             - exchange (str): Exchange name or 'all'
             - asset (str): Optional asset filter
             - min_value_usd (float): Optional minimum value filter
             - response_format (str): 'markdown' or 'json'
-    
+
     Returns:
         str: Holdings data in requested format
     """
@@ -1098,16 +1097,16 @@ async def crypto_exchange_holdings(params: ExchangeHoldingsInput) -> str:
 )
 async def crypto_staking_positions(params: StakingPositionsInput) -> str:
     """Get staking positions and rewards across exchanges.
-    
+
     Retrieves all staking positions including staked amounts, APY rates,
     accumulated rewards, and lock periods.
-    
+
     Args:
         params (StakingPositionsInput): Query parameters including:
             - exchange (str): Exchange name or 'all'
             - include_rewards (bool): Include accumulated rewards
             - response_format (str): 'markdown' or 'json'
-    
+
     Returns:
         str: Staking positions data in requested format
     """
@@ -1274,10 +1273,10 @@ async def crypto_defi_positions(params: DeFiPositionsInput) -> str:
         else:
             # Fallback to mock data
             data = get_mock_defi_data()
-        
+
         if params.response_format == ResponseFormat.JSON:
             return json.dumps(data, indent=2)
-        
+
         md = f"""# DeFi Positions
 
 **Total DeFi Value:** {format_currency(data['total_value_usd'])}
@@ -1288,19 +1287,19 @@ async def crypto_defi_positions(params: DeFiPositionsInput) -> str:
         for pos in data['positions']:
             if params.protocol != DeFiProtocol.ALL and pos['protocol'] != params.protocol.value:
                 continue
-            
+
             md += f"\n### {pos['protocol'].title()} - {pos['type'].replace('_', ' ').title()}\n"
             md += f"- **Chain:** {pos['chain'].title()}\n"
             md += f"- **Value:** {format_currency(pos['value_usd'])}\n"
             md += f"- **APY:** {pos['apy']:.1f}%\n"
-            
+
             if pos['type'] == 'lending':
                 md += f"- **Health Factor:** {pos.get('health_factor', 'N/A')}\n"
             elif pos['type'] == 'liquidity':
                 md += f"- **Impermanent Loss:** {pos.get('impermanent_loss', 0):.1f}%\n"
-        
+
         return md
-        
+
     except Exception as e:
         return handle_api_error(e, "fetching DeFi positions")
 
@@ -1322,27 +1321,27 @@ async def crypto_defi_positions(params: DeFiPositionsInput) -> str:
 )
 async def crypto_ai_analysis(params: AIAnalysisInput) -> str:
     """Run AI-powered analysis on the portfolio.
-    
+
     Generates insights, risk assessment, and actionable recommendations
     using AI analysis of portfolio composition, performance, and market conditions.
-    
+
     Args:
         params (AIAnalysisInput): Analysis parameters including:
             - analysis_type (str): Type of analysis to run
             - time_range_days (int): Historical period to analyze
             - include_recommendations (bool): Include actionable recommendations
             - response_format (str): 'markdown' or 'json'
-    
+
     Returns:
         str: AI analysis results in requested format
     """
     try:
         data = get_mock_ai_analysis()
         data['analysis_type'] = params.analysis_type
-        
+
         if params.response_format == ResponseFormat.JSON:
             return json.dumps(data, indent=2)
-        
+
         md = f"""# AI Portfolio Analysis
 
 **Analysis Type:** {data['analysis_type'].replace('_', ' ').title()}
@@ -1356,13 +1355,13 @@ async def crypto_ai_analysis(params: AIAnalysisInput) -> str:
 """
         for finding in data['key_findings']:
             md += f"- {finding}\n"
-        
+
         if params.include_recommendations:
             md += "\n## Recommendations\n"
             for rec in data['recommendations']:
                 md += f"\n### [{rec['priority'].upper()}] {rec['action']}\n"
                 md += f"*Potential Impact:* {rec['potential_impact']}\n"
-        
+
         md += f"""
 ## Performance Metrics ({params.time_range_days} days)
 | Metric | Value |
@@ -1374,7 +1373,7 @@ async def crypto_ai_analysis(params: AIAnalysisInput) -> str:
 | Max Drawdown | {format_percent(data['performance_metrics']['max_drawdown'])} |
 """
         return md
-        
+
     except Exception as e:
         return handle_api_error(e, "running AI analysis")
 
@@ -1391,17 +1390,17 @@ async def crypto_ai_analysis(params: AIAnalysisInput) -> str:
 )
 async def crypto_cost_basis(params: CostBasisInput) -> str:
     """Calculate cost basis and tax lots for holdings.
-    
+
     Computes cost basis using specified accounting method (FIFO, LIFO, HIFO, AVG)
     for tax reporting purposes.
-    
+
     Args:
         params (CostBasisInput): Calculation parameters including:
             - asset (str): Specific asset or all
             - method (str): Tax lot identification method
             - tax_year (int): Year for tax calculations
             - response_format (str): 'markdown' or 'json'
-    
+
     Returns:
         str: Cost basis calculations in requested format
     """
@@ -1439,10 +1438,10 @@ async def crypto_cost_basis(params: CostBasisInput) -> str:
                 "long_term_gains": 17722.49
             }
         }
-        
+
         if params.response_format == ResponseFormat.JSON:
             return json.dumps(data, indent=2)
-        
+
         md = f"""# Cost Basis Report
 
 **Method:** {data['method']}
@@ -1466,12 +1465,12 @@ async def crypto_cost_basis(params: CostBasisInput) -> str:
             md += f"- **Cost Basis:** {format_currency(info['total_cost_basis'])}\n"
             md += f"- **Current Value:** {format_currency(info['current_value'])}\n"
             md += f"- **Unrealized Gain:** {format_currency(info['unrealized_gain'])}\n"
-            md += f"\n| Acquired | Amount | Cost |\n|----------|--------|------|\n"
+            md += "\n| Acquired | Amount | Cost |\n|----------|--------|------|\n"
             for lot in info['lots']:
                 md += f"| {lot['acquired']} | {lot['amount']:.4f} | {format_currency(lot['cost'])} |\n"
-        
+
         return md
-        
+
     except Exception as e:
         return handle_api_error(e, "calculating cost basis")
 
@@ -1488,16 +1487,16 @@ async def crypto_cost_basis(params: CostBasisInput) -> str:
 )
 async def crypto_arbitrage_opportunities(params: ArbitrageOpportunitiesInput) -> str:
     """Find cross-exchange arbitrage opportunities.
-    
+
     Scans configured exchanges for price discrepancies that could yield
     arbitrage profits after accounting for fees.
-    
+
     Args:
         params (ArbitrageOpportunitiesInput): Search parameters including:
             - min_spread_percent (float): Minimum spread to report
             - assets (list): Specific assets to check
             - response_format (str): 'markdown' or 'json'
-    
+
     Returns:
         str: Arbitrage opportunities in requested format
     """
@@ -1530,16 +1529,16 @@ async def crypto_arbitrage_opportunities(params: ArbitrageOpportunitiesInput) ->
                 }
             ]
         }
-        
+
         # Filter by minimum spread
         data['opportunities'] = [
-            opp for opp in data['opportunities'] 
+            opp for opp in data['opportunities']
             if opp['spread_percent'] >= params.min_spread_percent
         ]
-        
+
         if params.response_format == ResponseFormat.JSON:
             return json.dumps(data, indent=2)
-        
+
         md = f"""# Arbitrage Opportunities
 
 **Scan Time:** {data['scan_time']}
@@ -1553,9 +1552,9 @@ async def crypto_arbitrage_opportunities(params: ArbitrageOpportunitiesInput) ->
             md += "|-------|-------|--------|--------|------------|\n"
             for opp in data['opportunities']:
                 md += f"| {opp['asset']} | {opp['buy_exchange']} ({format_currency(opp['buy_price'])}) | {opp['sell_exchange']} ({format_currency(opp['sell_price'])}) | {opp['spread_percent']:.2f}% | {format_currency(opp['net_profit_usd'])} |\n"
-        
+
         return md
-        
+
     except Exception as e:
         return handle_api_error(e, "scanning for arbitrage")
 
@@ -1791,15 +1790,15 @@ async def crypto_import_transactions(params: ImportTransactionsInput) -> str:
 )
 async def crypto_alerts_status(params: AlertsInput) -> str:
     """Get status of price and portfolio alerts.
-    
+
     Retrieves configured alerts, recently triggered alerts, or alert summary.
-    
+
     Args:
         params (AlertsInput): Query parameters including:
             - action (str): 'list', 'triggered', or 'summary'
             - limit (int): Maximum alerts to return
             - response_format (str): 'markdown' or 'json'
-    
+
     Returns:
         str: Alerts data in requested format
     """
@@ -1819,12 +1818,12 @@ async def crypto_alerts_status(params: AlertsInput) -> str:
                 "triggered_7d": 2
             }
         }
-        
+
         if params.response_format == ResponseFormat.JSON:
             return json.dumps(data, indent=2)
-        
+
         md = "# Alerts Status\n\n"
-        
+
         if params.action == "summary":
             md += f"- **Active Alerts:** {data['summary']['total_active']}\n"
             md += f"- **Triggered (24h):** {data['summary']['triggered_24h']}\n"
@@ -1840,9 +1839,9 @@ async def crypto_alerts_status(params: AlertsInput) -> str:
                     md += f"- Portfolio change > {alert['threshold_percent']}%\n"
                 else:
                     md += f"- **{alert['asset']}** {alert['type'].replace('_', ' ')}: ${alert['threshold']:,.2f}\n"
-        
+
         return md
-        
+
     except Exception as e:
         return handle_api_error(e, "fetching alerts")
 
@@ -1859,16 +1858,16 @@ async def crypto_alerts_status(params: AlertsInput) -> str:
 )
 async def crypto_dca_bot_status(params: DCABotStatusInput) -> str:
     """Get status and configuration of DCA bots.
-    
+
     Retrieves Dollar Cost Averaging bot configurations, execution history,
     and performance metrics.
-    
+
     Args:
         params (DCABotStatusInput): Query parameters including:
             - bot_id (str): Specific bot or all
             - include_history (bool): Include execution history
             - response_format (str): 'markdown' or 'json'
-    
+
     Returns:
         str: DCA bot status in requested format
     """
@@ -1903,15 +1902,15 @@ async def crypto_dca_bot_status(params: DCABotStatusInput) -> str:
                 }
             ]
         }
-        
+
         if params.bot_id:
             data['bots'] = [b for b in data['bots'] if b['id'] == params.bot_id]
-        
+
         if params.response_format == ResponseFormat.JSON:
             return json.dumps(data, indent=2)
-        
+
         md = "# DCA Bot Status\n\n"
-        
+
         for bot in data['bots']:
             md += f"""## {bot['id']}
 - **Asset:** {bot['asset']}
@@ -1927,9 +1926,9 @@ async def crypto_dca_bot_status(params: DCABotStatusInput) -> str:
 - **Executions:** {bot['executions']}
 
 """
-        
+
         return md
-        
+
     except Exception as e:
         return handle_api_error(e, "fetching DCA bot status")
 
@@ -2009,7 +2008,7 @@ async def crypto_cronos_ai_query(params: CryptoComAIQueryInput) -> str:
             }
             if params.response_format == ResponseFormat.JSON:
                 return json.dumps(error_msg, indent=2)
-            return f"""# Crypto.com AI Agent Unavailable
+            return """# Crypto.com AI Agent Unavailable
 
 **Error:** SDK not installed
 
@@ -2028,7 +2027,7 @@ pip install crypto_com_ai_agent_client
             }
             if params.response_format == ResponseFormat.JSON:
                 return json.dumps(error_msg, indent=2)
-            return f"""# Crypto.com AI Agent Misconfigured
+            return """# Crypto.com AI Agent Misconfigured
 
 **Error:** OpenAI API key required
 
@@ -2529,12 +2528,12 @@ async def crypto_run_paper_dca(params: PaperDCAInput) -> str:
 
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Crypto Portfolio MCP Server")
     parser.add_argument("--http", action="store_true", help="Use HTTP transport instead of stdio")
     parser.add_argument("--port", type=int, default=8080, help="HTTP port (default: 8080)")
     args = parser.parse_args()
-    
+
     if args.http:
         mcp.run(transport="streamable_http", port=args.port)
     else:

@@ -15,7 +15,7 @@ import sys
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -48,10 +48,10 @@ _portfolio = None
 def _init_clients():
     """Initialize exchange clients."""
     global _exchanges, _clients, _price_service, _portfolio
-    
+
     _clients = []
     _exchanges = {}
-    
+
     if settings.coinbase.is_configured:
         client = CoinbaseClient(
             settings.coinbase.api_key,
@@ -59,7 +59,7 @@ def _init_clients():
         )
         _exchanges["coinbase"] = client
         _clients.append(client)
-    
+
     if settings.coinbase_prime.is_configured:
         client = CoinbasePrimeClient(
             settings.coinbase_prime.api_key,
@@ -69,7 +69,7 @@ def _init_clients():
         )
         _exchanges["coinbase_prime"] = client
         _clients.append(client)
-    
+
     if settings.kraken.is_configured:
         client = KrakenClient(
             settings.kraken.api_key,
@@ -77,7 +77,7 @@ def _init_clients():
         )
         _exchanges["kraken"] = client
         _clients.append(client)
-    
+
     _price_service = PriceService()
     _portfolio = Portfolio(_clients, _price_service, TARGET_ALLOCATION)
 
@@ -298,11 +298,11 @@ async def list_tools() -> list[Tool]:
 @server.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     """Execute a portfolio management tool."""
-    
+
     # Initialize clients if needed
     if not _clients:
         _init_clients()
-    
+
     try:
         result = await _execute_tool(name, arguments)
         return [TextContent(type="text", text=json.dumps(result, indent=2, default=str))]
@@ -312,7 +312,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
 async def _execute_tool(name: str, arguments: dict) -> dict:
     """Execute a specific tool and return results."""
-    
+
     if name == "portfolio_sync":
         snapshot = await _portfolio.sync()
         return {
@@ -335,34 +335,34 @@ async def _execute_tool(name: str, arguments: dict) -> dict:
             },
             "needs_rebalance": snapshot.needs_rebalance(),
         }
-    
+
     elif name == "portfolio_summary":
         snapshot = await _portfolio.sync()
         return {"summary": _portfolio.format_summary(snapshot)}
-    
+
     elif name == "check_drift":
         threshold = arguments.get("threshold", 0.05)
         snapshot = await _portfolio.sync()
         drift_status = snapshot.get_drift_status(threshold)
-        
+
         out_of_balance = [
             {"asset": asset, "status": status, "drift_pct": float(snapshot.drift.get(asset, 0)) * 100}
             for asset, status in drift_status.items()
             if status != "OK"
         ]
-        
+
         return {
             "needs_rebalance": snapshot.needs_rebalance(threshold),
             "threshold_pct": threshold * 100,
             "out_of_balance_assets": out_of_balance,
             "max_drift_pct": max(abs(float(d)) for d in snapshot.drift.values()) * 100,
         }
-    
+
     elif name == "plan_rebalance":
         dry_run = arguments.get("dry_run", True)
         rebalancer = Rebalancer(_portfolio, _exchanges)
         session = await rebalancer.rebalance(dry_run=dry_run)
-        
+
         return {
             "status": session.status,
             "trades": [
@@ -379,24 +379,24 @@ async def _execute_tool(name: str, arguments: dict) -> dict:
             "total_buy_volume": float(session.total_buy_volume),
             "dry_run": dry_run,
         }
-    
+
     elif name == "dca_status":
         dca_agent = DCAAgent(_exchanges, _price_service)
         allocations = dca_agent.get_daily_allocation()
-        
+
         return {
             "daily_amount": float(dca_agent.daily_amount),
             "should_execute_today": dca_agent.should_execute_today(),
             "allocation": {asset: float(amount) for asset, amount in allocations.items()},
         }
-    
+
     elif name == "execute_dca":
         dry_run = arguments.get("dry_run", True)
         assets = arguments.get("assets")
-        
+
         dca_agent = DCAAgent(_exchanges, _price_service)
         executions = await dca_agent.execute_dca(dry_run=dry_run, assets=assets)
-        
+
         return {
             "dry_run": dry_run,
             "executions": [
@@ -412,14 +412,14 @@ async def _execute_tool(name: str, arguments: dict) -> dict:
             ],
             "total_invested": sum(float(e.usd_amount) for e in executions if e.status in ("executed", "dry_run")),
         }
-    
+
     elif name == "dca_performance":
         days = arguments.get("days")
         start_date = datetime.now() - timedelta(days=days) if days else None
-        
+
         dca_agent = DCAAgent(_exchanges, _price_service)
         stats = await dca_agent.get_stats(start_date=start_date)
-        
+
         return {
             "total_invested": float(stats.total_invested),
             "current_value": float(stats.total_value_now),
@@ -437,15 +437,15 @@ async def _execute_tool(name: str, arguments: dict) -> dict:
                 for asset, data in stats.by_asset.items()
             },
         }
-    
+
     elif name == "staking_rewards":
         days = arguments.get("days", 30)
         asset = arguments.get("asset")
-        
+
         start_date = datetime.now() - timedelta(days=days)
         tracker = StakingTracker(_clients, _price_service)
         summary = tracker.get_summary(start_date=start_date)
-        
+
         if asset:
             rewards = tracker.get_rewards(start_date=start_date, asset=asset)
             return {
@@ -462,7 +462,7 @@ async def _execute_tool(name: str, arguments: dict) -> dict:
                     for r in rewards[-20:]  # Last 20
                 ],
             }
-        
+
         return {
             "period_days": days,
             "total_usd_value": float(summary.total_usd_value),
@@ -470,16 +470,16 @@ async def _execute_tool(name: str, arguments: dict) -> dict:
             "by_asset": {asset: float(value) for asset, value in summary.by_asset.items()},
             "by_source": {source: float(value) for source, value in summary.by_source.items()},
         }
-    
+
     elif name == "staking_sync":
         tracker = StakingTracker(_clients, _price_service)
         count = await tracker.sync_rewards()
         return {"new_rewards_added": count}
-    
+
     elif name == "market_overview":
         assets = arguments.get("assets", ["BTC", "ETH", "SOL"])
         agent = MarketIntelAgent()
-        
+
         try:
             overview = await agent.get_market_overview(assets)
             return {
@@ -501,18 +501,18 @@ async def _execute_tool(name: str, arguments: dict) -> dict:
             }
         finally:
             await agent.close()
-    
+
     elif name == "get_price":
         assets = arguments.get("assets", [])
         prices = await _price_service.get_prices(assets)
         return {asset: float(price) for asset, price in prices.items()}
-    
+
     elif name == "target_allocation":
         return {
             "allocation": {asset: pct * 100 for asset, pct in TARGET_ALLOCATION.items()},
             "expected_blended_yield_pct": calculate_blended_yield() * 100,
         }
-    
+
     elif name == "expected_yield":
         snapshot = await _portfolio.sync()
         return {
@@ -520,14 +520,14 @@ async def _execute_tool(name: str, arguments: dict) -> dict:
             "expected_annual_yield": float(snapshot.expected_annual_yield),
             "yield_pct": float(snapshot.expected_annual_yield / snapshot.total_staked_value * 100) if snapshot.total_staked_value > 0 else 0,
         }
-    
+
     elif name == "portfolio_history":
         days = arguments.get("days", 7)
         limit = arguments.get("limit", 50)
         start_date = datetime.now() - timedelta(days=days)
-        
+
         snapshots = db.get_snapshots(start_date=start_date, limit=limit)
-        
+
         return {
             "period_days": days,
             "snapshot_count": len(snapshots),
@@ -540,7 +540,7 @@ async def _execute_tool(name: str, arguments: dict) -> dict:
                 for s in snapshots
             ],
         }
-    
+
     else:
         raise ValueError(f"Unknown tool: {name}")
 

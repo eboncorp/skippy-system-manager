@@ -8,9 +8,7 @@ Variables:
 - Allocation strategies: Conservative, Balanced, Aggressive
 """
 
-from dataclasses import dataclass
-from typing import Dict, List, Tuple
-import math
+from typing import Dict
 
 
 # =============================================================================
@@ -69,35 +67,35 @@ def project(
     """Project portfolio growth."""
     strat = STRATEGIES[strategy]
     scen = BASE_SCENARIOS[scenario]
-    
+
     # Adjust CAGR by volatility factor
     vol_factor = strat["volatility_factor"]
     if scen["cagr"] > 0:
         cagr = scen["cagr"] * vol_factor
     else:
         cagr = scen["cagr"] * vol_factor
-    
+
     annual_dca = daily_dca * 365
     staking_yield = strat["blended_yield"]
-    
+
     portfolio = initial
     total_staking = 0
     total_invested = initial
-    
+
     for year in range(years):
         # Price appreciation
         portfolio *= (1 + cagr)
-        
+
         # DCA (assume average price through year)
         dca_value = annual_dca * (1 + cagr * 0.5)  # Midpoint adjustment
         portfolio += dca_value
         total_invested += annual_dca
-        
+
         # Staking rewards (reinvested)
         staking = portfolio * staking_yield
         portfolio += staking
         total_staking += staking
-    
+
     return {
         "final_value": portfolio,
         "total_invested": total_invested,
@@ -112,14 +110,14 @@ def expected_value(initial: float, daily_dca: float, years: int, strategy: str) 
     """Calculate probability-weighted expected outcome."""
     ev = 0
     results = {}
-    
+
     for scenario, params in BASE_SCENARIOS.items():
         result = project(initial, daily_dca, years, strategy, scenario)
         results[scenario] = result
         ev += result["final_value"] * params["prob"]
-    
+
     total_invested = initial + (daily_dca * 365 * years)
-    
+
     return {
         "expected_value": ev,
         "total_invested": total_invested,
@@ -135,23 +133,23 @@ def analyze_dca_amounts():
     print("  DCA AMOUNT ANALYSIS")
     print("  Finding the optimal daily investment amount")
     print("=" * 80)
-    
+
     dca_amounts = [10, 20, 40, 60, 80, 100, 150, 200]
     initial = 25000
     years = 4
     strategy = "aggressive"
-    
+
     print(f"\n  Assumptions: ${initial:,} initial | 4-year horizon | Aggressive strategy")
     print(f"\n  {'Daily DCA':>12} {'Monthly':>10} {'Yearly':>10} {'Total In':>12} {'Expected':>14} {'Return':>10}")
     print("  " + "-" * 72)
-    
+
     results = []
     for daily in dca_amounts:
         monthly = daily * 30
         yearly = daily * 365
         total_in = initial + yearly * years
         ev = expected_value(initial, daily, years, strategy)
-        
+
         results.append({
             "daily": daily,
             "monthly": monthly,
@@ -161,12 +159,12 @@ def analyze_dca_amounts():
             "return_pct": ev["expected_return_pct"],
             "multiple": ev["expected_multiple"],
         })
-        
+
         print(f"  ${daily:>10}/day ${monthly:>8}/mo ${yearly:>8}/yr ${total_in:>11,} ${ev['expected_value']:>13,.0f} {ev['expected_return_pct']:>+9.0f}%")
-    
+
     print("\n  " + "-" * 72)
     print("  KEY INSIGHT: Higher DCA = more total invested = lower % return but higher absolute $")
-    
+
     return results
 
 
@@ -176,26 +174,26 @@ def analyze_time_horizons():
     print("  TIME HORIZON ANALYSIS")
     print("  How holding period affects outcomes")
     print("=" * 80)
-    
+
     horizons = [1, 2, 3, 4, 5, 6, 8, 10]
     initial = 50000
     daily_dca = 40
     strategy = "aggressive"
-    
+
     print(f"\n  Assumptions: ${initial:,} initial | $40/day DCA | Aggressive strategy")
     print(f"\n  {'Years':>8} {'Total In':>12} {'Bear':>14} {'Base':>14} {'Bull':>14} {'Expected':>14}")
     print("  " + "-" * 80)
-    
+
     for years in horizons:
         total_in = initial + daily_dca * 365 * years
         ev = expected_value(initial, daily_dca, years, strategy)
-        
+
         bear = ev["scenarios"]["bear"]["final_value"]
         base = ev["scenarios"]["base"]["final_value"]
         bull = ev["scenarios"]["bull"]["final_value"]
-        
+
         print(f"  {years:>6} yr ${total_in:>11,} ${bear:>13,.0f} ${base:>13,.0f} ${bull:>13,.0f} ${ev['expected_value']:>13,.0f}")
-    
+
     print("\n  " + "-" * 80)
     print("  KEY INSIGHT: Time in market dramatically improves outcomes due to compounding")
 
@@ -206,25 +204,25 @@ def analyze_strategies():
     print("  STRATEGY COMPARISON")
     print("  Conservative vs Balanced vs Aggressive")
     print("=" * 80)
-    
+
     initial = 50000
     daily_dca = 40
     years = 4
-    
+
     print(f"\n  Assumptions: ${initial:,} initial | $40/day DCA | 4-year horizon")
     print(f"\n  {'Strategy':<20} {'Yield':>8} {'Bear':>14} {'Base':>14} {'Bull':>14} {'Expected':>14}")
     print("  " + "-" * 85)
-    
+
     for strat_key, strat in STRATEGIES.items():
         ev = expected_value(initial, daily_dca, years, strat_key)
         yield_pct = strat["blended_yield"] * 100
-        
+
         bear = ev["scenarios"]["bear"]["final_value"]
         base = ev["scenarios"]["base"]["final_value"]
         bull = ev["scenarios"]["bull"]["final_value"]
-        
+
         print(f"  {strat['name']:<20} {yield_pct:>7.1f}% ${bear:>13,.0f} ${base:>13,.0f} ${bull:>13,.0f} ${ev['expected_value']:>13,.0f}")
-    
+
     print("\n  " + "-" * 85)
     print("  KEY INSIGHT: Aggressive has higher expected value but wider bear/bull spread")
 
@@ -235,25 +233,25 @@ def analyze_starting_amounts():
     print("  STARTING AMOUNT ANALYSIS")
     print("  Impact of initial investment size")
     print("=" * 80)
-    
+
     initials = [0, 5000, 10000, 25000, 50000, 100000, 250000]
     daily_dca = 40
     years = 4
     strategy = "aggressive"
-    
-    print(f"\n  Assumptions: $40/day DCA | 4-year horizon | Aggressive strategy")
+
+    print("\n  Assumptions: $40/day DCA | 4-year horizon | Aggressive strategy")
     print(f"\n  {'Initial':>12} {'DCA Total':>12} {'Total In':>12} {'Expected':>14} {'Multiple':>10} {'Bear':>14}")
     print("  " + "-" * 80)
-    
+
     dca_total = daily_dca * 365 * years
-    
+
     for initial in initials:
         total_in = initial + dca_total
         ev = expected_value(initial, daily_dca, years, strategy)
         bear = ev["scenarios"]["bear"]["final_value"]
-        
+
         print(f"  ${initial:>11,} ${dca_total:>11,} ${total_in:>11,} ${ev['expected_value']:>13,.0f} {ev['expected_multiple']:>9.1f}x ${bear:>13,.0f}")
-    
+
     print("\n  " + "-" * 80)
     print("  KEY INSIGHT: Larger initial = better multiples but DCA alone still builds wealth")
 
@@ -264,24 +262,24 @@ def comprehensive_matrix():
     print("  COMPREHENSIVE PROJECTION MATRIX")
     print("  Expected values across all combinations (4-year, Aggressive)")
     print("=" * 80)
-    
+
     initials = [10000, 25000, 50000, 100000]
     dca_amounts = [20, 40, 60, 100]
-    
-    print(f"\n  Expected Portfolio Value (4-Year Horizon, Aggressive Strategy)")
+
+    print("\n  Expected Portfolio Value (4-Year Horizon, Aggressive Strategy)")
     print(f"\n  {'Initial ↓ / DCA →':>20}", end="")
     for dca in dca_amounts:
         print(f"  ${dca}/day", end="")
     print()
     print("  " + "-" * 65)
-    
+
     for initial in initials:
         print(f"  ${initial:>18,}", end="")
         for dca in dca_amounts:
             ev = expected_value(initial, dca, 4, "aggressive")
             print(f"  ${ev['expected_value']:>10,.0f}", end="")
         print()
-    
+
     print("\n  Total Invested:")
     print(f"  {'':>20}", end="")
     for dca in dca_amounts:
@@ -295,38 +293,38 @@ def optimal_dca_recommendation():
     print("\n" + "=" * 80)
     print("  DCA RECOMMENDATION ANALYSIS")
     print("=" * 80)
-    
+
     # Analyze efficiency: return per dollar of DCA
     print("\n  Efficiency Analysis (Return per $1,000 of monthly DCA commitment)")
     print(f"\n  {'Monthly DCA':>12} {'4-Yr Invest':>12} {'Expected':>14} {'Gain':>14} {'Gain/$1k':>12}")
     print("  " + "-" * 68)
-    
+
     initial = 25000
     base_ev = expected_value(initial, 0, 4, "aggressive")["expected_value"]
-    
+
     monthly_amounts = [300, 600, 900, 1200, 1800, 2400, 3000, 4500, 6000]
-    
+
     best_efficiency = 0
     best_amount = 0
-    
+
     for monthly in monthly_amounts:
         daily = monthly / 30
         yearly = daily * 365
         total_dca = yearly * 4
-        
+
         ev = expected_value(initial, daily, 4, "aggressive")
         gain_from_dca = ev["expected_value"] - base_ev
         efficiency = gain_from_dca / (monthly / 1000) if monthly > 0 else 0
-        
+
         if efficiency > best_efficiency:
             best_efficiency = efficiency
             best_amount = monthly
-        
+
         print(f"  ${monthly:>10,}/mo ${total_dca:>11,} ${ev['expected_value']:>13,.0f} ${gain_from_dca:>13,.0f} ${efficiency:>11,.0f}")
-    
+
     print("\n  " + "-" * 68)
     print(f"  Most efficient: ~${best_amount:,}/month (${best_amount/30:.0f}/day)")
-    
+
     # Affordability analysis
     print("\n\n  AFFORDABILITY GUIDELINES")
     print("  " + "-" * 50)
@@ -335,7 +333,7 @@ def optimal_dca_recommendation():
     print()
     print(f"  {'Monthly Income':>16} {'10% DCA':>12} {'15% DCA':>12} {'20% DCA':>12}")
     print("  " + "-" * 55)
-    
+
     incomes = [4000, 6000, 8000, 10000, 15000, 20000]
     for income in incomes:
         print(f"  ${income:>14,}/mo ${income*0.10:>11,.0f} ${income*0.15:>11,.0f} ${income*0.20:>11,.0f}")
@@ -346,31 +344,31 @@ def scenario_deep_dive():
     print("\n" + "=" * 80)
     print("  SCENARIO DEEP DIVE: $40/day DCA ACROSS TIME HORIZONS")
     print("=" * 80)
-    
+
     initial = 25000
     daily_dca = 40
     strategy = "aggressive"
-    
+
     for years in [2, 4, 6, 8]:
         print(f"\n  ┌{'─' * 68}┐")
         print(f"  │  {years}-YEAR PROJECTION{' ' * (52 - len(str(years)))}│")
         print(f"  ├{'─' * 68}┤")
-        
+
         total_invested = initial + daily_dca * 365 * years
         ev_data = expected_value(initial, daily_dca, years, strategy)
-        
+
         print(f"  │  Initial Investment:      ${initial:>12,}{' ' * 26}│")
         print(f"  │  DCA Contributions:       ${daily_dca * 365 * years:>12,}{' ' * 26}│")
         print(f"  │  Total Invested:          ${total_invested:>12,}{' ' * 26}│")
         print(f"  ├{'─' * 68}┤")
-        
+
         for scenario in ["bear", "base", "bull"]:
             result = ev_data["scenarios"][scenario]
             emoji = "🐻" if scenario == "bear" else "📊" if scenario == "base" else "🚀"
             prob = BASE_SCENARIOS[scenario]["prob"] * 100
-            
+
             print(f"  │  {emoji} {scenario.upper():8} ({prob:.0f}%): ${result['final_value']:>12,.0f} ({result['return_pct']:>+7.1f}%) {result['multiple']:.1f}x{' ' * 8}│")
-        
+
         print(f"  ├{'─' * 68}┤")
         print(f"  │  📈 EXPECTED VALUE:        ${ev_data['expected_value']:>12,.0f} ({ev_data['expected_return_pct']:>+7.1f}%){' ' * 11}│")
         print(f"  │  💰 Total Staking Income:  ${ev_data['scenarios']['base']['total_staking']:>12,.0f}{' ' * 26}│")
@@ -382,7 +380,7 @@ def final_recommendation():
     print("\n" + "=" * 80)
     print("  FINAL RECOMMENDATION")
     print("=" * 80)
-    
+
     print("""
   Based on the analysis:
 
@@ -425,7 +423,7 @@ def main():
     print("║" + "  COMPREHENSIVE CRYPTO PORTFOLIO PROJECTION ANALYSIS".center(78) + "║")
     print("║" + "  All Variables • All Scenarios • All Time Horizons".center(78) + "║")
     print("╚" + "═" * 78 + "╝")
-    
+
     analyze_dca_amounts()
     analyze_time_horizons()
     analyze_strategies()

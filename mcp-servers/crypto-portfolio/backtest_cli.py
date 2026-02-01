@@ -25,12 +25,10 @@ sys.path.insert(0, '/home/claude/crypto-portfolio-manager')
 
 from agents.backtester import (
     BacktestEngine,
-    BacktestResult,
     HistoricalDataProvider,
     format_backtest_report,
     compare_strategies,
     run_strategy_backtest,
-    compare_all_strategies,
 )
 from agents.trading_agent import (
     TradingConfig,
@@ -67,7 +65,7 @@ async def run_single_backtest(
     print(f"   Capital: ${capital:,.2f}")
     print(f"   Assets: {', '.join(assets)}")
     print()
-    
+
     try:
         result = await run_strategy_backtest(
             strategy_name=strategy,
@@ -75,9 +73,9 @@ async def run_single_backtest(
             days=days,
             assets=assets,
         )
-        
+
         print(format_backtest_report(result))
-        
+
         if verbose and result.trades:
             print("\n" + "=" * 80)
             print("ALL TRADES:")
@@ -91,9 +89,9 @@ async def run_single_backtest(
                     f"Signal: {trade.signal_score:+.0f} | "
                     f"Portfolio: ${float(trade.portfolio_value_after):,.2f}"
                 )
-        
+
         return result
-        
+
     except Exception as e:
         print(f"❌ Backtest failed: {e}")
         raise
@@ -111,35 +109,35 @@ async def run_comparison(
     print(f"   Capital: ${capital:,.2f}")
     print(f"   Assets: {', '.join(assets)}")
     print()
-    
+
     strategies = strategies or ["dca", "swing", "mean_reversion", "rebalance"]
-    
+
     # Fetch data once
     print("Fetching historical data...")
     provider = HistoricalDataProvider()
     data = {}
-    
+
     for asset in assets:
         print(f"  → {asset}...", end=" ", flush=True)
         data[asset] = await provider.fetch_coingecko(asset, days)
         print(f"✓ ({len(data[asset])} candles)")
         await asyncio.sleep(1.5)  # Rate limit
-    
+
     await provider.close()
     print()
-    
+
     results = []
-    
+
     for strat_name in strategies:
         print(f"Running {strat_name}...", end=" ", flush=True)
-        
+
         config = TradingConfig(
             mode=TradingMode.BACKTEST,
             supported_assets=assets,
             dca_base_amount=Decimal(str(capital / 100)),
             dca_frequency_hours=24,
         )
-        
+
         strategy_map = {
             "dca": DCASignalStrategy,
             "swing": SwingStrategy,
@@ -147,14 +145,14 @@ async def run_comparison(
             "grid": GridStrategy,
             "rebalance": RebalanceStrategy,
         }
-        
+
         if strat_name not in strategy_map:
             print(f"⚠️  Unknown strategy: {strat_name}")
             continue
-        
+
         strategy = strategy_map[strat_name](config)
         engine = BacktestEngine(initial_capital=Decimal(str(capital)))
-        
+
         try:
             result = await engine.run(strategy, assets=assets, data=data)
             results.append(result)
@@ -163,15 +161,15 @@ async def run_comparison(
             print(f"✗ Error: {e}")
         finally:
             await engine.close()
-    
+
     if results:
         print(compare_strategies(results))
-        
+
         # Print individual summaries
         print("\n" + "=" * 100)
         print("INDIVIDUAL STRATEGY SUMMARIES")
         print("=" * 100)
-        
+
         for result in sorted(results, key=lambda r: r.metrics.sharpe_ratio, reverse=True):
             m = result.metrics
             print(f"""
@@ -182,7 +180,7 @@ async def run_comparison(
 │  Trades: {m.total_trades} total | Win rate {m.win_rate_pct:.0f}% | Profit factor {m.profit_factor:.2f}
 │  Alpha:  {m.alpha_pct:+.1f}% vs Buy & Hold ({m.buy_hold_return_pct:+.1f}%)
 └─────────────────────────────────────────────────────────────────────────────────""")
-    
+
     return results
 
 
@@ -195,28 +193,28 @@ async def run_custom_period(
 ):
     """Run backtest for a custom date range."""
     print_banner()
-    
+
     # Parse dates
     start = datetime.strptime(start_date, "%Y-%m-%d")
     end = datetime.strptime(end_date, "%Y-%m-%d")
     days = (end - start).days
-    
+
     if days <= 0:
         print("❌ End date must be after start date")
         return
-    
+
     print(f"📊 Custom period backtest: {start_date} to {end_date} ({days} days)")
     print(f"   Strategy: {strategy}")
     print(f"   Capital: ${capital:,.2f}")
     print()
-    
+
     result = await run_strategy_backtest(
         strategy_name=strategy,
         initial_capital=capital,
         days=days,
         assets=assets,
     )
-    
+
     print(format_backtest_report(result))
     return result
 
@@ -234,18 +232,18 @@ async def run_monte_carlo(
     print(f"   Period: {days} days")
     print(f"   Capital: ${capital:,.2f}")
     print()
-    
+
     provider = HistoricalDataProvider()
     returns = []
     sharpes = []
     max_dds = []
-    
+
     for i in range(simulations):
         # Generate synthetic data with random parameters
         import random
         volatility = random.uniform(0.02, 0.05)
         trend = random.uniform(-0.0001, 0.0003)
-        
+
         data = {
             "BTC": provider.generate_synthetic(
                 "BTC",
@@ -255,45 +253,45 @@ async def run_monte_carlo(
                 trend=trend,
             )
         }
-        
+
         config = TradingConfig(
             mode=TradingMode.BACKTEST,
             supported_assets=["BTC"],
             dca_base_amount=Decimal(str(capital / 100)),
             dca_frequency_hours=24,
         )
-        
+
         strategy_map = {
             "dca": DCASignalStrategy,
             "swing": SwingStrategy,
             "mean_reversion": MeanReversionStrategy,
             "rebalance": RebalanceStrategy,
         }
-        
+
         strat = strategy_map.get(strategy, DCASignalStrategy)(config)
         engine = BacktestEngine(initial_capital=Decimal(str(capital)))
-        
+
         try:
             result = await engine.run(strat, assets=["BTC"], data=data)
             returns.append(result.metrics.total_return_pct)
             sharpes.append(result.metrics.sharpe_ratio)
             max_dds.append(result.metrics.max_drawdown_pct)
-            
+
             if (i + 1) % 10 == 0:
                 print(f"  Completed {i + 1}/{simulations} simulations...")
         except:
             pass
         finally:
             await engine.close()
-    
+
     await provider.close()
-    
+
     if not returns:
         print("❌ No successful simulations")
         return
-    
+
     import statistics
-    
+
     print(f"""
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                      MONTE CARLO RESULTS ({simulations} simulations)                      ║
@@ -305,15 +303,15 @@ async def run_monte_carlo(
     Std Dev:    {statistics.stdev(returns):.1f}%
     Min:        {min(returns):+.1f}%
     Max:        {max(returns):+.1f}%
-    
+
   SHARPE RATIO:
     Mean:       {statistics.mean(sharpes):.2f}
     Median:     {statistics.median(sharpes):.2f}
-    
+
   MAX DRAWDOWN:
     Mean:       {statistics.mean(max_dds):.1f}%
     Worst:      {max(max_dds):.1f}%
-    
+
   PROBABILITY OF PROFIT: {sum(1 for r in returns if r > 0) / len(returns) * 100:.0f}%
   PROBABILITY OF >20% RETURN: {sum(1 for r in returns if r > 20) / len(returns) * 100:.0f}%
   PROBABILITY OF LOSS >10%: {sum(1 for r in returns if r < -10) / len(returns) * 100:.0f}%
@@ -350,16 +348,16 @@ EXAMPLES:
 
   # Basic backtest
   python backtest_cli.py run dca
-  
+
   # 2-year backtest with $50k
   python backtest_cli.py run swing --days 730 --capital 50000
-  
+
   # Multi-asset backtest
   python backtest_cli.py run dca --assets BTC,ETH
-  
+
   # Compare all strategies
   python backtest_cli.py compare --days 365
-  
+
   # Monte Carlo simulation
   python backtest_cli.py monte-carlo dca --simulations 200
 
@@ -381,7 +379,7 @@ INTERPRETING RESULTS:
   • Max Drawdown < 30%
   • Positive Alpha
   • Win Rate > 50% with Profit Factor > 1.5
-  
+
   Warning Signs:
   • Sharpe < 0.5
   • Max Drawdown > 50%
@@ -398,67 +396,67 @@ async def main():
         description="Crypto Strategy Backtester",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    
+
     parser.add_argument(
         "command",
         choices=["run", "compare", "monte-carlo", "help"],
         help="Command to execute"
     )
-    
+
     parser.add_argument(
         "strategy",
         nargs="?",
         default="dca",
         help="Strategy to backtest"
     )
-    
+
     parser.add_argument(
         "-d", "--days",
         type=int,
         default=365,
         help="Number of days to backtest (default: 365)"
     )
-    
+
     parser.add_argument(
         "-c", "--capital",
         type=float,
         default=10000,
         help="Initial capital (default: 10000)"
     )
-    
+
     parser.add_argument(
         "-a", "--assets",
         default="BTC",
         help="Comma-separated list of assets (default: BTC)"
     )
-    
+
     parser.add_argument(
         "-v", "--verbose",
         action="store_true",
         help="Show detailed trade log"
     )
-    
+
     parser.add_argument(
         "-s", "--simulations",
         type=int,
         default=100,
         help="Number of Monte Carlo simulations (default: 100)"
     )
-    
+
     parser.add_argument(
         "--strategies",
         default=None,
         help="Strategies to compare (comma-separated)"
     )
-    
+
     args = parser.parse_args()
-    
+
     assets = [a.strip().upper() for a in args.assets.split(",")]
-    
+
     if args.command == "help":
         print_help()
         return
-    
+
     elif args.command == "run":
         await run_single_backtest(
             strategy=args.strategy,
@@ -467,19 +465,19 @@ async def main():
             assets=assets,
             verbose=args.verbose,
         )
-    
+
     elif args.command == "compare":
         strategies = None
         if args.strategies:
             strategies = [s.strip() for s in args.strategies.split(",")]
-        
+
         await run_comparison(
             days=args.days,
             capital=args.capital,
             assets=assets,
             strategies=strategies,
         )
-    
+
     elif args.command == "monte-carlo":
         await run_monte_carlo(
             strategy=args.strategy,

@@ -15,11 +15,9 @@ Uses public APIs and on-chain data (no private keys required).
 import asyncio
 import logging
 import os
-import time
 import json
-from datetime import datetime
 from typing import Optional, List, Dict
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from dotenv import load_dotenv
 
 # Use aiohttp for non-blocking HTTP calls in async context
@@ -28,7 +26,6 @@ try:
     AIOHTTP_AVAILABLE = True
 except ImportError:
     AIOHTTP_AVAILABLE = False
-    import requests
 
 logger = logging.getLogger(__name__)
 
@@ -201,18 +198,18 @@ class AaveTracker:
                 response.raise_for_status()
                 result = await response.json()
                 data = result.get("data", {})
-            
+
             health_factor = None
             if data.get("user"):
                 hf = data["user"].get("healthFactor")
                 if hf:
                     health_factor = float(hf) / 1e18
-            
+
             for reserve in data.get("userReserves", []):
                 res = reserve.get("reserve", {})
                 symbol = res.get("symbol", "UNKNOWN")
                 decimals = int(res.get("decimals", 18))
-                
+
                 # Supply position
                 supply_balance = float(reserve.get("currentATokenBalance", 0)) / (10 ** decimals)
                 if supply_balance > 0:
@@ -227,12 +224,12 @@ class AaveTracker:
                         apy=supply_apy,
                         health_factor=health_factor
                     ))
-                
+
                 # Borrow position
                 var_debt = float(reserve.get("currentVariableDebt", 0)) / (10 ** decimals)
                 stable_debt = float(reserve.get("currentStableDebt", 0)) / (10 ** decimals)
                 total_debt = var_debt + stable_debt
-                
+
                 if total_debt > 0:
                     borrow_apy = float(res.get("variableBorrowRate", 0)) / 1e27 * 100
                     positions.append(DeFiPosition(
@@ -245,7 +242,7 @@ class AaveTracker:
                         apy=-borrow_apy,  # Negative APY (cost)
                         health_factor=health_factor
                     ))
-                    
+
         except Exception as e:
             logger.error(f"Aave query error for {address}: {e}")
 
@@ -285,11 +282,11 @@ class UniswapTracker:
     async def get_user_positions(self, address: str, chain: str = "ethereum") -> List[LPPosition]:
         """Get user's Uniswap V3 LP positions."""
         positions = []
-        
+
         subgraph = self.SUBGRAPHS.get(chain)
         if not subgraph:
             return positions
-        
+
         query = """
         query GetPositions($owner: String!) {
             positions(where: {owner: $owner, liquidity_gt: 0}) {
@@ -315,7 +312,7 @@ class UniswapTracker:
             }
         }
         """
-        
+
         try:
             session = await self._get_session()
             async with session.post(
@@ -1080,22 +1077,22 @@ class DeFiPortfolioTracker:
             "by_protocol": protocols,
             "positions": positions
         }
-    
+
     async def find_best_yields(self, asset: str = None, min_tvl: float = 1000000) -> List[dict]:
         """Find best yield opportunities."""
         # Get DefiLlama yields
         pools = await self.defillama.get_yields()
-        
+
         # Filter by asset if specified
         if asset:
             pools = [p for p in pools if asset.upper() in p.get("symbol", "").upper()]
-        
+
         # Filter by TVL
         pools = [p for p in pools if p.get("tvlUsd", 0) >= min_tvl]
-        
+
         # Sort by APY
         pools = sorted(pools, key=lambda x: x.get("apy", 0), reverse=True)
-        
+
         return [
             {
                 "protocol": p.get("project"),
@@ -1113,7 +1110,7 @@ def main():
     """CLI for DeFi tracking."""
     import argparse
     from tabulate import tabulate
-    
+
     parser = argparse.ArgumentParser(description="DeFi Protocol Tracker")
     parser.add_argument("--add-wallet", type=str, help="Add wallet address to track")
     parser.add_argument("--chain", type=str, default="ethereum", help="Chain for wallet")
@@ -1121,45 +1118,45 @@ def main():
     parser.add_argument("--yields", action="store_true", help="Find best yields")
     parser.add_argument("--asset", type=str, help="Filter yields by asset")
     parser.add_argument("--stablecoin-yields", action="store_true", help="Show best stablecoin yields")
-    
+
     args = parser.parse_args()
-    
+
     tracker = DeFiPortfolioTracker()
-    
+
     if args.add_wallet:
         tracker.add_wallet(args.add_wallet, [args.chain])
         print(f"✓ Added {args.add_wallet[:10]}... on {args.chain}")
-    
+
     elif args.positions:
         print("\n🏦 DEFI POSITIONS")
         print("=" * 60)
-        
+
         # Load saved wallets
         wallet_file = os.path.expanduser("~/.crypto_portfolio/defi_wallets.json")
         if os.path.exists(wallet_file):
             with open(wallet_file) as f:
                 tracker.wallets = json.load(f)
-        
+
         if not tracker.wallets:
             print("No wallets configured. Use --add-wallet to add addresses.")
             return
-        
+
         summary = tracker.get_defi_summary()
-        
-        print(f"\n📊 Summary:")
+
+        print("\n📊 Summary:")
         print(f"  Total Supplied: ${summary['total_supplied']:,.2f}")
         print(f"  Total Borrowed: ${summary['total_borrowed']:,.2f}")
         print(f"  Total LP:       ${summary['total_lp']:,.2f}")
         print(f"  Total Staked:   ${summary['total_staked']:,.2f}")
-        print(f"  ─────────────────────────")
+        print("  ─────────────────────────")
         print(f"  Net DeFi Value: ${summary['total_defi']:,.2f}")
-    
+
     elif args.yields or args.asset:
         print("\n💰 BEST YIELD OPPORTUNITIES")
         print("=" * 60)
-        
+
         yields = tracker.find_best_yields(args.asset)
-        
+
         table_data = []
         for y in yields:
             table_data.append([
@@ -1169,17 +1166,17 @@ def main():
                 f"{y['apy']:.2f}%",
                 f"${y['tvl']/1e6:.1f}M"
             ])
-        
-        print(tabulate(table_data, 
+
+        print(tabulate(table_data,
                        headers=["Protocol", "Chain", "Pool", "APY", "TVL"],
                        tablefmt="simple"))
-    
+
     elif args.stablecoin_yields:
         print("\n💵 BEST STABLECOIN YIELDS")
         print("=" * 60)
-        
+
         yields = tracker.defillama.get_stablecoin_yields()
-        
+
         table_data = []
         for y in yields:
             table_data.append([
@@ -1189,11 +1186,11 @@ def main():
                 f"{y.get('apy', 0):.2f}%",
                 f"${y.get('tvlUsd', 0)/1e6:.1f}M"
             ])
-        
+
         print(tabulate(table_data,
                        headers=["Protocol", "Chain", "Pool", "APY", "TVL"],
                        tablefmt="simple"))
-    
+
     else:
         parser.print_help()
 

@@ -82,10 +82,10 @@ def to_kraken_symbol(standard_symbol: str) -> str:
 
 class KrakenClient(ExchangeClient):
     """Client for Kraken API."""
-    
+
     name = "kraken"
     BASE_URL = "https://api.kraken.com"
-    
+
     def __init__(self, api_key: str, api_secret: str):
         self.api_key = api_key
         self.api_secret = api_secret
@@ -101,26 +101,26 @@ class KrakenClient(ExchangeClient):
         with open(os.path.expanduser(key_file)) as f:
             data = json.load(f)
         return cls(api_key=data["api_key"], api_secret=data["api_secret"])
-    
+
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
             timeout = aiohttp.ClientTimeout(total=30, connect=10)
             self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
-    
+
     def _sign_request(self, path: str, data: dict, nonce: str) -> str:
         """Generate signature for Kraken API request."""
         post_data = urllib.parse.urlencode(data)
         encoded = (nonce + post_data).encode()
         message = path.encode() + hashlib.sha256(encoded).digest()
-        
+
         signature = hmac.new(
             base64.b64decode(self.api_secret),
             message,
             hashlib.sha512
         )
         return base64.b64encode(signature.digest()).decode()
-    
+
     async def _request(
         self,
         method: str,
@@ -131,42 +131,42 @@ class KrakenClient(ExchangeClient):
         """Make request to Kraken API."""
         session = await self._get_session()
         url = f"{self.BASE_URL}{path}"
-        
+
         if data is None:
             data = {}
-        
+
         headers = {}
-        
+
         if private:
             nonce = str(int(time.time() * 1000))
             data["nonce"] = nonce
-            
+
             signature = self._sign_request(path, data, nonce)
             headers = {
                 "API-Key": self.api_key,
                 "API-Sign": signature,
             }
-        
+
         if method == "POST":
             async with session.post(url, data=data, headers=headers) as resp:
                 result = await resp.json()
         else:
             async with session.get(url, params=data, headers=headers) as resp:
                 result = await resp.json()
-        
+
         if result.get("error"):
             raise Exception(f"Kraken API error: {result['error']}")
-        
+
         return result.get("result", {})
-    
+
     async def get_balances(self) -> Dict[str, Balance]:
         """Get all account balances including staked assets."""
         # Get regular balances
         data = await self._request("POST", "/0/private/Balance", private=True)
-        
+
         balances = {}
         staked_balances = {}
-        
+
         for kraken_symbol, amount in data.items():
             amount = Decimal(str(amount))
             if amount <= 0:
@@ -188,7 +188,7 @@ class KrakenClient(ExchangeClient):
                 else:
                     balances[symbol].total += amount
                     balances[symbol].available += amount
-        
+
         # Merge staked balances
         for symbol, staked_amount in staked_balances.items():
             if symbol in balances:
@@ -201,9 +201,9 @@ class KrakenClient(ExchangeClient):
                     available=Decimal("0"),
                     staked=staked_amount,
                 )
-        
+
         return balances
-    
+
     async def get_staking_rewards(
         self,
         start_date: Optional[datetime] = None,
@@ -211,23 +211,23 @@ class KrakenClient(ExchangeClient):
     ) -> List[StakingReward]:
         """Get staking rewards from ledger."""
         rewards = []
-        
+
         params = {
             "type": "staking",
         }
-        
+
         if start_date:
             params["start"] = int(start_date.timestamp())
         if end_date:
             params["end"] = int(end_date.timestamp())
-        
+
         try:
             data = await self._request("POST", "/0/private/Ledgers", params, private=True)
-            
+
             for ledger_id, entry in data.get("ledger", {}).items():
                 if entry.get("type") == "staking":
                     symbol = normalize_symbol(entry["asset"])
-                    
+
                     rewards.append(StakingReward(
                         asset=symbol,
                         amount=Decimal(str(entry["amount"])),
@@ -237,9 +237,9 @@ class KrakenClient(ExchangeClient):
                     ))
         except Exception as e:
             logger.warning(f"Could not fetch staking rewards: {e}")
-        
+
         return rewards
-    
+
     async def get_trade_history(
         self,
         start_date: Optional[datetime] = None,
@@ -248,19 +248,19 @@ class KrakenClient(ExchangeClient):
     ) -> List[Trade]:
         """Get trade history."""
         trades = []
-        
+
         params = {}
         if start_date:
             params["start"] = int(start_date.timestamp())
         if end_date:
             params["end"] = int(end_date.timestamp())
-        
+
         try:
             data = await self._request("POST", "/0/private/TradesHistory", params, private=True)
-            
+
             for trade_id, trade_data in data.get("trades", {}).items():
                 pair = trade_data["pair"]
-                
+
                 # Parse the trading pair to get the asset
                 # Kraken pairs are like XXBTZUSD, ETHUSDT, etc.
                 trade_asset = None
@@ -268,17 +268,17 @@ class KrakenClient(ExchangeClient):
                     if pair.startswith(kraken_sym):
                         trade_asset = std_sym
                         break
-                
+
                 if not trade_asset:
                     # Try to parse manually
                     if "USD" in pair:
                         trade_asset = normalize_symbol(pair.split("USD")[0])
                     else:
                         continue
-                
+
                 if asset and trade_asset != asset:
                     continue
-                
+
                 trades.append(Trade(
                     id=trade_id,
                     timestamp=datetime.fromtimestamp(trade_data["time"]),
@@ -291,9 +291,9 @@ class KrakenClient(ExchangeClient):
                 ))
         except Exception as e:
             logger.warning(f"Could not fetch trade history: {e}")
-        
+
         return trades
-    
+
     async def place_market_order(
         self,
         asset: str,
@@ -304,13 +304,13 @@ class KrakenClient(ExchangeClient):
         """Place a market order."""
         kraken_symbol = to_kraken_symbol(asset)
         pair = f"{kraken_symbol}USD"
-        
+
         params = {
             "pair": pair,
             "type": side.lower(),
             "ordertype": "market",
         }
-        
+
         if quote_amount and side == "buy":
             # Kraken doesn't directly support quote amounts for market orders
             # We need to get the price first and calculate
@@ -320,12 +320,12 @@ class KrakenClient(ExchangeClient):
             params["volume"] = str(amount)
         else:
             return OrderResult(success=False, error="Must specify amount or quote_amount")
-        
+
         try:
             data = await self._request("POST", "/0/private/AddOrder", params, private=True)
-            
+
             order_ids = data.get("txid", [])
-            
+
             return OrderResult(
                 success=True,
                 order_id=order_ids[0] if order_ids else None,
@@ -333,18 +333,18 @@ class KrakenClient(ExchangeClient):
             )
         except Exception as e:
             return OrderResult(success=False, error=str(e))
-    
+
     async def get_ticker_price(self, asset: str) -> Decimal:
         """Get current price for an asset."""
         kraken_symbol = to_kraken_symbol(asset)
-        
+
         # Try different pair formats
         pairs_to_try = [
             f"{kraken_symbol}USD",
             f"X{kraken_symbol}ZUSD",
             f"{kraken_symbol}USDT",
         ]
-        
+
         for pair in pairs_to_try:
             try:
                 data = await self._request("GET", "/0/public/Ticker", {"pair": pair})
@@ -355,9 +355,9 @@ class KrakenClient(ExchangeClient):
                     return Decimal(str(ticker["c"][0]))
             except Exception:
                 continue
-        
+
         raise Exception(f"Could not get price for {asset}")
-    
+
     async def stake(self, asset: str, amount: Decimal) -> bool:
         """Stake an asset on Kraken."""
         params = {
@@ -365,28 +365,28 @@ class KrakenClient(ExchangeClient):
             "amount": str(amount),
             "method": f"{asset}.S",  # Staking method
         }
-        
+
         try:
             await self._request("POST", "/0/private/Stake", params, private=True)
             return True
         except Exception as e:
             logger.error(f"Staking failed: {e}")
             return False
-    
+
     async def unstake(self, asset: str, amount: Decimal) -> bool:
         """Unstake an asset on Kraken."""
         params = {
             "asset": f"{to_kraken_symbol(asset)}.S",
             "amount": str(amount),
         }
-        
+
         try:
             await self._request("POST", "/0/private/Unstake", params, private=True)
             return True
         except Exception as e:
             logger.error(f"Unstaking failed: {e}")
             return False
-    
+
     async def get_stakeable_assets(self) -> Dict[str, dict]:
         """Get list of stakeable assets and their conditions."""
         try:
@@ -395,7 +395,7 @@ class KrakenClient(ExchangeClient):
         except Exception as e:
             logger.error(f"Could not get stakeable assets: {e}")
             return {}
-    
+
     async def close(self):
         """Close the session."""
         if self._session:

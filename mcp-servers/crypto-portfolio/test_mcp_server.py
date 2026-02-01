@@ -14,8 +14,6 @@ Run with: pytest tests/ -v --cov=. --cov-report=html
 
 import json
 import pytest
-from datetime import datetime
-from unittest.mock import AsyncMock, patch, MagicMock
 
 # Import the MCP server components
 import sys
@@ -29,7 +27,6 @@ from crypto_portfolio_mcp import (
     DeFiPositionsInput,
     AIAnalysisInput,
     CostBasisInput,
-    HistoricalSnapshotInput,
     ArbitrageOpportunitiesInput,
     DCABotStatusInput,
     AlertsInput,
@@ -762,12 +759,12 @@ class TestToolIntegration:
         portfolio_inp = PortfolioSummaryInput(response_format=ResponseFormat.JSON)
         portfolio_result = await crypto_portfolio_summary(portfolio_inp)
         portfolio_data = json.loads(portfolio_result)
-        
+
         # Run analysis
         analysis_inp = AIAnalysisInput(response_format=ResponseFormat.JSON)
         analysis_result = await crypto_ai_analysis(analysis_inp)
         analysis_data = json.loads(analysis_result)
-        
+
         # Both should have data
         assert portfolio_data["total_value_usd"] > 0
         assert analysis_data["portfolio_health_score"] > 0
@@ -786,7 +783,7 @@ class TestToolIntegration:
             (crypto_alerts_status, AlertsInput(response_format=ResponseFormat.JSON)),
             (crypto_dca_bot_status, DCABotStatusInput(response_format=ResponseFormat.JSON)),
         ]
-        
+
         for tool, inp in tools_and_inputs:
             result = await tool(inp)
             # Should not raise
@@ -807,7 +804,7 @@ class TestToolIntegration:
             (crypto_alerts_status, AlertsInput(response_format=ResponseFormat.MARKDOWN)),
             (crypto_dca_bot_status, DCABotStatusInput(response_format=ResponseFormat.MARKDOWN)),
         ]
-        
+
         for tool, inp in tools_and_inputs:
             result = await tool(inp)
             # Should be a non-empty string with markdown characteristics
@@ -829,24 +826,24 @@ class TestPerformance:
     async def test_portfolio_summary_speed(self):
         """Test portfolio summary completes quickly."""
         import time
-        
+
         inp = PortfolioSummaryInput()
         start = time.time()
         await crypto_portfolio_summary(inp)
         elapsed = time.time() - start
-        
+
         # Should complete in under 1 second (mock data)
         assert elapsed < 1.0
 
     async def test_batch_requests(self):
         """Test multiple concurrent requests."""
         import asyncio
-        
+
         inp = PortfolioSummaryInput()
         tasks = [crypto_portfolio_summary(inp) for _ in range(10)]
-        
+
         results = await asyncio.gather(*tasks)
-        
+
         # All should complete successfully
         assert len(results) == 10
         assert all("Portfolio" in r for r in results)

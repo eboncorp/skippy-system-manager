@@ -4,13 +4,12 @@ Fetches and normalizes transaction history from all exchanges and on-chain sourc
 """
 
 import os
-from datetime import datetime, timezone, timedelta
-from typing import Optional, List, Dict, Any
+from datetime import datetime, timezone
+from typing import List, Dict, Any
 from dotenv import load_dotenv
 
 from database import (
-    get_db, Transaction, TransactionType, SourceType, AssetType,
-    DatabaseManager
+    get_db, Transaction, TransactionType, SourceType
 )
 from logging_config import get_logger
 
@@ -19,13 +18,13 @@ logger = get_logger("transactions")
 
 class TransactionAggregator:
     """Aggregates transactions from all sources into unified format."""
-    
+
     def __init__(self):
         load_dotenv()
         self.db = get_db()
         self.clients = {}
         self._init_clients()
-    
+
     def _init_clients(self):
         """Initialize exchange clients."""
         # Coinbase
@@ -59,19 +58,19 @@ class TransactionAggregator:
             from exchanges import GeminiClient
             self.clients["gemini"] = GeminiClient(gemini_key, gemini_secret)
             logger.info("Gemini client initialized")
-    
+
     def sync_all(self, full_sync: bool = False) -> Dict[str, int]:
         """
         Sync transactions from all sources.
-        
+
         Args:
             full_sync: If True, fetch all available history. If False, incremental.
-        
+
         Returns:
             Dict of source -> number of new transactions
         """
         results = {}
-        
+
         for source_name, client in self.clients.items():
             try:
                 logger.info(f"Syncing {source_name}...")
@@ -81,13 +80,13 @@ class TransactionAggregator:
             except Exception as e:
                 logger.error(f"Error syncing {source_name}: {e}")
                 results[source_name] = -1
-        
+
         return results
-    
+
     def _sync_exchange(self, name: str, client, full_sync: bool) -> int:
         """Sync transactions from a specific exchange."""
         source = SourceType(name.lower().replace(".", ""))
-        
+
         if name == "coinbase":
             return self._sync_coinbase(client, source, full_sync)
         elif name == "kraken":
@@ -96,39 +95,39 @@ class TransactionAggregator:
             return self._sync_cryptocom(client, source, full_sync)
         elif name == "gemini":
             return self._sync_gemini(client, source, full_sync)
-        
+
         return 0
-    
+
     def _sync_coinbase(self, client, source: SourceType, full_sync: bool) -> int:
         """Sync Coinbase transactions."""
         new_count = 0
-        
+
         # Get fills (completed trades)
         fills = client.get_fills(limit=1000 if full_sync else 100)
-        
+
         for fill in fills:
             source_id = fill.get("trade_id") or fill.get("order_id")
-            
+
             if self.db.transaction_exists(source, str(source_id)):
                 continue
-            
+
             # Parse the fill
             product_id = fill.get("product_id", "")
             parts = product_id.split("-")
             base_asset = parts[0] if parts else "UNKNOWN"
             quote_asset = parts[1] if len(parts) > 1 else "USD"
-            
+
             side = fill.get("side", "").upper()
             tx_type = TransactionType.BUY if side == "BUY" else TransactionType.SELL
-            
+
             size = float(fill.get("size", 0))
             price = float(fill.get("price", 0))
             fee = float(fill.get("commission", 0))
-            
+
             timestamp = fill.get("trade_time")
             if isinstance(timestamp, str):
                 timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-            
+
             self.db.add_transaction(
                 source=source,
                 source_id=str(source_id),
@@ -146,35 +145,35 @@ class TransactionAggregator:
                 raw_data=str(fill)
             )
             new_count += 1
-        
+
         return new_count
-    
+
     def _sync_kraken(self, client, source: SourceType, full_sync: bool) -> int:
         """Sync Kraken transactions."""
         new_count = 0
-        
+
         # Get trade history
         trades = client.get_trade_history(limit=1000 if full_sync else 100)
-        
+
         for trade in trades:
             trade_id = trade.get("trade_id", "")
-            
+
             if self.db.transaction_exists(source, str(trade_id)):
                 continue
-            
+
             pair = trade.get("pair", "")
             tx_type_str = trade.get("type", "buy")
             tx_type = TransactionType.BUY if tx_type_str == "buy" else TransactionType.SELL
-            
+
             vol = float(trade.get("vol", 0))
             price = float(trade.get("price", 0))
             fee = float(trade.get("fee", 0))
             timestamp = float(trade.get("time", 0))
-            
+
             # Parse pair (e.g., XXBTZUSD -> XBT, USD)
             base_asset = client._denormalize_symbol(pair[:len(pair)//2])
             quote_asset = client._denormalize_symbol(pair[len(pair)//2:])
-            
+
             self.db.add_transaction(
                 source=source,
                 source_id=str(trade_id),
@@ -192,34 +191,34 @@ class TransactionAggregator:
                 raw_data=str(trade)
             )
             new_count += 1
-        
+
         return new_count
-    
+
     def _sync_cryptocom(self, client, source: SourceType, full_sync: bool) -> int:
         """Sync Crypto.com transactions."""
         new_count = 0
-        
+
         trades = client.get_trade_history(limit=1000 if full_sync else 100)
-        
+
         for trade in trades:
             trade_id = trade.get("trade_id", "")
-            
+
             if self.db.transaction_exists(source, str(trade_id)):
                 continue
-            
+
             instrument = trade.get("instrument_name", "")
             parts = instrument.split("_")
             base_asset = parts[0] if parts else "UNKNOWN"
             quote_asset = parts[1] if len(parts) > 1 else "USD"
-            
+
             side = trade.get("side", "BUY").upper()
             tx_type = TransactionType.BUY if side == "BUY" else TransactionType.SELL
-            
+
             quantity = float(trade.get("traded_quantity", 0))
             price = float(trade.get("traded_price", 0))
             fee = float(trade.get("fee", 0))
             timestamp = trade.get("create_time", 0) / 1000  # milliseconds to seconds
-            
+
             self.db.add_transaction(
                 source=source,
                 source_id=str(trade_id),
@@ -236,21 +235,21 @@ class TransactionAggregator:
                 raw_data=str(trade)
             )
             new_count += 1
-        
+
         return new_count
-    
+
     def _sync_gemini(self, client, source: SourceType, full_sync: bool) -> int:
         """Sync Gemini transactions."""
         new_count = 0
-        
+
         trades = client.get_trade_history(limit=500 if full_sync else 100)
-        
+
         for trade in trades:
             trade_id = trade.get("tid", "")
-            
+
             if self.db.transaction_exists(source, str(trade_id)):
                 continue
-            
+
             symbol = trade.get("symbol", "")
             # Parse symbol (e.g., "btcusd" -> BTC, USD)
             if len(symbol) >= 6:
@@ -259,15 +258,15 @@ class TransactionAggregator:
             else:
                 base_asset = symbol.upper()
                 quote_asset = "USD"
-            
+
             tx_type_str = trade.get("type", "Buy")
             tx_type = TransactionType.BUY if tx_type_str.lower() == "buy" else TransactionType.SELL
-            
+
             amount = float(trade.get("amount", 0))
             price = float(trade.get("price", 0))
             fee = float(trade.get("fee_amount", 0))
             timestamp = trade.get("timestampms", 0) / 1000
-            
+
             self.db.add_transaction(
                 source=source,
                 source_id=str(trade_id),
@@ -284,9 +283,9 @@ class TransactionAggregator:
                 raw_data=str(trade)
             )
             new_count += 1
-        
+
         return new_count
-    
+
     def get_all_transactions(
         self,
         asset: str = None,
@@ -305,39 +304,39 @@ class TransactionAggregator:
             tx_type=tx_type,
             limit=limit
         )
-    
+
     def get_transaction_summary(self) -> Dict[str, Any]:
         """Get summary of all transactions."""
         session = self.db.get_session()
         try:
             from sqlalchemy import func
-            
+
             # Total counts by source
             source_counts = session.query(
                 Transaction.source,
                 func.count(Transaction.id)
             ).group_by(Transaction.source).all()
-            
+
             # Total counts by type
             type_counts = session.query(
                 Transaction.type,
                 func.count(Transaction.id)
             ).group_by(Transaction.type).all()
-            
+
             # Date range
             first_tx = session.query(
                 func.min(Transaction.timestamp)
             ).scalar()
-            
+
             last_tx = session.query(
                 func.max(Transaction.timestamp)
             ).scalar()
-            
+
             # Total volume
             total_volume = session.query(
                 func.sum(Transaction.value_usd)
             ).scalar() or 0
-            
+
             return {
                 "by_source": {s.value: c for s, c in source_counts},
                 "by_type": {t.value: c for t, c in type_counts},
@@ -348,7 +347,7 @@ class TransactionAggregator:
             }
         finally:
             session.close()
-    
+
     def export_transactions(
         self,
         format: str = "csv",
@@ -357,9 +356,9 @@ class TransactionAggregator:
     ) -> str:
         """Export transactions to file."""
         import pandas as pd
-        
+
         transactions = self.get_all_transactions(**filters)
-        
+
         data = []
         for tx in transactions:
             data.append({
@@ -374,19 +373,19 @@ class TransactionAggregator:
                 "Source": tx.source.value,
                 "TX ID": tx.source_id
             })
-        
+
         df = pd.DataFrame(data)
-        
+
         if filepath is None:
             filepath = f"transactions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{format}"
-        
+
         if format == "csv":
             df.to_csv(filepath, index=False)
         elif format == "excel":
             df.to_excel(filepath, index=False)
         elif format == "json":
             df.to_json(filepath, orient="records", indent=2)
-        
+
         logger.info(f"Exported {len(data)} transactions to {filepath}")
         return filepath
 
@@ -394,7 +393,7 @@ class TransactionAggregator:
 def main():
     """CLI for transaction aggregator."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Transaction History Aggregator")
     parser.add_argument("--sync", action="store_true", help="Sync transactions from exchanges")
     parser.add_argument("--full", action="store_true", help="Full sync (all history)")
@@ -402,11 +401,11 @@ def main():
     parser.add_argument("--export", choices=["csv", "excel", "json"], help="Export format")
     parser.add_argument("--asset", help="Filter by asset")
     parser.add_argument("--output", help="Output file path")
-    
+
     args = parser.parse_args()
-    
+
     aggregator = TransactionAggregator()
-    
+
     if args.sync:
         print("Syncing transactions from all exchanges...")
         results = aggregator.sync_all(full_sync=args.full)
@@ -414,7 +413,7 @@ def main():
         for source, count in results.items():
             status = f"{count} new" if count >= 0 else "ERROR"
             print(f"  {source}: {status}")
-    
+
     if args.summary:
         summary = aggregator.get_transaction_summary()
         print("\n📊 Transaction Summary")
@@ -429,7 +428,7 @@ def main():
         print("\nBy Type:")
         for tx_type, count in summary['by_type'].items():
             print(f"  {tx_type}: {count:,}")
-    
+
     if args.export:
         filepath = aggregator.export_transactions(
             format=args.export,

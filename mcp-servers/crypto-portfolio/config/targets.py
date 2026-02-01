@@ -19,19 +19,19 @@ TARGET_ALLOCATION: Dict[str, float] = {
     # Tier 1: Core Anchor (30%)
     "ETH": 0.18,   # DeFi backbone, staking yield
     "BTC": 0.12,   # Store of value, volatility anchor
-    
+
     # Tier 2: High-Yield L1s (35%)
     "ATOM": 0.12,  # ~17% APY, Cosmos hub
     "DOT": 0.10,   # ~12% APY, parachains
     "TIA": 0.08,   # ~12% APY, data availability
     "INJ": 0.05,   # ~15% APY, DeFi focused
-    
+
     # Tier 3: Growth + Yield (27%)
     "SOL": 0.12,   # ~7% APY, ecosystem momentum
     "AVAX": 0.06,  # ~8% APY, subnet growth
     "NEAR": 0.05,  # ~9% APY, AI/chain abstraction
     "SUI": 0.04,   # ~4% APY, Move-based emerging
-    
+
     # Tier 4: Cash Buffer (8%)
     "CASH": 0.08,  # USDC/USD - dry powder for dips
 }
@@ -135,19 +135,19 @@ DCA_ALLOCATION: Dict[str, float] = {
     # Core
     "ETH": 0.18,   # $216/mo
     "BTC": 0.12,   # $144/mo
-    
+
     # High-Yield
     "ATOM": 0.12,  # $144/mo
     "DOT": 0.10,   # $120/mo
     "TIA": 0.08,   # $96/mo
     "INJ": 0.05,   # $60/mo
-    
+
     # Growth + Yield
     "SOL": 0.12,   # $144/mo
     "AVAX": 0.06,  # $72/mo
     "NEAR": 0.05,  # $60/mo
     "SUI": 0.04,   # $48/mo
-    
+
     # Cash buffer accumulates separately or via rebalancing
     # Not included in DCA - let it build from staking rewards
 }
@@ -162,16 +162,16 @@ class RebalanceRule:
     """Rules for when and how to rebalance."""
     # Threshold before triggering rebalance (5% = 0.05)
     drift_threshold: float = 0.05
-    
+
     # Maximum single trade size as % of position
     max_trade_pct: float = 0.25
-    
+
     # Minimum trade size in USD
     min_trade_usd: float = 10.0
-    
+
     # Tax-loss harvesting: sell losers before winners
     prefer_tax_loss_harvest: bool = True
-    
+
     # Avoid short-term gains (assets held < 1 year)
     avoid_short_term_gains: bool = True
 
@@ -230,24 +230,24 @@ def get_net_staking_yield(asset: str) -> float:
     """Calculate net staking yield after platform commission."""
     if asset not in STAKING_CONFIG:
         return 0.0
-    
+
     config = STAKING_CONFIG[asset]
     if not config.stakeable:
         return 0.0
-    
+
     return config.expected_apy * (1 - config.provider_commission)
 
 
 def calculate_blended_yield() -> float:
     """Calculate expected portfolio yield from staking."""
     total_yield = 0.0
-    
+
     for asset, weight in TARGET_ALLOCATION.items():
         if asset == "CASH":
             continue
         net_yield = get_net_staking_yield(asset)
         total_yield += weight * net_yield
-    
+
     return total_yield
 
 
@@ -260,9 +260,9 @@ if __name__ == "__main__":
         net_yield = get_net_staking_yield(asset)
         yield_str = f"{net_yield*100:.1f}%" if net_yield > 0 else "N/A"
         print(f"  {asset}: {weight*100:.1f}% (net yield: {yield_str})")
-    
+
     print(f"\nBlended Portfolio Yield: {calculate_blended_yield()*100:.2f}%")
-    
+
     print("\nDCA Allocation (daily at $40):")
     for asset, weight in sorted(DCA_ALLOCATION.items(), key=lambda x: -x[1]):
         daily = weight * 40

@@ -8,9 +8,8 @@ for portfolio events, price alerts, and rebalancing triggers.
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
 from enum import Enum
-from typing import Dict, List, Optional, Callable, Any
+from typing import Dict, List, Any
 import aiohttp
 import smtplib
 from email.mime.text import MIMEText
@@ -40,7 +39,7 @@ class Alert:
     timestamp: datetime = None
     data: Dict[str, Any] = None
     priority: str = "normal"  # low, normal, high, urgent
-    
+
     def __post_init__(self):
         if self.timestamp is None:
             self.timestamp = datetime.now()
@@ -50,7 +49,7 @@ class Alert:
 
 class NotificationChannel:
     """Base class for notification channels."""
-    
+
     async def send(self, alert: Alert) -> bool:
         """Send an alert. Returns True if successful."""
         raise NotImplementedError
@@ -58,10 +57,10 @@ class NotificationChannel:
 
 class DiscordChannel(NotificationChannel):
     """Discord webhook notification channel."""
-    
+
     def __init__(self, webhook_url: str):
         self.webhook_url = webhook_url
-    
+
     def _format_message(self, alert: Alert) -> dict:
         """Format alert as Discord embed."""
         color_map = {
@@ -74,14 +73,14 @@ class DiscordChannel(NotificationChannel):
             AlertType.ERROR: 0xe74c3c,  # Red
             AlertType.INFO: 0x95a5a6,  # Gray
         }
-        
+
         priority_emoji = {
             "low": "",
             "normal": "",
             "high": "⚠️ ",
             "urgent": "🚨 ",
         }
-        
+
         return {
             "embeds": [{
                 "title": f"{priority_emoji.get(alert.priority, '')}{alert.title}",
@@ -91,14 +90,14 @@ class DiscordChannel(NotificationChannel):
                 "footer": {"text": f"Crypto Portfolio Manager | {alert.type.value}"},
             }]
         }
-    
+
     async def send(self, alert: Alert) -> bool:
         """Send alert to Discord."""
         if not self.webhook_url:
             return False
-        
+
         payload = self._format_message(alert)
-        
+
         async with aiohttp.ClientSession() as session:
             async with session.post(self.webhook_url, json=payload) as resp:
                 return resp.status in (200, 204)
@@ -106,11 +105,11 @@ class DiscordChannel(NotificationChannel):
 
 class TelegramChannel(NotificationChannel):
     """Telegram bot notification channel."""
-    
+
     def __init__(self, bot_token: str, chat_id: str):
         self.bot_token = bot_token
         self.chat_id = chat_id
-    
+
     def _format_message(self, alert: Alert) -> str:
         """Format alert as Telegram message."""
         priority_emoji = {
@@ -119,23 +118,23 @@ class TelegramChannel(NotificationChannel):
             "high": "⚠️",
             "urgent": "🚨",
         }
-        
+
         emoji = priority_emoji.get(alert.priority, "📊")
-        
+
         return f"{emoji} *{alert.title}*\n\n{alert.message}"
-    
+
     async def send(self, alert: Alert) -> bool:
         """Send alert to Telegram."""
         if not self.bot_token or not self.chat_id:
             return False
-        
+
         url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
         payload = {
             "chat_id": self.chat_id,
             "text": self._format_message(alert),
             "parse_mode": "Markdown",
         }
-        
+
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload) as resp:
                 return resp.status == 200
@@ -143,7 +142,7 @@ class TelegramChannel(NotificationChannel):
 
 class EmailChannel(NotificationChannel):
     """Email notification channel."""
-    
+
     def __init__(
         self,
         smtp_host: str,
@@ -157,17 +156,17 @@ class EmailChannel(NotificationChannel):
         self.username = username
         self.password = password
         self.to_address = to_address
-    
+
     async def send(self, alert: Alert) -> bool:
         """Send alert via email."""
         if not all([self.smtp_host, self.username, self.password, self.to_address]):
             return False
-        
+
         msg = MIMEMultipart()
         msg["From"] = self.username
         msg["To"] = self.to_address
         msg["Subject"] = f"[Crypto Portfolio] {alert.title}"
-        
+
         body = f"""
 {alert.message}
 
@@ -176,9 +175,9 @@ Type: {alert.type.value}
 Time: {alert.timestamp.strftime('%Y-%m-%d %H:%M:%S')}
 Priority: {alert.priority}
         """
-        
+
         msg.attach(MIMEText(body, "plain"))
-        
+
         try:
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
@@ -187,7 +186,7 @@ Priority: {alert.priority}
         except Exception as e:
             print(f"Email send failed: {e}")
             return False
-    
+
     def _send_email(self, msg: MIMEMultipart):
         """Synchronous email sending."""
         with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
@@ -198,21 +197,21 @@ Priority: {alert.priority}
 
 class AlertManager:
     """Manages alerts and notifications."""
-    
+
     def __init__(self):
         self.channels: List[NotificationChannel] = []
         self._alert_history: List[Alert] = []
         self._setup_channels()
-    
+
     def _setup_channels(self):
         """Set up notification channels based on config."""
         method = settings.notifications.method
-        
+
         if method == "discord" and settings.notifications.discord_webhook_url:
             self.channels.append(
                 DiscordChannel(settings.notifications.discord_webhook_url)
             )
-        
+
         elif method == "telegram":
             if settings.notifications.telegram_bot_token and settings.notifications.telegram_chat_id:
                 self.channels.append(
@@ -221,7 +220,7 @@ class AlertManager:
                         settings.notifications.telegram_chat_id,
                     )
                 )
-        
+
         elif method == "email":
             self.channels.append(
                 EmailChannel(
@@ -232,25 +231,25 @@ class AlertManager:
                     settings.notifications.email_to,
                 )
             )
-    
+
     async def send_alert(self, alert: Alert) -> bool:
         """Send an alert to all configured channels."""
         self._alert_history.append(alert)
-        
+
         if not self.channels:
             # No channels configured, just log
             print(f"[ALERT] {alert.title}: {alert.message}")
             return True
-        
+
         results = await asyncio.gather(
             *[channel.send(alert) for channel in self.channels],
             return_exceptions=True
         )
-        
+
         return any(r is True for r in results)
-    
+
     # Convenience methods for common alerts
-    
+
     async def notify_drift(
         self,
         asset: str,
@@ -260,7 +259,7 @@ class AlertManager:
     ):
         """Send drift alert."""
         direction = "over" if drift_pct > 0 else "under"
-        
+
         alert = Alert(
             type=AlertType.DRIFT_ALERT,
             title=f"Portfolio Drift: {asset}",
@@ -269,7 +268,7 @@ class AlertManager:
             priority="normal",
         )
         await self.send_alert(alert)
-    
+
     async def notify_rebalance_needed(self, total_drift: float, assets: List[str]):
         """Send rebalance needed alert."""
         alert = Alert(
@@ -280,7 +279,7 @@ class AlertManager:
             priority="high",
         )
         await self.send_alert(alert)
-    
+
     async def notify_rebalance_complete(
         self,
         trades_executed: int,
@@ -295,7 +294,7 @@ class AlertManager:
             priority="normal",
         )
         await self.send_alert(alert)
-    
+
     async def notify_dca_executed(
         self,
         total_amount: float,
@@ -310,7 +309,7 @@ class AlertManager:
             priority="low",
         )
         await self.send_alert(alert)
-    
+
     async def notify_staking_reward(
         self,
         asset: str,
@@ -327,7 +326,7 @@ class AlertManager:
             priority="low",
         )
         await self.send_alert(alert)
-    
+
     async def notify_error(self, title: str, error: str):
         """Send error alert."""
         alert = Alert(

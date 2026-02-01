@@ -14,10 +14,8 @@ Supported formats:
 """
 
 import csv
-import io
 import os
 import re
-import zipfile
 from collections import defaultdict
 from datetime import datetime
 from typing import List, Optional, Tuple

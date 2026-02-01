@@ -12,7 +12,7 @@ intelligent DCA/buffer deployment recommendations.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 import asyncio
 import logging
 
@@ -21,12 +21,10 @@ from .extended_signals import (
     ComprehensiveSignalAnalysis,
     SignalStrength,
     SignalResult,
-    CategorySummary,
 )
 from .expanded_signals import (
     ExpandedSignalsAnalyzer,
     ExpandedSignalAnalysis,
-    ExpandedCategorySummary,
 )
 
 logger = logging.getLogger(__name__)
@@ -89,11 +87,11 @@ class UnifiedSignalAnalysis:
     """Complete unified analysis with all 130+ signals."""
     timestamp: datetime
     asset: str
-    
+
     # Component analyses
     base_analysis: Optional[ComprehensiveSignalAnalysis]
     expanded_analysis: Optional[ExpandedSignalAnalysis]
-    
+
     # Master category summaries
     price_technical: MasterCategorySummary      # Technical + Order Flow
     sentiment: MasterCategorySummary            # All sentiment sources
@@ -103,33 +101,33 @@ class UnifiedSignalAnalysis:
     cycle_position: MasterCategorySummary       # Cycle indicators
     smart_money: MasterCategorySummary          # Smart money behavior
     institutional: MasterCategorySummary        # Institutional metrics
-    
+
     # Overall metrics
     total_signals: int
     available_signals: int
     data_quality: float  # 0-1 based on availability
-    
+
     # Composite scores
     composite_score: float          # Master composite (-100 to +100)
     technical_score: float          # Technical sub-score
     fundamental_score: float        # On-chain/fundamental sub-score
     sentiment_score: float          # Sentiment sub-score
     timing_score: float             # Cycle/calendar timing score
-    
+
     # Classifications
     market_condition: MarketCondition
     cycle_phase: CyclePhase
     trend_direction: str            # "bullish", "bearish", "sideways"
-    
+
     # Recommendations
     primary_recommendation: ActionRecommendation
     alternative_recommendations: List[ActionRecommendation]
-    
+
     # Risk assessment
     risk_level: str                 # "low", "medium", "high", "extreme"
     risk_factors: List[str]
     opportunity_factors: List[str]
-    
+
     # All signals for reference
     all_signals: List[SignalResult] = field(default_factory=list)
 
@@ -137,7 +135,7 @@ class UnifiedSignalAnalysis:
 class UnifiedSignalAnalyzer:
     """
     Master analyzer combining all 130+ signals into unified recommendations.
-    
+
     Signal Categories:
     1. Price & Technical (16 signals)
     2. Sentiment (14 signals)
@@ -150,7 +148,7 @@ class UnifiedSignalAnalyzer:
     9. Economic Calendar (8 signals)
     10. DeFi/Altcoin (12 signals)
     """
-    
+
     # Master category weights (sum to 10 for easy mental math)
     MASTER_WEIGHTS = {
         "price_technical": 1.0,
@@ -162,16 +160,16 @@ class UnifiedSignalAnalyzer:
         "smart_money": 1.5,      # Smart money is very reliable
         "institutional": 1.3,
     }
-    
+
     def __init__(self):
         self.base_analyzer = ExtendedSignalsAnalyzer()
         self.expanded_analyzer = ExpandedSignalsAnalyzer()
-    
+
     async def close(self):
         """Close all HTTP sessions."""
         await self.base_analyzer.close()
         await self.expanded_analyzer.close()
-    
+
     async def analyze(self, asset: str = "BTC") -> UnifiedSignalAnalysis:
         """
         Run complete 130+ signal analysis.
@@ -179,11 +177,11 @@ class UnifiedSignalAnalyzer:
         # Run both analyzers concurrently
         base_task = self.base_analyzer.analyze(asset)
         expanded_task = self.expanded_analyzer.analyze(asset)
-        
+
         base_result, expanded_result = await asyncio.gather(
             base_task, expanded_task, return_exceptions=True
         )
-        
+
         # Handle potential errors
         if isinstance(base_result, Exception):
             logger.error(f"Base analysis failed: {base_result}")
@@ -191,17 +189,17 @@ class UnifiedSignalAnalyzer:
         if isinstance(expanded_result, Exception):
             logger.error(f"Expanded analysis failed: {expanded_result}")
             expanded_result = None
-        
+
         # Collect all signals
         all_signals = []
         if base_result:
             all_signals.extend(base_result.all_signals)
         if expanded_result:
             all_signals.extend(expanded_result.all_signals)
-        
+
         # Create master category summaries
         master_categories = self._create_master_categories(base_result, expanded_result, all_signals)
-        
+
         # Calculate sub-scores
         technical_score = self._calculate_subscore(
             [master_categories["price_technical"], master_categories["derivatives"]]
@@ -215,23 +213,23 @@ class UnifiedSignalAnalyzer:
         timing_score = self._calculate_subscore(
             [master_categories["cycle_position"], master_categories["macro_cross"]]
         )
-        
+
         # Calculate master composite
         composite_score = self._calculate_master_composite(master_categories)
-        
+
         # Determine market condition
         market_condition = self._classify_market_condition(composite_score)
-        
+
         # Determine cycle phase
         cycle_phase = self._determine_cycle_phase(
             master_categories["cycle_position"],
             master_categories["smart_money"],
             composite_score
         )
-        
+
         # Determine trend
         trend = self._determine_trend(technical_score, fundamental_score)
-        
+
         # Generate recommendations
         primary_rec = self._generate_primary_recommendation(
             composite_score, market_condition, cycle_phase, all_signals
@@ -239,17 +237,17 @@ class UnifiedSignalAnalyzer:
         alt_recs = self._generate_alternative_recommendations(
             composite_score, market_condition, master_categories
         )
-        
+
         # Risk assessment
         risk_level, risk_factors, opps = self._assess_risk(
             composite_score, market_condition, all_signals
         )
-        
+
         # Calculate totals
         total = len(all_signals)
         available = sum(1 for s in all_signals if s.signal != SignalStrength.UNAVAILABLE)
         data_quality = available / total if total > 0 else 0
-        
+
         return UnifiedSignalAnalysis(
             timestamp=datetime.utcnow(),
             asset=asset,
@@ -281,7 +279,7 @@ class UnifiedSignalAnalyzer:
             opportunity_factors=opps,
             all_signals=all_signals,
         )
-    
+
     def _create_master_categories(
         self,
         base: Optional[ComprehensiveSignalAnalysis],
@@ -289,7 +287,7 @@ class UnifiedSignalAnalyzer:
         all_signals: List[SignalResult]
     ) -> Dict[str, MasterCategorySummary]:
         """Create master category summaries from component analyses."""
-        
+
         # Define which component categories map to master categories
         category_mapping = {
             "price_technical": {
@@ -325,13 +323,13 @@ class UnifiedSignalAnalyzer:
                 "expanded": ["defi_altcoin"],
             },
         }
-        
+
         summaries = {}
-        
+
         for master_cat, mapping in category_mapping.items():
             signals = []
             sub_cats = []
-            
+
             # Collect from base analysis
             if base:
                 for cat_name in mapping["base"]:
@@ -339,7 +337,7 @@ class UnifiedSignalAnalyzer:
                     if cat_summary and hasattr(cat_summary, 'signals'):
                         signals.extend(cat_summary.signals)
                         sub_cats.append(cat_name)
-            
+
             # Collect from expanded analysis
             if expanded:
                 for cat_name in mapping["expanded"]:
@@ -347,15 +345,15 @@ class UnifiedSignalAnalyzer:
                     if cat_summary and hasattr(cat_summary, 'signals'):
                         signals.extend(cat_summary.signals)
                         sub_cats.append(cat_name)
-            
+
             summaries[master_cat] = self._create_master_summary(
                 master_cat.replace("_", " ").title(),
                 sub_cats,
                 signals
             )
-        
+
         return summaries
-    
+
     def _create_master_summary(
         self,
         name: str,
@@ -364,11 +362,11 @@ class UnifiedSignalAnalyzer:
     ) -> MasterCategorySummary:
         """Create a master category summary."""
         available = [s for s in signals if s.signal != SignalStrength.UNAVAILABLE]
-        
+
         bullish = sum(1 for s in available if s.score > 0)
         bearish = sum(1 for s in available if s.score < 0)
         neutral = sum(1 for s in available if s.score == 0)
-        
+
         if available:
             avg_score = sum(s.score for s in available) / len(available)
             total_weight = sum(s.weight for s in available)
@@ -376,14 +374,14 @@ class UnifiedSignalAnalyzer:
         else:
             avg_score = 0
             weighted_score = 0
-        
+
         # Get top signals
         sorted_signals = sorted(available, key=lambda s: s.score * s.weight, reverse=True)
         top_bullish = [f"{s.name}: {s.description}" for s in sorted_signals[:3] if s.score > 0]
-        
+
         sorted_signals = sorted(available, key=lambda s: s.score * s.weight)
         top_bearish = [f"{s.name}: {s.description}" for s in sorted_signals[:3] if s.score < 0]
-        
+
         return MasterCategorySummary(
             name=name,
             sub_categories=sub_categories,
@@ -397,25 +395,25 @@ class UnifiedSignalAnalyzer:
             top_bullish_signals=top_bullish,
             top_bearish_signals=top_bearish,
         )
-    
+
     def _calculate_subscore(self, categories: List[MasterCategorySummary]) -> float:
         """Calculate sub-score from multiple categories."""
         total_weight = 0
         weighted_sum = 0
-        
+
         for cat in categories:
             if cat.available_signals > 0:
                 weight = cat.available_signals
                 weighted_sum += cat.weighted_score * weight
                 total_weight += weight
-        
+
         if total_weight == 0:
             return 0
-        
+
         # Normalize to -100 to +100 range
         raw_score = weighted_sum / total_weight
         return max(-100, min(100, raw_score * 50))
-    
+
     def _calculate_master_composite(
         self,
         categories: Dict[str, MasterCategorySummary]
@@ -423,20 +421,20 @@ class UnifiedSignalAnalyzer:
         """Calculate the master composite score."""
         total_weight = 0
         weighted_sum = 0
-        
+
         for cat_name, summary in categories.items():
             if summary.available_signals > 0:
                 weight = self.MASTER_WEIGHTS.get(cat_name, 1.0) * summary.available_signals
                 weighted_sum += summary.weighted_score * weight
                 total_weight += weight
-        
+
         if total_weight == 0:
             return 0
-        
+
         # Normalize to -100 to +100 range
         raw_score = weighted_sum / total_weight
         return max(-100, min(100, raw_score * 50))
-    
+
     def _classify_market_condition(self, score: float) -> MarketCondition:
         """Classify overall market condition."""
         if score <= -60:
@@ -453,7 +451,7 @@ class UnifiedSignalAnalyzer:
             return MarketCondition.GREED
         else:
             return MarketCondition.EXTREME_GREED
-    
+
     def _determine_cycle_phase(
         self,
         cycle_summary: MasterCategorySummary,
@@ -463,7 +461,7 @@ class UnifiedSignalAnalyzer:
         """Determine current market cycle phase."""
         cycle_score = cycle_summary.weighted_score
         smart_score = smart_money.weighted_score
-        
+
         # Combined analysis
         if composite < -60 and smart_score > 0:
             return CyclePhase.CAPITULATION
@@ -481,18 +479,18 @@ class UnifiedSignalAnalyzer:
             return CyclePhase.EARLY_BEAR
         else:
             return CyclePhase.BEAR_MARKET
-    
+
     def _determine_trend(self, technical: float, fundamental: float) -> str:
         """Determine overall trend direction."""
         avg = (technical + fundamental) / 2
-        
+
         if avg > 20:
             return "bullish"
         elif avg < -20:
             return "bearish"
         else:
             return "sideways"
-    
+
     def _generate_primary_recommendation(
         self,
         composite: float,
@@ -501,7 +499,7 @@ class UnifiedSignalAnalyzer:
         signals: List[SignalResult]
     ) -> ActionRecommendation:
         """Generate primary action recommendation."""
-        
+
         # DCA multiplier and buffer deployment based on composite score
         if composite <= -60:
             dca_mult = 3.0
@@ -551,19 +549,19 @@ class UnifiedSignalAnalyzer:
             action = "PAUSE/TAKE PROFITS"
             time_horizon = "immediate"
             reason = f"Extreme greed ({composite:.0f}) - historically dangerous"
-        
+
         # Get supporting and caution signals
         available = [s for s in signals if s.signal != SignalStrength.UNAVAILABLE]
         sorted_bull = sorted(available, key=lambda s: s.score * s.weight, reverse=True)
         sorted_bear = sorted(available, key=lambda s: s.score * s.weight)
-        
+
         supporting = [s.name for s in sorted_bull[:5] if s.score > 0]
         caution = [s.name for s in sorted_bear[:5] if s.score < 0]
-        
+
         # Adjust confidence based on data quality and signal agreement
         bullish_pct = sum(1 for s in available if s.score > 0) / len(available) if available else 0.5
         confidence = abs(bullish_pct - 0.5) * 2  # 0 at 50/50, 1 at 100/0
-        
+
         return ActionRecommendation(
             action=action,
             dca_multiplier=dca_mult,
@@ -574,7 +572,7 @@ class UnifiedSignalAnalyzer:
             caution_signals=caution,
             time_horizon=time_horizon,
         )
-    
+
     def _generate_alternative_recommendations(
         self,
         composite: float,
@@ -583,7 +581,7 @@ class UnifiedSignalAnalyzer:
     ) -> List[ActionRecommendation]:
         """Generate alternative recommendations based on different scenarios."""
         alts = []
-        
+
         # Conservative alternative
         if composite < 0:
             alts.append(ActionRecommendation(
@@ -596,7 +594,7 @@ class UnifiedSignalAnalyzer:
                 caution_signals=["May miss opportunity in dips"],
                 time_horizon="medium_term",
             ))
-        
+
         # Aggressive alternative
         if composite < -30:
             smart_money_score = categories.get("smart_money", MasterCategorySummary(
@@ -604,7 +602,7 @@ class UnifiedSignalAnalyzer:
                 bullish_count=0, bearish_count=0, neutral_count=0,
                 avg_score=0, weighted_score=0, top_bullish_signals=[], top_bearish_signals=[]
             )).weighted_score
-            
+
             if smart_money_score > 0.5:
                 alts.append(ActionRecommendation(
                     action="AGGRESSIVE: Full buffer deployment",
@@ -616,7 +614,7 @@ class UnifiedSignalAnalyzer:
                     caution_signals=["High risk if bottom not in"],
                     time_horizon="immediate",
                 ))
-        
+
         # Defensive alternative
         if composite > 30:
             alts.append(ActionRecommendation(
@@ -629,9 +627,9 @@ class UnifiedSignalAnalyzer:
                 caution_signals=["May miss continued upside"],
                 time_horizon="short_term",
             ))
-        
+
         return alts
-    
+
     def _assess_risk(
         self,
         composite: float,
@@ -641,22 +639,22 @@ class UnifiedSignalAnalyzer:
         """Assess overall risk and identify key factors."""
         risks = []
         opportunities = []
-        
+
         # Analyze signals for risk factors
         for s in signals:
             if s.signal == SignalStrength.UNAVAILABLE:
                 continue
-            
+
             if s.score <= -2:
                 risks.append(f"{s.name}: {s.description}")
             elif s.score >= 2:
                 opportunities.append(f"{s.name}: {s.description}")
-        
+
         # Determine risk level
         risk_signal_count = sum(1 for s in signals if s.score < 0 and s.signal != SignalStrength.UNAVAILABLE)
         total_available = sum(1 for s in signals if s.signal != SignalStrength.UNAVAILABLE)
         risk_pct = risk_signal_count / total_available if total_available else 0.5
-        
+
         if risk_pct > 0.7 or composite > 60:
             risk_level = "extreme"
         elif risk_pct > 0.55 or composite > 40:
@@ -665,7 +663,7 @@ class UnifiedSignalAnalyzer:
             risk_level = "medium"
         else:
             risk_level = "low"
-        
+
         return risk_level, risks[:10], opportunities[:10]
 
 
@@ -680,7 +678,7 @@ def format_unified_analysis(analysis: UnifiedSignalAnalysis) -> str:
         "█" * 80,
         "",
     ]
-    
+
     # Market Overview
     lines.extend([
         "┌" + "─" * 78 + "┐",
@@ -693,7 +691,7 @@ def format_unified_analysis(analysis: UnifiedSignalAnalysis) -> str:
         "└" + "─" * 78 + "┘",
         "",
     ])
-    
+
     # Sub-scores
     lines.extend([
         "┌" + "─" * 78 + "┐",
@@ -704,7 +702,7 @@ def format_unified_analysis(analysis: UnifiedSignalAnalysis) -> str:
         "└" + "─" * 78 + "┘",
         "",
     ])
-    
+
     # Primary Recommendation
     rec = analysis.primary_recommendation
     lines.extend([
@@ -720,14 +718,14 @@ def format_unified_analysis(analysis: UnifiedSignalAnalysis) -> str:
         "╚" + "═" * 78 + "╝",
         "",
     ])
-    
+
     # Category Summaries
     lines.extend([
         "┌" + "─" * 78 + "┐",
         "│  CATEGORY BREAKDOWN".ljust(79) + "│",
         "├" + "─" * 78 + "┤",
     ])
-    
+
     categories = [
         ("Price/Technical", analysis.price_technical),
         ("Sentiment", analysis.sentiment),
@@ -738,29 +736,29 @@ def format_unified_analysis(analysis: UnifiedSignalAnalysis) -> str:
         ("Smart Money", analysis.smart_money),
         ("Institutional", analysis.institutional),
     ]
-    
+
     for name, cat in categories:
         score_bar = "█" * int(abs(cat.weighted_score) * 5) + "░" * (10 - int(abs(cat.weighted_score) * 5))
         direction = "+" if cat.weighted_score >= 0 else "-"
         line = f"│  {name:<15} [{score_bar}] {direction}{abs(cat.weighted_score):.2f}  ({cat.bullish_count}🟢 {cat.bearish_count}🔴 {cat.neutral_count}⚪)"
         lines.append(line.ljust(79) + "│")
-    
+
     lines.append("└" + "─" * 78 + "┘")
     lines.append("")
-    
+
     # Top Signals
     if rec.supporting_signals:
         lines.append("  TOP BULLISH SIGNALS:")
         for sig in rec.supporting_signals[:5]:
             lines.append(f"    🟢 {sig}")
         lines.append("")
-    
+
     if rec.caution_signals:
         lines.append("  TOP BEARISH SIGNALS:")
         for sig in rec.caution_signals[:5]:
             lines.append(f"    🔴 {sig}")
         lines.append("")
-    
+
     # Alternative Recommendations
     if analysis.alternative_recommendations:
         lines.append("  ALTERNATIVE STRATEGIES:")
@@ -768,22 +766,22 @@ def format_unified_analysis(analysis: UnifiedSignalAnalysis) -> str:
             lines.append(f"    • {alt.action}")
             lines.append(f"      DCA: {alt.dca_multiplier:.1f}x | Buffer: {alt.buffer_deployment:.0%} | {alt.primary_reason}")
         lines.append("")
-    
+
     # Risk Factors
     if analysis.risk_factors:
         lines.append("  ⚠️  KEY RISK FACTORS:")
         for risk in analysis.risk_factors[:5]:
             lines.append(f"    • {risk}")
         lines.append("")
-    
+
     if analysis.opportunity_factors:
         lines.append("  ✅ KEY OPPORTUNITIES:")
         for opp in analysis.opportunity_factors[:5]:
             lines.append(f"    • {opp}")
-    
+
     lines.append("")
     lines.append("█" * 80)
-    
+
     return "\n".join(lines)
 
 

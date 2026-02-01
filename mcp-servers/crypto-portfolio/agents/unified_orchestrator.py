@@ -5,7 +5,7 @@ Combines all 135+ signals into a single comprehensive analysis system.
 
 SIGNAL CATEGORIES:
 1. Technical Indicators (1-8)
-2. Sentiment Indicators (9-16) 
+2. Sentiment Indicators (9-16)
 3. On-Chain Metrics (17-28)
 4. Derivatives Data (29-36)
 5. Macro & Cross-Market (37-44)
@@ -37,9 +37,9 @@ RECOMMENDATIONS:
 - Score > 60: EXTREME GREED (0.25x DCA)
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Tuple, Any
 from enum import Enum
 import asyncio
 import logging
@@ -83,38 +83,38 @@ class UnifiedAnalysis:
     """Complete unified analysis with all signals."""
     timestamp: datetime
     asset: str
-    
+
     # Category summaries
     categories: Dict[str, SignalCategory]
-    
+
     # Signal counts
     total_signals: int
     available_signals: int
-    
+
     # Scores
     composite_score: float  # -100 to +100
     confidence: float  # 0-1
-    
+
     # Market assessment
     market_phase: MarketPhase
     phase_confidence: float
-    
+
     # Recommendations
     dca_multiplier: float
     buffer_deployment: float
     recommendation: str
     action_items: List[str]
-    
+
     # Risk assessment
     downside_risk: str  # low/medium/high/extreme
     upside_potential: str  # low/medium/high/extreme
     risk_reward_ratio: float
-    
+
     # Key signals
     strongest_bullish: List[str]
     strongest_bearish: List[str]
     conflicting_signals: List[str]
-    
+
     # Historical context
     similar_historical_periods: List[str]
     historical_outcome: str
@@ -124,7 +124,7 @@ class UnifiedSignalOrchestrator:
     """
     Master orchestrator that combines all signal sources.
     """
-    
+
     # Category weights (adjust based on your preferences)
     CATEGORY_WEIGHTS = {
         "technical": 0.8,
@@ -143,7 +143,7 @@ class UnifiedSignalOrchestrator:
         "macro_liquidity": 0.7,
         "derivatives_advanced": 0.8,
     }
-    
+
     # Weights can be adjusted based on market phase
     PHASE_WEIGHT_ADJUSTMENTS = {
         MarketPhase.CAPITULATION: {
@@ -166,38 +166,38 @@ class UnifiedSignalOrchestrator:
             "sentiment": 1.2,
         },
     }
-    
+
     def __init__(self):
         self._extended_analyzer = ExtendedSignalsAnalyzer()
         self._advanced_analyzer = AdvancedOnChainAnalyzer()
-    
+
     async def close(self):
         """Close all analyzer connections."""
         await self._extended_analyzer.close()
         await self._advanced_analyzer.close()
-    
+
     async def analyze(self, asset: str = "BTC") -> UnifiedAnalysis:
         """
         Run complete unified analysis with all 135+ signals.
-        
+
         Args:
             asset: Asset to analyze (default: BTC)
-            
+
         Returns:
             UnifiedAnalysis with all signal results and recommendations
         """
         logger.info(f"Starting unified analysis for {asset}")
-        
+
         # Run both analyzers concurrently
         extended_task = self._extended_analyzer.analyze(asset)
         advanced_task = self._run_advanced_analysis(asset)
-        
+
         extended_result, advanced_signals = await asyncio.gather(
             extended_task,
             advanced_task,
             return_exceptions=True
         )
-        
+
         # Handle any errors
         if isinstance(extended_result, Exception):
             logger.error(f"Extended analysis error: {extended_result}")
@@ -205,11 +205,11 @@ class UnifiedSignalOrchestrator:
         if isinstance(advanced_signals, Exception):
             logger.error(f"Advanced analysis error: {advanced_signals}")
             advanced_signals = []
-        
+
         # Collect all signals
         all_signals = []
         categories = {}
-        
+
         # Process extended signals
         if extended_result:
             for cat_name, cat_data in [
@@ -225,7 +225,7 @@ class UnifiedSignalOrchestrator:
                 signals = cat_data.signals
                 categories[cat_name] = self._summarize_category(cat_name, signals)
                 all_signals.extend(signals)
-        
+
         # Process advanced signals
         if advanced_signals:
             # Group advanced signals by category
@@ -234,46 +234,46 @@ class UnifiedSignalOrchestrator:
                 if sig.category not in adv_categories:
                     adv_categories[sig.category] = []
                 adv_categories[sig.category].append(sig)
-            
+
             for cat_name, signals in adv_categories.items():
                 # Convert to standard format
                 converted = [self._convert_advanced_signal(s) for s in signals]
                 categories[cat_name] = self._summarize_category(cat_name, converted)
                 all_signals.extend(converted)
-        
+
         # Calculate totals
         total_signals = len(all_signals)
         available_signals = len([s for s in all_signals if s.signal != SignalStrength.UNAVAILABLE])
         confidence = available_signals / total_signals if total_signals > 0 else 0
-        
+
         # Determine market phase
         market_phase, phase_confidence = self._determine_market_phase(categories, all_signals)
-        
+
         # Adjust weights based on market phase
         adjusted_weights = self._get_adjusted_weights(market_phase)
-        
+
         # Calculate composite score
         composite_score = self._calculate_composite_score(all_signals, adjusted_weights)
-        
+
         # Generate recommendations
         dca_mult, buffer_deploy, recommendation = self._get_recommendations(composite_score)
         action_items = self._generate_action_items(composite_score, market_phase, categories)
-        
+
         # Assess risk
         downside_risk, upside_potential, risk_reward = self._assess_risk(
             composite_score, market_phase, categories
         )
-        
+
         # Find strongest signals
         strongest_bullish = self._get_top_signals(all_signals, bullish=True)
         strongest_bearish = self._get_top_signals(all_signals, bullish=False)
         conflicting = self._find_conflicting_signals(all_signals)
-        
+
         # Historical context
         similar_periods, historical_outcome = self._find_historical_context(
             composite_score, market_phase
         )
-        
+
         return UnifiedAnalysis(
             timestamp=datetime.utcnow(),
             asset=asset,
@@ -297,7 +297,7 @@ class UnifiedSignalOrchestrator:
             similar_historical_periods=similar_periods,
             historical_outcome=historical_outcome,
         )
-    
+
     async def _run_advanced_analysis(self, asset: str) -> List[AdvancedSignalResult]:
         """Run all advanced signal analyses."""
         tasks = [
@@ -312,7 +312,7 @@ class UnifiedSignalOrchestrator:
             self._advanced_analyzer.get_terminal_price(asset),
             self._advanced_analyzer.get_balanced_price(asset),
             self._advanced_analyzer.get_cvdd(asset),
-            
+
             # Advanced on-chain
             self._advanced_analyzer.get_rhodl_ratio(asset),
             self._advanced_analyzer.get_asopr(asset),
@@ -323,31 +323,31 @@ class UnifiedSignalOrchestrator:
             self._advanced_analyzer.get_liveliness(asset),
             self._advanced_analyzer.get_dormancy_flow(asset),
             self._advanced_analyzer.get_illiquid_supply_change(asset),
-            
+
             # Exchange flow
             self._advanced_analyzer.get_exchange_reserve_ratio(asset),
             self._advanced_analyzer.get_stablecoin_exchange_reserve(),
             self._advanced_analyzer.get_exchange_whale_ratio(asset),
             self._advanced_analyzer.get_fund_flow_ratio(asset),
-            
+
             # Market structure
             self._advanced_analyzer.get_altcoin_season_index(),
             self._advanced_analyzer.get_btc_dominance(),
             self._advanced_analyzer.get_total_market_cap_trend(),
-            
+
             # Macro liquidity
             self._advanced_analyzer.get_global_m2_change(),
             self._advanced_analyzer.get_real_interest_rate(),
             self._advanced_analyzer.get_global_liquidity_index(),
-            
+
             # Derivatives advanced
             self._advanced_analyzer.get_perp_spot_volume_ratio(asset),
             self._advanced_analyzer.get_implied_vs_realized_vol(asset),
             self._advanced_analyzer.get_gamma_exposure(asset),
         ]
-        
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # Filter out exceptions
         valid_results = []
         for r in results:
@@ -355,9 +355,9 @@ class UnifiedSignalOrchestrator:
                 valid_results.append(r)
             elif isinstance(r, Exception):
                 logger.error(f"Advanced signal error: {r}")
-        
+
         return valid_results
-    
+
     def _convert_advanced_signal(self, sig: AdvancedSignalResult) -> SignalResult:
         """Convert AdvancedSignalResult to standard SignalResult."""
         return SignalResult(
@@ -370,11 +370,11 @@ class UnifiedSignalOrchestrator:
             description=sig.description,
             details=sig.details,
         )
-    
+
     def _summarize_category(self, name: str, signals: List[SignalResult]) -> SignalCategory:
         """Create category summary."""
         available = [s for s in signals if s.signal != SignalStrength.UNAVAILABLE]
-        
+
         if not available:
             return SignalCategory(
                 name=name,
@@ -389,19 +389,19 @@ class UnifiedSignalOrchestrator:
                 confidence=0,
                 top_signals=[],
             )
-        
+
         total_weight = sum(s.weight for s in available)
         weighted_score = sum(s.score * s.weight for s in available) / total_weight if total_weight > 0 else 0
         avg_score = sum(s.score for s in available) / len(available)
-        
+
         bullish = [s for s in available if s.score > 0]
         bearish = [s for s in available if s.score < 0]
         neutral = [s for s in available if s.score == 0]
-        
+
         # Top signals by weight * abs(score)
         sorted_signals = sorted(available, key=lambda s: abs(s.score) * s.weight, reverse=True)
         top_signals = [s.name for s in sorted_signals[:3]]
-        
+
         return SignalCategory(
             name=name,
             signals=signals,
@@ -415,7 +415,7 @@ class UnifiedSignalOrchestrator:
             confidence=len(available) / len(signals) if signals else 0,
             top_signals=top_signals,
         )
-    
+
     def _determine_market_phase(
         self, categories: Dict[str, SignalCategory], all_signals: List[SignalResult]
     ) -> Tuple[MarketPhase, float]:
@@ -424,21 +424,21 @@ class UnifiedSignalOrchestrator:
         cycle_cat = categories.get("cycle")
         onchain_cat = categories.get("onchain")
         sentiment_cat = categories.get("sentiment")
-        
+
         scores = []
-        
+
         if cycle_cat:
             scores.append(cycle_cat.weighted_score)
         if onchain_cat:
             scores.append(onchain_cat.weighted_score)
         if sentiment_cat:
             scores.append(sentiment_cat.weighted_score)
-        
+
         if not scores:
             return MarketPhase.ACCUMULATION, 0.3
-        
+
         avg_score = sum(scores) / len(scores)
-        
+
         # Map score to phase
         if avg_score < -1.5:
             phase = MarketPhase.CAPITULATION
@@ -464,44 +464,44 @@ class UnifiedSignalOrchestrator:
         else:
             phase = MarketPhase.DISTRIBUTION
             confidence = min(0.9, avg_score / 2)
-        
+
         return phase, confidence
-    
+
     def _get_adjusted_weights(self, phase: MarketPhase) -> Dict[str, float]:
         """Get category weights adjusted for market phase."""
         weights = self.CATEGORY_WEIGHTS.copy()
-        
+
         adjustments = self.PHASE_WEIGHT_ADJUSTMENTS.get(phase, {})
         for cat, mult in adjustments.items():
             if cat in weights:
                 weights[cat] *= mult
-        
+
         return weights
-    
+
     def _calculate_composite_score(
         self, signals: List[SignalResult], weights: Dict[str, float]
     ) -> float:
         """Calculate composite score from all signals."""
         available = [s for s in signals if s.signal != SignalStrength.UNAVAILABLE]
-        
+
         if not available:
             return 0
-        
+
         total_weighted_score = 0
         total_weight = 0
-        
+
         for sig in available:
             category_weight = weights.get(sig.category, 1.0)
             combined_weight = sig.weight * category_weight
             total_weighted_score += sig.score * combined_weight
             total_weight += combined_weight
-        
+
         # Normalize to -100 to +100
         raw_score = total_weighted_score / total_weight if total_weight > 0 else 0
         composite = raw_score * 50  # Scale from [-2, +2] to [-100, +100]
-        
+
         return max(-100, min(100, composite))
-    
+
     def _get_recommendations(self, score: float) -> Tuple[float, float, str]:
         """Generate recommendations based on composite score."""
         if score <= -60:
@@ -520,13 +520,13 @@ class UnifiedSignalOrchestrator:
             return 0.5, 0.0, "🔴 GREED: Reduce DCA by 50%"
         else:
             return 0.25, 0.0, "🔴🔴 EXTREME GREED: Minimize DCA, consider profits"
-    
+
     def _generate_action_items(
         self, score: float, phase: MarketPhase, categories: Dict[str, SignalCategory]
     ) -> List[str]:
         """Generate specific action items."""
         items = []
-        
+
         if score < -40:
             items.append("✅ Increase DCA purchases")
             items.append("✅ Deploy cash buffer according to signal strength")
@@ -541,7 +541,7 @@ class UnifiedSignalOrchestrator:
             items.append("⚠️ Consider reducing DCA amount")
             items.append("⚠️ Review portfolio for rebalancing")
             items.append("⚠️ Set stop-losses or profit targets")
-        
+
         # Phase-specific items
         if phase == MarketPhase.CAPITULATION:
             items.append("🎯 Historical bottom zone - maximize accumulation")
@@ -549,9 +549,9 @@ class UnifiedSignalOrchestrator:
             items.append("🎯 Late cycle - consider taking partial profits")
         elif phase == MarketPhase.LATE_BULL:
             items.append("🎯 Bull market maturing - tighten risk management")
-        
+
         return items
-    
+
     def _assess_risk(
         self, score: float, phase: MarketPhase, categories: Dict[str, SignalCategory]
     ) -> Tuple[str, str, float]:
@@ -567,7 +567,7 @@ class UnifiedSignalOrchestrator:
             downside = "high"
         else:
             downside = "extreme"
-        
+
         # Upside potential
         if score < -50:
             upside = "extreme"
@@ -579,52 +579,52 @@ class UnifiedSignalOrchestrator:
             upside = "low"
         else:
             upside = "low"
-        
+
         # Risk/reward ratio
         upside_values = {"low": 1, "medium": 2, "high": 3, "extreme": 4}
         downside_values = {"low": 1, "medium": 2, "high": 3, "extreme": 4}
-        
+
         risk_reward = upside_values[upside] / downside_values[downside]
-        
+
         return downside, upside, risk_reward
-    
+
     def _get_top_signals(self, signals: List[SignalResult], bullish: bool) -> List[str]:
         """Get top signals by strength."""
         available = [s for s in signals if s.signal != SignalStrength.UNAVAILABLE]
-        
+
         if bullish:
             filtered = [s for s in available if s.score > 0]
         else:
             filtered = [s for s in available if s.score < 0]
-        
+
         sorted_signals = sorted(filtered, key=lambda s: abs(s.score) * s.weight, reverse=True)
-        
+
         return [f"{s.name}: {s.description}" for s in sorted_signals[:5]]
-    
+
     def _find_conflicting_signals(self, signals: List[SignalResult]) -> List[str]:
         """Find signals that conflict with overall direction."""
         available = [s for s in signals if s.signal != SignalStrength.UNAVAILABLE]
-        
+
         if not available:
             return []
-        
+
         avg_score = sum(s.score for s in available) / len(available)
-        
+
         conflicting = []
         for sig in available:
             # Strong signal in opposite direction
             if (avg_score > 0.5 and sig.score <= -1) or (avg_score < -0.5 and sig.score >= 1):
                 conflicting.append(f"{sig.name}: {sig.description}")
-        
+
         return conflicting[:5]
-    
+
     def _find_historical_context(
         self, score: float, phase: MarketPhase
     ) -> Tuple[List[str], str]:
         """Find similar historical periods and their outcomes."""
         periods = []
         outcome = ""
-        
+
         if score < -60 and phase in [MarketPhase.CAPITULATION, MarketPhase.MID_BEAR]:
             periods = [
                 "March 2020 COVID crash",
@@ -654,7 +654,7 @@ class UnifiedSignalOrchestrator:
         else:
             periods = []
             outcome = "Normal market conditions"
-        
+
         return periods, outcome
 
 
@@ -679,10 +679,10 @@ def format_unified_analysis(analysis: UnifiedAnalysis) -> str:
         "",
         "  📋 ACTION ITEMS:",
     ]
-    
+
     for item in analysis.action_items:
         lines.append(f"     {item}")
-    
+
     lines.extend([
         "",
         "  ⚖️ RISK ASSESSMENT:",
@@ -691,7 +691,7 @@ def format_unified_analysis(analysis: UnifiedAnalysis) -> str:
         f"     Risk/Reward Ratio: {analysis.risk_reward_ratio:.2f}",
         "",
     ])
-    
+
     # Category summaries
     lines.append("  📊 CATEGORY BREAKDOWN:")
     for cat_name, cat_data in analysis.categories.items():
@@ -700,21 +700,21 @@ def format_unified_analysis(analysis: UnifiedAnalysis) -> str:
             f"     {indicator} {cat_name.upper()}: {cat_data.weighted_score:+.2f} "
             f"({cat_data.bullish_count}↑ {cat_data.bearish_count}↓ {cat_data.neutral_count}○)"
         )
-    
+
     lines.extend([
         "",
         "  🟢 STRONGEST BULLISH SIGNALS:",
     ])
     for sig in analysis.strongest_bullish[:5]:
         lines.append(f"     • {sig}")
-    
+
     lines.extend([
         "",
         "  🔴 STRONGEST BEARISH SIGNALS:",
     ])
     for sig in analysis.strongest_bearish[:5]:
         lines.append(f"     • {sig}")
-    
+
     if analysis.conflicting_signals:
         lines.extend([
             "",
@@ -722,7 +722,7 @@ def format_unified_analysis(analysis: UnifiedAnalysis) -> str:
         ])
         for sig in analysis.conflicting_signals:
             lines.append(f"     • {sig}")
-    
+
     if analysis.similar_historical_periods:
         lines.extend([
             "",
@@ -731,10 +731,10 @@ def format_unified_analysis(analysis: UnifiedAnalysis) -> str:
         for period in analysis.similar_historical_periods:
             lines.append(f"     • {period}")
         lines.append(f"     ➡️ Outcome: {analysis.historical_outcome}")
-    
+
     lines.extend([
         "",
         "═" * 80,
     ])
-    
+
     return "\n".join(lines)

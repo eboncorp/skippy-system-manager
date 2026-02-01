@@ -17,7 +17,7 @@ import json
 import requests
 from datetime import datetime
 from typing import Optional, List, Dict
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from dotenv import load_dotenv
 
 
@@ -53,7 +53,7 @@ class WalletTransaction:
 
 class EthereumTracker:
     """Track Ethereum and EVM-compatible chain wallets."""
-    
+
     # Chain configurations
     CHAINS = {
         "ethereum": {
@@ -92,7 +92,7 @@ class EthereumTracker:
             "decimals": 18
         }
     }
-    
+
     # Common ERC-20 tokens to track
     COMMON_TOKENS = {
         "ethereum": {
@@ -106,34 +106,34 @@ class EthereumTracker:
             "AAVE": "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9",
         }
     }
-    
+
     def __init__(self):
         load_dotenv()
         self.session = requests.Session()
         self.api_keys = {}
-        
+
         for chain, config in self.CHAINS.items():
             key = os.getenv(config["env_key"])
             if key:
                 self.api_keys[chain] = key
-    
+
     def _make_request(self, chain: str, params: dict) -> Optional[dict]:
         """Make request to block explorer API."""
         if chain not in self.CHAINS:
             print(f"Unsupported chain: {chain}")
             return None
-        
+
         config = self.CHAINS[chain]
         api_key = self.api_keys.get(chain)
-        
+
         if api_key:
             params["apikey"] = api_key
-        
+
         try:
             response = self.session.get(config["explorer_api"], params=params)
             response.raise_for_status()
             data = response.json()
-            
+
             if data.get("status") == "1" or data.get("result"):
                 return data.get("result")
             else:
@@ -141,29 +141,29 @@ class EthereumTracker:
                     print(f"  Rate limited on {chain}, waiting...")
                     time.sleep(1)
                 return None
-                
+
         except Exception as e:
             print(f"Error querying {chain}: {e}")
             return None
-    
+
     def get_native_balance(self, address: str, chain: str = "ethereum") -> Optional[WalletBalance]:
         """Get native token balance (ETH, MATIC, etc.)."""
         config = self.CHAINS.get(chain)
         if not config:
             return None
-        
+
         result = self._make_request(chain, {
             "module": "account",
             "action": "balance",
             "address": address,
             "tag": "latest"
         })
-        
+
         if result:
             balance = int(result) / (10 ** config["decimals"])
             # Get USD price (simplified - would use price API in production)
             usd_value = self._get_token_price(config["native_symbol"]) * balance
-            
+
             return WalletBalance(
                 asset=config["name"],
                 symbol=config["native_symbol"],
@@ -172,13 +172,13 @@ class EthereumTracker:
                 chain=chain,
                 decimals=config["decimals"]
             )
-        
+
         return None
-    
+
     def get_token_balances(self, address: str, chain: str = "ethereum") -> List[WalletBalance]:
         """Get ERC-20 token balances."""
         balances = []
-        
+
         # Get token transfers to find what tokens the address holds
         result = self._make_request(chain, {
             "module": "account",
@@ -188,17 +188,17 @@ class EthereumTracker:
             "endblock": 99999999,
             "sort": "desc"
         })
-        
+
         if not result:
             return balances
-        
+
         # Find unique tokens
         seen_tokens = set()
         for tx in result[:100]:  # Check recent 100 transfers
             contract = tx.get("contractAddress", "")
             if contract and contract not in seen_tokens:
                 seen_tokens.add(contract)
-                
+
                 # Get balance for this token
                 balance_result = self._make_request(chain, {
                     "module": "account",
@@ -207,15 +207,15 @@ class EthereumTracker:
                     "address": address,
                     "tag": "latest"
                 })
-                
+
                 if balance_result:
                     decimals = int(tx.get("tokenDecimal", 18))
                     balance = int(balance_result) / (10 ** decimals)
-                    
+
                     if balance > 0:
                         symbol = tx.get("tokenSymbol", "UNKNOWN")
                         price = self._get_token_price(symbol)
-                        
+
                         balances.append(WalletBalance(
                             asset=tx.get("tokenName", symbol),
                             symbol=symbol,
@@ -225,16 +225,16 @@ class EthereumTracker:
                             decimals=decimals,
                             chain=chain
                         ))
-                
+
                 time.sleep(0.2)  # Rate limiting
-        
+
         return balances
-    
-    def get_transactions(self, address: str, chain: str = "ethereum", 
+
+    def get_transactions(self, address: str, chain: str = "ethereum",
                          limit: int = 100) -> List[WalletTransaction]:
         """Get transaction history for an address."""
         transactions = []
-        
+
         # Get normal transactions
         result = self._make_request(chain, {
             "module": "account",
@@ -244,29 +244,29 @@ class EthereumTracker:
             "endblock": 99999999,
             "sort": "desc"
         })
-        
+
         if result:
             config = self.CHAINS[chain]
-            
+
             for tx in result[:limit]:
                 try:
                     value = int(tx.get("value", 0)) / (10 ** config["decimals"])
                     gas_used = int(tx.get("gasUsed", 0))
                     gas_price = int(tx.get("gasPrice", 0))
                     fee = (gas_used * gas_price) / (10 ** config["decimals"])
-                    
+
                     # Determine transaction type
                     from_addr = tx.get("from", "").lower()
                     to_addr = tx.get("to", "").lower()
                     addr_lower = address.lower()
-                    
+
                     if from_addr == addr_lower:
                         tx_type = "send"
                     elif to_addr == addr_lower:
                         tx_type = "receive"
                     else:
                         tx_type = "contract_interaction"
-                    
+
                     transactions.append(WalletTransaction(
                         hash=tx.get("hash", ""),
                         chain=chain,
@@ -284,9 +284,9 @@ class EthereumTracker:
                     ))
                 except Exception as e:
                     print(f"Error parsing transaction: {e}")
-        
+
         return transactions
-    
+
     def _get_token_price(self, symbol: str) -> float:
         """Get current USD price for a token (simplified)."""
         # In production, use CoinGecko, CoinMarketCap, or similar
@@ -308,18 +308,18 @@ class EthereumTracker:
 
 class SolanaTracker:
     """Track Solana wallets and SPL tokens."""
-    
+
     def __init__(self):
         load_dotenv()
         self.session = requests.Session()
-        
+
         # Use Helius or public RPC
         self.rpc_url = os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
         self.helius_key = os.getenv("HELIUS_API_KEY")
-        
+
         if self.helius_key:
             self.rpc_url = f"https://mainnet.helius-rpc.com/?api-key={self.helius_key}"
-    
+
     def _rpc_request(self, method: str, params: list) -> Optional[dict]:
         """Make JSON-RPC request to Solana."""
         try:
@@ -334,25 +334,25 @@ class SolanaTracker:
             )
             response.raise_for_status()
             data = response.json()
-            
+
             if "result" in data:
                 return data["result"]
             if "error" in data:
                 print(f"Solana RPC error: {data['error']}")
             return None
-            
+
         except Exception as e:
             print(f"Solana request error: {e}")
             return None
-    
+
     def get_balance(self, address: str) -> Optional[WalletBalance]:
         """Get SOL balance for an address."""
         result = self._rpc_request("getBalance", [address])
-        
+
         if result and "value" in result:
             balance = result["value"] / 1e9  # Lamports to SOL
             price = self._get_sol_price()
-            
+
             return WalletBalance(
                 asset="Solana",
                 symbol="SOL",
@@ -361,33 +361,33 @@ class SolanaTracker:
                 chain="solana",
                 decimals=9
             )
-        
+
         return None
-    
+
     def get_token_balances(self, address: str) -> List[WalletBalance]:
         """Get SPL token balances."""
         balances = []
-        
+
         result = self._rpc_request("getTokenAccountsByOwner", [
             address,
             {"programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"},
             {"encoding": "jsonParsed"}
         ])
-        
+
         if result and "value" in result:
             for account in result["value"]:
                 try:
                     parsed = account.get("account", {}).get("data", {}).get("parsed", {})
                     info = parsed.get("info", {})
                     token_amount = info.get("tokenAmount", {})
-                    
+
                     balance = float(token_amount.get("uiAmount", 0))
-                    
+
                     if balance > 0:
                         mint = info.get("mint", "")
                         symbol = self._get_token_symbol(mint)
                         price = self._get_token_price(symbol)
-                        
+
                         balances.append(WalletBalance(
                             asset=symbol,
                             symbol=symbol,
@@ -399,19 +399,19 @@ class SolanaTracker:
                         ))
                 except Exception as e:
                     print(f"Error parsing SPL token: {e}")
-        
+
         return balances
-    
+
     def get_transactions(self, address: str, limit: int = 100) -> List[WalletTransaction]:
         """Get transaction history."""
         transactions = []
-        
+
         # Get signatures
         result = self._rpc_request("getSignaturesForAddress", [
             address,
             {"limit": limit}
         ])
-        
+
         if result:
             for sig_info in result[:limit]:
                 try:
@@ -420,10 +420,10 @@ class SolanaTracker:
                         sig_info.get("signature"),
                         {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0}
                     ])
-                    
+
                     if tx_result:
                         timestamp = datetime.fromtimestamp(sig_info.get("blockTime", 0))
-                        
+
                         transactions.append(WalletTransaction(
                             hash=sig_info.get("signature", ""),
                             chain="solana",
@@ -439,18 +439,18 @@ class SolanaTracker:
                             status="confirmed" if not sig_info.get("err") else "failed",
                             raw_data=tx_result
                         ))
-                    
+
                     time.sleep(0.1)  # Rate limiting
-                    
+
                 except Exception as e:
                     print(f"Error fetching Solana transaction: {e}")
-        
+
         return transactions
-    
+
     def _get_sol_price(self) -> float:
         """Get current SOL price."""
         return 200  # Placeholder
-    
+
     def _get_token_price(self, symbol: str) -> float:
         """Get price for SPL token."""
         prices = {
@@ -463,7 +463,7 @@ class SolanaTracker:
             "JUP": 1.0,
         }
         return prices.get(symbol.upper(), 0)
-    
+
     def _get_token_symbol(self, mint: str) -> str:
         """Get symbol for a token mint address."""
         # Common Solana tokens
@@ -478,26 +478,26 @@ class SolanaTracker:
 
 class BitcoinTracker:
     """Track Bitcoin wallets."""
-    
+
     def __init__(self):
         load_dotenv()
         self.session = requests.Session()
         self.api_url = "https://blockstream.info/api"
-    
+
     def get_balance(self, address: str) -> Optional[WalletBalance]:
         """Get BTC balance for an address."""
         try:
             response = self.session.get(f"{self.api_url}/address/{address}")
             response.raise_for_status()
             data = response.json()
-            
+
             # Calculate balance from chain stats
             funded = data.get("chain_stats", {}).get("funded_txo_sum", 0)
             spent = data.get("chain_stats", {}).get("spent_txo_sum", 0)
             balance = (funded - spent) / 1e8  # Satoshis to BTC
-            
+
             price = self._get_btc_price()
-            
+
             return WalletBalance(
                 asset="Bitcoin",
                 symbol="BTC",
@@ -506,40 +506,40 @@ class BitcoinTracker:
                 chain="bitcoin",
                 decimals=8
             )
-            
+
         except Exception as e:
             print(f"Error getting BTC balance: {e}")
             return None
-    
+
     def get_transactions(self, address: str, limit: int = 100) -> List[WalletTransaction]:
         """Get transaction history for a BTC address."""
         transactions = []
-        
+
         try:
             response = self.session.get(f"{self.api_url}/address/{address}/txs")
             response.raise_for_status()
             txs = response.json()
-            
+
             for tx in txs[:limit]:
                 try:
                     # Calculate net amount for this address
                     net_amount = 0
-                    
+
                     for vin in tx.get("vin", []):
                         if vin.get("prevout", {}).get("scriptpubkey_address") == address:
                             net_amount -= vin["prevout"].get("value", 0)
-                    
+
                     for vout in tx.get("vout", []):
                         if vout.get("scriptpubkey_address") == address:
                             net_amount += vout.get("value", 0)
-                    
+
                     net_amount_btc = net_amount / 1e8
                     fee = tx.get("fee", 0) / 1e8
-                    
+
                     timestamp = datetime.fromtimestamp(
                         tx.get("status", {}).get("block_time", 0)
                     ) if tx.get("status", {}).get("confirmed") else datetime.now()
-                    
+
                     transactions.append(WalletTransaction(
                         hash=tx.get("txid", ""),
                         chain="bitcoin",
@@ -555,15 +555,15 @@ class BitcoinTracker:
                         status="confirmed" if tx.get("status", {}).get("confirmed") else "pending",
                         raw_data=tx
                     ))
-                    
+
                 except Exception as e:
                     print(f"Error parsing BTC transaction: {e}")
-            
+
         except Exception as e:
             print(f"Error fetching BTC transactions: {e}")
-        
+
         return transactions
-    
+
     def _get_btc_price(self) -> float:
         """Get current BTC price."""
         return 100000  # Placeholder
@@ -571,88 +571,88 @@ class BitcoinTracker:
 
 class OnChainWalletManager:
     """Unified manager for all on-chain wallets."""
-    
+
     def __init__(self):
         self.eth_tracker = EthereumTracker()
         self.sol_tracker = SolanaTracker()
         self.btc_tracker = BitcoinTracker()
-        
+
         self.wallets: Dict[str, dict] = {}  # address -> {chain, label}
-    
+
     def add_wallet(self, address: str, chain: str, label: str = None):
         """Add a wallet to track."""
         self.wallets[address] = {
             "chain": chain,
             "label": label or address[:8] + "..."
         }
-    
+
     def remove_wallet(self, address: str):
         """Remove a wallet from tracking."""
         if address in self.wallets:
             del self.wallets[address]
-    
+
     def get_all_balances(self) -> Dict[str, List[WalletBalance]]:
         """Get balances for all tracked wallets."""
         all_balances = {}
-        
+
         for address, info in self.wallets.items():
             chain = info["chain"]
             label = info["label"]
             balances = []
-            
+
             print(f"  Fetching {label} ({chain})...")
-            
+
             try:
                 if chain in EthereumTracker.CHAINS:
                     # Native balance
                     native = self.eth_tracker.get_native_balance(address, chain)
                     if native:
                         balances.append(native)
-                    
+
                     # Token balances
                     tokens = self.eth_tracker.get_token_balances(address, chain)
                     balances.extend(tokens)
-                    
+
                 elif chain == "solana":
                     # SOL balance
                     sol = self.sol_tracker.get_balance(address)
                     if sol:
                         balances.append(sol)
-                    
+
                     # SPL tokens
                     tokens = self.sol_tracker.get_token_balances(address)
                     balances.extend(tokens)
-                    
+
                 elif chain == "bitcoin":
                     btc = self.btc_tracker.get_balance(address)
                     if btc:
                         balances.append(btc)
-                
+
             except Exception as e:
                 print(f"    Error: {e}")
-            
+
             all_balances[address] = balances
-        
+
         return all_balances
-    
+
     def get_aggregated_balances(self) -> Dict[str, dict]:
         """Get balances aggregated by asset across all wallets."""
         all_balances = self.get_all_balances()
         aggregated = {}
-        
+
         for address, balances in all_balances.items():
             label = self.wallets[address]["label"]
-            
+
             for bal in balances:
                 symbol = bal.symbol
-                
+
                 if symbol not in aggregated:
                     aggregated[symbol] = {
                         "total_balance": 0,
                         "total_usd": 0,
                         "wallets": []
                     }
-                
+
                 aggregated[symbol]["total_balance"] += bal.balance
                 aggregated[symbol]["total_usd"] += bal.usd_value
                 aggregated[symbol]["wallets"].append({
@@ -662,27 +662,27 @@ class OnChainWalletManager:
                     "balance": bal.balance,
                     "usd_value": bal.usd_value
                 })
-        
+
         return aggregated
-    
+
     def save_wallets(self, filepath: str = None):
         """Save wallet configuration."""
         if filepath is None:
             filepath = os.path.expanduser("~/.crypto_portfolio/wallets.json")
-        
+
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        
+
         with open(filepath, "w") as f:
             json.dump(self.wallets, f, indent=2)
-    
+
     def load_wallets(self, filepath: str = None) -> bool:
         """Load wallet configuration."""
         if filepath is None:
             filepath = os.path.expanduser("~/.crypto_portfolio/wallets.json")
-        
+
         if not os.path.exists(filepath):
             return False
-        
+
         try:
             with open(filepath, "r") as f:
                 self.wallets = json.load(f)
@@ -696,7 +696,7 @@ def main():
     """CLI for on-chain wallet tracking."""
     import argparse
     from tabulate import tabulate
-    
+
     parser = argparse.ArgumentParser(description="On-Chain Wallet Tracker")
     parser.add_argument("--add", nargs=3, metavar=("ADDRESS", "CHAIN", "LABEL"),
                         help="Add wallet to track")
@@ -704,41 +704,41 @@ def main():
     parser.add_argument("--list", action="store_true", help="List tracked wallets")
     parser.add_argument("--balances", action="store_true", help="Show all balances")
     parser.add_argument("--address", type=str, help="Check specific address")
-    parser.add_argument("--chain", type=str, default="ethereum", 
+    parser.add_argument("--chain", type=str, default="ethereum",
                         help="Chain for --address query")
-    
+
     args = parser.parse_args()
-    
+
     manager = OnChainWalletManager()
     manager.load_wallets()
-    
+
     if args.add:
         address, chain, label = args.add
         manager.add_wallet(address, chain, label)
         manager.save_wallets()
         print(f"✓ Added {label} ({chain})")
-    
+
     elif args.remove:
         manager.remove_wallet(args.remove)
         manager.save_wallets()
         print(f"✓ Removed {args.remove}")
-    
+
     elif args.list:
         print("\n📋 Tracked Wallets")
         print("-" * 60)
         for addr, info in manager.wallets.items():
             print(f"  {info['label']}: {addr[:20]}... ({info['chain']})")
-    
+
     elif args.balances:
         print("\n💰 ON-CHAIN WALLET BALANCES")
         print("=" * 60)
-        
+
         aggregated = manager.get_aggregated_balances()
-        
+
         table_data = []
         total_usd = 0
-        
-        for symbol, data in sorted(aggregated.items(), 
+
+        for symbol, data in sorted(aggregated.items(),
                                     key=lambda x: x[1]["total_usd"], reverse=True):
             table_data.append([
                 symbol,
@@ -747,22 +747,22 @@ def main():
                 len(data["wallets"])
             ])
             total_usd += data["total_usd"]
-        
-        print(tabulate(table_data, 
+
+        print(tabulate(table_data,
                        headers=["Asset", "Balance", "USD Value", "Wallets"],
                        tablefmt="simple"))
         print(f"\n💎 Total On-Chain Value: ${total_usd:,.2f}")
-    
+
     elif args.address:
         print(f"\n🔍 Checking {args.address[:20]}... on {args.chain}")
         print("-" * 50)
-        
+
         manager.add_wallet(args.address, args.chain, "Query")
         balances = manager.get_all_balances().get(args.address, [])
-        
+
         for bal in balances:
             print(f"  {bal.symbol}: {bal.balance:.8f} (${bal.usd_value:,.2f})")
-    
+
     else:
         parser.print_help()
 

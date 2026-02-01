@@ -6,9 +6,7 @@ Initial: Variable | DCA: $40/day ($14,600/year) | Yield: 7.2% blended
 """
 
 from dataclasses import dataclass
-from decimal import Decimal
 from typing import Dict, List
-import json
 
 
 # =============================================================================
@@ -153,7 +151,7 @@ def project_growth(
 ) -> ProjectionResult:
     """
     Project portfolio growth over time.
-    
+
     Args:
         initial_investment: Starting portfolio value in USD
         years: Number of years to project
@@ -162,7 +160,7 @@ def project_growth(
         reinvest_staking: Whether to reinvest staking rewards
     """
     scenario = SCENARIOS[scenario_key]
-    
+
     # Initialize holdings based on allocation
     holdings = {}  # asset -> quantity
     for asset, alloc in ALLOCATION.items():
@@ -172,11 +170,11 @@ def project_growth(
             usd_value = initial_investment * alloc
             price = CURRENT_PRICES.get(asset, 1)
             holdings[asset] = usd_value / price
-    
+
     yearly_snapshots = []
     total_staking_income = 0
     cumulative_invested = initial_investment
-    
+
     for year in range(1, years + 1):
         # Starting value for the year
         starting_value = sum(
@@ -184,20 +182,20 @@ def project_growth(
             if asset != "CASH" else holdings[asset]
             for asset in holdings
         )
-        
+
         # DCA contributions throughout the year
         # Spread across assets according to allocation (excluding cash)
         dca_allocation = {k: v for k, v in ALLOCATION.items() if k != "CASH"}
         total_alloc = sum(dca_allocation.values())
-        
+
         for asset, alloc in dca_allocation.items():
             dca_usd = annual_dca * (alloc / total_alloc)
             # Average price during the year (midpoint assumption)
             avg_price = CURRENT_PRICES.get(asset, 1) * ((1 + scenario["cagr"].get(asset, 0)) ** (year - 0.5))
             holdings[asset] += dca_usd / avg_price
-        
+
         cumulative_invested += annual_dca
-        
+
         # Calculate staking income for the year
         year_staking_income = 0
         for asset, qty in holdings.items():
@@ -208,26 +206,26 @@ def project_growth(
             end_price = CURRENT_PRICES.get(asset, 1) * ((1 + scenario["cagr"].get(asset, 0)) ** year)
             staking_value = qty * end_price * yield_rate
             year_staking_income += staking_value
-            
+
             if reinvest_staking:
                 # Add staking rewards as new holdings
                 staking_qty = (qty * yield_rate)
                 holdings[asset] += staking_qty
-        
+
         total_staking_income += year_staking_income
-        
+
         # Ending value
         ending_value = sum(
             holdings[asset] * CURRENT_PRICES.get(asset, 1) * ((1 + scenario["cagr"].get(asset, 0)) ** year)
             if asset != "CASH" else holdings[asset]
             for asset in holdings
         )
-        
+
         # Price appreciation (excluding DCA and staking)
         price_appreciation = ending_value - starting_value - annual_dca - (year_staking_income if reinvest_staking else 0)
-        
+
         total_return_pct = ((ending_value - cumulative_invested) / cumulative_invested) * 100
-        
+
         yearly_snapshots.append(YearlySnapshot(
             year=year,
             starting_value=starting_value,
@@ -238,19 +236,19 @@ def project_growth(
             cumulative_invested=cumulative_invested,
             total_return_pct=total_return_pct,
         ))
-    
+
     # Final calculations
     final_value = yearly_snapshots[-1].ending_value
     total_return = final_value - cumulative_invested
     total_return_pct = (total_return / cumulative_invested) * 100
     annualized_return = ((final_value / initial_investment) ** (1 / years) - 1) * 100
-    
+
     # Final prices and holdings
     final_prices = {
         asset: CURRENT_PRICES.get(asset, 1) * ((1 + scenario["cagr"].get(asset, 0)) ** years)
         for asset in CURRENT_PRICES
     }
-    
+
     final_holdings = {
         asset: {
             "quantity": holdings[asset],
@@ -258,7 +256,7 @@ def project_growth(
         }
         for asset in holdings
     }
-    
+
     return ProjectionResult(
         scenario_name=scenario["name"],
         initial_investment=initial_investment,
@@ -281,7 +279,7 @@ def format_projection(result: ProjectionResult) -> str:
     lines.append(f"  {result.scenario_name.upper()} SCENARIO")
     lines.append("=" * 70)
     lines.append("")
-    
+
     lines.append(f"  Initial Investment:     ${result.initial_investment:>15,.0f}")
     lines.append(f"  Total DCA Contributions:${result.total_invested - result.initial_investment:>15,.0f}")
     lines.append(f"  Total Invested:         ${result.total_invested:>15,.0f}")
@@ -293,18 +291,18 @@ def format_projection(result: ProjectionResult) -> str:
     lines.append(f"  Total Return %:         {result.total_return_pct:>+15.1f}%")
     lines.append(f"  Annualized Return:      {result.annualized_return:>+15.1f}%")
     lines.append("")
-    
+
     lines.append("  Year-by-Year Breakdown:")
     lines.append("  " + "-" * 66)
     lines.append(f"  {'Year':<6} {'Start':>12} {'DCA':>10} {'Staking':>10} {'End':>14} {'Return':>10}")
     lines.append("  " + "-" * 66)
-    
+
     for snap in result.yearly_snapshots:
         lines.append(
             f"  {snap.year:<6} ${snap.starting_value:>11,.0f} ${snap.dca_contributions:>9,.0f} "
             f"${snap.staking_income:>9,.0f} ${snap.ending_value:>13,.0f} {snap.total_return_pct:>+9.1f}%"
         )
-    
+
     lines.append("")
     return "\n".join(lines)
 
@@ -319,17 +317,17 @@ def run_all_projections(initial_investment: float, years: int = 4) -> str:
     output.append("╚" + "═" * 70 + "╝")
     output.append("")
     output.append(f"  Starting Investment: ${initial_investment:,.0f}")
-    output.append(f"  Annual DCA: $14,600 ($40/day)")
-    output.append(f"  Blended Staking Yield: ~7.2%")
-    output.append(f"  Staking Rewards: Reinvested")
+    output.append("  Annual DCA: $14,600 ($40/day)")
+    output.append("  Blended Staking Yield: ~7.2%")
+    output.append("  Staking Rewards: Reinvested")
     output.append("")
-    
+
     results = {}
     for scenario_key in ["bear", "base", "bull"]:
         result = project_growth(initial_investment, years, scenario_key)
         results[scenario_key] = result
         output.append(format_projection(result))
-    
+
     # Summary comparison
     output.append("=" * 70)
     output.append("  SCENARIO COMPARISON SUMMARY")
@@ -337,7 +335,7 @@ def run_all_projections(initial_investment: float, years: int = 4) -> str:
     output.append("")
     output.append(f"  {'Scenario':<15} {'Final Value':>15} {'Total Return':>15} {'Probability':>12}")
     output.append("  " + "-" * 60)
-    
+
     expected_value = 0
     for key, result in results.items():
         prob = SCENARIOS[key]["probability"]
@@ -346,21 +344,21 @@ def run_all_projections(initial_investment: float, years: int = 4) -> str:
             f"  {result.scenario_name:<15} ${result.final_value:>14,.0f} "
             f"{result.total_return_pct:>+14.1f}% {prob*100:>11.0f}%"
         )
-    
+
     output.append("  " + "-" * 60)
     output.append(f"  {'Expected Value':<15} ${expected_value:>14,.0f}")
     output.append("")
-    
+
     # What the numbers mean
     output.append("=" * 70)
     output.append("  INTERPRETATION")
     output.append("=" * 70)
     output.append("")
-    
+
     bear = results["bear"]
     base = results["base"]
     bull = results["bull"]
-    
+
     output.append(f"  • WORST CASE (Bear): Your ${initial_investment:,.0f} + ${initial_investment + 14600*years - initial_investment:,.0f} DCA")
     output.append(f"    becomes ${bear.final_value:,.0f} ({bear.total_return_pct:+.0f}%)")
     output.append(f"    → You still earned ${bear.total_staking_income:,.0f} in staking income")
@@ -375,7 +373,7 @@ def run_all_projections(initial_investment: float, years: int = 4) -> str:
     output.append("")
     output.append(f"  • PROBABILITY-WEIGHTED: ${expected_value:,.0f} expected value")
     output.append("")
-    
+
     return "\n".join(output)
 
 

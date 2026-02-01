@@ -359,7 +359,7 @@ async def main():
         async with aiohttp.ClientSession() as session:
             ids = ",".join(a.lower() for a in (assets or DEFAULT_DAY_TRADE_ASSETS))
             # Use CoinGecko for price seeding
-            url = f"https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,avalanche-2,chainlink,near,sui,render-token,fetch-ai,dogecoin&vs_currencies=usd"
+            url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,avalanche-2,chainlink,near,sui,render-token,fetch-ai,dogecoin&vs_currencies=usd"
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
