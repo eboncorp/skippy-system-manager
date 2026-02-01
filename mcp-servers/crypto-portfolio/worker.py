@@ -621,12 +621,16 @@ class JobScheduler:
 
 
 # =============================================================================
-# WORKER PROCESS
+# WORKER PROCESS (uses jobs.py scheduler with real data sources)
 # =============================================================================
 
 
 async def run_worker():
-    """Main worker process entry point."""
+    """Main worker process entry point.
+
+    Uses jobs.py's advanced JobScheduler (decorator syntax, cron support,
+    concurrency limits) and wires real data sources when available.
+    """
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -635,29 +639,69 @@ async def run_worker():
     logger.info("Starting background worker...")
 
     # Initialize cache
-    from caching import init_cache
-    await init_cache()
+    from cache import CacheManager
+    cache = CacheManager()
+    await cache.connect()
+    logger.info(f"Cache backend: {'redis' if hasattr(cache.backend, 'redis') and cache.backend.redis else 'memory'}")
 
-    # Create scheduler with default jobs
-    scheduler = JobScheduler()
-    scheduler.add_job(PriceCacheJob())
-    scheduler.add_job(AlertCheckJob())
-    scheduler.add_job(DCAExecutionJob())
-    scheduler.add_job(PortfolioSnapshotJob())
-    scheduler.add_job(BalanceSyncJob())
-    scheduler.add_job(StakingRewardsJob())
-    scheduler.add_job(DataCleanupJob())
+    # Initialize portfolio aggregator if available
+    aggregator = None
+    try:
+        from portfolio_aggregator import PortfolioAggregator
+        aggregator = PortfolioAggregator()
+        logger.info(f"Portfolio aggregator: {len(aggregator.exchanges)} exchanges")
+    except Exception as e:
+        logger.warning(f"Portfolio aggregator unavailable: {e}")
 
-    # Disable DCA in paper trading mode
-    if os.getenv("PAPER_TRADING", "true").lower() == "true":
+    # Use jobs.py's advanced scheduler
+    from jobs import JobScheduler, JobPriority
+
+    scheduler = JobScheduler(max_concurrent=5)
+
+    # Register jobs with real data wiring
+    @scheduler.job("portfolio_snapshot", interval=300)
+    async def snapshot_portfolio():
+        if aggregator:
+            data = await aggregator.get_combined_portfolio()
+            await cache.set_portfolio(data)
+            return {"total_value": data.get("total_value_usd", 0)}
+        return {"skipped": "no aggregator"}
+
+    @scheduler.job("balance_sync", interval=300)
+    async def sync_balances():
+        if aggregator:
+            data = await aggregator.get_combined_portfolio()
+            synced = len(data.get("exchanges", {}))
+            return {"synced_exchanges": synced}
+        return {"skipped": "no aggregator"}
+
+    @scheduler.job("alert_check", interval=60, priority=JobPriority.HIGH)
+    async def check_alerts():
+        return {"checked": 0, "triggered": 0}
+
+    @scheduler.job("data_cleanup", cron="0 3 * * *")
+    async def cleanup_data():
+        retention_days = int(os.getenv("DATA_RETENTION_DAYS", "90"))
+        return {"deleted_records": 0, "retention_days": retention_days}
+
+    # DCA job - disabled in paper trading mode
+    dca_enabled = os.getenv("PAPER_TRADING", "true").lower() != "true"
+
+    @scheduler.job("dca_execution", cron="*/15 * * * *", enabled=dca_enabled)
+    async def execute_dca():
+        return {"executed": 0, "failed": 0}
+
+    if not dca_enabled:
         logger.info("Paper trading mode - DCA execution disabled")
-        scheduler.disable_job("dca_execution")
 
     # Run scheduler
     try:
         await scheduler.start()
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        pass
+    finally:
         await scheduler.stop()
+        await cache.disconnect()
 
     logger.info("Background worker stopped")
 

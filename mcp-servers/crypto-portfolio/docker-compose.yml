@@ -119,7 +119,7 @@ services:
       target: production
     container_name: crypto-portfolio-worker
     restart: unless-stopped
-    command: python -m automation.worker
+    command: python worker.py
     environment:
       - PAPER_TRADING=true
       - DATABASE_URL=postgresql://crypto:${POSTGRES_PASSWORD:-cryptopass}@postgres:5432/crypto_portfolio
