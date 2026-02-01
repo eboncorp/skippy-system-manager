@@ -2,6 +2,8 @@
 Coinbase and Coinbase Prime API client.
 
 Supports both personal Coinbase accounts and institutional Coinbase Prime accounts.
+Uses the official coinbase-advanced-py SDK for CDP key authentication (JWT/EC),
+and falls back to raw HMAC-SHA256 for legacy API keys.
 """
 
 import hmac
@@ -9,6 +11,7 @@ import hashlib
 import time
 import base64
 import json
+import asyncio
 from datetime import datetime
 from decimal import Decimal
 from typing import Dict, List, Optional
@@ -21,15 +24,37 @@ logger = logging.getLogger(__name__)
 
 
 class CoinbaseClient(ExchangeClient):
-    """Client for Coinbase retail API."""
-    
+    """Client for Coinbase retail API.
+
+    Supports two auth modes:
+    - CDP key file (via from_key_file): uses the official SDK with JWT auth
+    - Legacy api_key/api_secret: uses direct HMAC-SHA256 requests
+    """
+
     name = "coinbase"
     BASE_URL = "https://api.coinbase.com"
-    
+
     def __init__(self, api_key: str, api_secret: str):
         self.api_key = api_key
         self.api_secret = api_secret
         self._session: Optional[aiohttp.ClientSession] = None
+        self._sdk_client = None  # Set by from_key_file for CDP auth
+
+    @classmethod
+    def from_key_file(cls, path: str) -> "CoinbaseClient":
+        """Create client from a CDP API key JSON file.
+
+        Uses the official coinbase-advanced-py SDK which handles
+        JWT signing with EC private keys.
+        """
+        from coinbase.rest import RESTClient
+        sdk_client = RESTClient(key_file=path)
+        # Read key file to populate api_key for identification
+        with open(path) as f:
+            data = json.load(f)
+        instance = cls(api_key=data.get("name", "cdp"), api_secret="")
+        instance._sdk_client = sdk_client
+        return instance
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
@@ -38,7 +63,7 @@ class CoinbaseClient(ExchangeClient):
         return self._session
 
     def _sign_request(self, timestamp: str, method: str, path: str, body: str = "") -> str:
-        """Generate signature for Coinbase API request."""
+        """Generate HMAC-SHA256 signature for legacy API key auth."""
         message = timestamp + method.upper() + path + body
         signature = hmac.new(
             self.api_secret.encode(),
@@ -46,64 +71,108 @@ class CoinbaseClient(ExchangeClient):
             hashlib.sha256
         ).hexdigest()
         return signature
-    
+
     async def _request(
         self,
         method: str,
         path: str,
         body: Optional[dict] = None,
     ) -> dict:
-        """Make authenticated request to Coinbase API."""
+        """Make authenticated request to Coinbase API (legacy auth only)."""
         session = await self._get_session()
         timestamp = str(int(time.time()))
         body_str = json.dumps(body) if body else ""
-        
+
         signature = self._sign_request(timestamp, method, path, body_str)
-        
+
         headers = {
             "CB-ACCESS-KEY": self.api_key,
             "CB-ACCESS-SIGN": signature,
             "CB-ACCESS-TIMESTAMP": timestamp,
             "Content-Type": "application/json",
         }
-        
+
         url = f"{self.BASE_URL}{path}"
-        
+
         async with session.request(method, url, headers=headers, data=body_str or None) as resp:
             data = await resp.json()
             if resp.status >= 400:
                 raise Exception(f"Coinbase API error: {data}")
             return data
-    
+
     async def get_balances(self) -> Dict[str, Balance]:
         """Get all account balances."""
+        if self._sdk_client:
+            return await self._get_balances_sdk()
+        return await self._get_balances_legacy()
+
+    async def _get_balances_sdk(self) -> Dict[str, Balance]:
+        """Get balances using the official SDK (CDP key auth).
+
+        Uses get_portfolio_breakdown() which includes staked positions,
+        unlike get_accounts() which only shows available balances.
+        """
+        balances = {}
+
+        # Get portfolio UUID
+        portfolios = await asyncio.to_thread(self._sdk_client.get_portfolios)
+        p_list = portfolios.portfolios if hasattr(portfolios, 'portfolios') else portfolios.get('portfolios', [])
+        if not p_list:
+            return balances
+
+        uuid = p_list[0].uuid if hasattr(p_list[0], 'uuid') else p_list[0]['uuid']
+        breakdown = await asyncio.to_thread(self._sdk_client.get_portfolio_breakdown, uuid)
+        bd = breakdown.breakdown if hasattr(breakdown, 'breakdown') else breakdown.get('breakdown', {})
+        positions = bd.spot_positions if hasattr(bd, 'spot_positions') else bd.get('spot_positions', [])
+
+        for pos in positions:
+            asset = pos.asset if hasattr(pos, 'asset') else pos.get('asset', '')
+            crypto_str = str(pos.total_balance_crypto if hasattr(pos, 'total_balance_crypto') else pos.get('total_balance_crypto', '0'))
+            available_str = str(pos.available_to_trade_crypto if hasattr(pos, 'available_to_trade_crypto') else pos.get('available_to_trade_crypto', '0'))
+
+            total = Decimal(crypto_str) if crypto_str else Decimal("0")
+            available = Decimal(available_str) if available_str else Decimal("0")
+            staked = total - available if total > available else Decimal("0")
+
+            if total > 0:
+                balances[asset] = Balance(
+                    asset=asset,
+                    total=total,
+                    available=available,
+                    staked=staked,
+                )
+
+        return balances
+
+    async def _get_balances_legacy(self) -> Dict[str, Balance]:
+        """Get balances using legacy HMAC auth."""
         balances = {}
         cursor = None
-        
+
         while True:
             path = "/api/v3/brokerage/accounts"
             if cursor:
                 path += f"?cursor={cursor}"
-            
+
             data = await self._request("GET", path)
-            
+
             for account in data.get("accounts", []):
                 asset = account["currency"]
                 total = Decimal(account["available_balance"]["value"])
                 hold = Decimal(account.get("hold", {}).get("value", "0"))
-                
+
                 if total > 0:
                     balances[asset] = Balance(
                         asset=asset,
                         total=total,
                         available=total - hold,
-                        staked=Decimal("0"),  # Coinbase doesn't separate staked in this endpoint
+                        staked=Decimal("0"),
                     )
-            
+
             cursor = data.get("cursor")
             if not cursor or not data.get("has_next"):
                 break
-        
+
         return balances
     
     async def get_staking_rewards(
@@ -235,6 +304,12 @@ class CoinbaseClient(ExchangeClient):
     
     async def get_ticker_price(self, asset: str) -> Decimal:
         """Get current price for an asset."""
+        if self._sdk_client:
+            result = await asyncio.to_thread(
+                self._sdk_client.get_product, f"{asset}-USD"
+            )
+            price = result["price"] if isinstance(result, dict) else result.price
+            return Decimal(str(price))
         path = f"/api/v3/brokerage/products/{asset}-USD"
         data = await self._request("GET", path)
         return Decimal(data["price"])
@@ -308,6 +383,7 @@ class CoinbaseClient(ExchangeClient):
         """Close the session."""
         if self._session:
             await self._session.close()
+        self._sdk_client = None
 
 
 class CoinbasePrimeClient(ExchangeClient):
