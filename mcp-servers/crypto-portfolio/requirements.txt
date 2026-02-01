@@ -2,6 +2,9 @@
 fastmcp>=2.0.0
 pydantic>=2.0.0
 
+# Coinbase Advanced Trade SDK (CDP key / JWT auth)
+coinbase-advanced-py>=1.8.0
+
 # Async HTTP
 aiohttp>=3.9.0
 httpx>=0.27.0
@@ -37,6 +40,9 @@ mypy>=1.0.0
 
 # Monitoring (optional)
 # sentry-sdk>=1.40.0  # Error tracking
+
+# XLSX parsing
+openpyxl>=3.1.0
 
 # Security
 bandit>=1.7.0
