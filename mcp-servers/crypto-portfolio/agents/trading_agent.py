@@ -889,6 +889,236 @@ class GridStrategy(TradingStrategy):
         return actions
 
 
+class AdaptiveDayTradeStrategy(TradingStrategy):
+    """
+    Adaptive day-trading strategy for personal accounts.
+
+    Evaluates every hour and switches between momentum and mean-reversion
+    sub-strategies based on market conditions. Both buys and sells.
+
+    - Trending market (score < -30 or > 30): Momentum plays
+    - Ranging market (-30 to 30): Mean reversion / grid fills
+    - High volatility: Wider stops, smaller positions
+    - Low volatility: Tighter entries, larger positions
+    """
+
+    def __init__(self, config: TradingConfig):
+        super().__init__(config)
+        self.name = "adaptive_day_trade"
+        self.cycle_hours = 1
+        self.daily_budget = Decimal("12")  # Personal budget from etf_config
+        self.max_position_hold_hours = 24
+        self.stop_loss_pct = Decimal("3")
+        self.take_profit_pct = Decimal("5")
+        self._spent_today = Decimal("0")
+        self._last_reset_date = datetime.utcnow().date()
+        self._position_entries: Dict[str, datetime] = {}  # symbol -> entry time
+
+    def _reset_daily_budget(self):
+        today = datetime.utcnow().date()
+        if today > self._last_reset_date:
+            self._spent_today = Decimal("0")
+            self._last_reset_date = today
+
+    def _classify_market(self, signal_score: float) -> str:
+        """Classify market into trending or ranging."""
+        if signal_score < -30 or signal_score > 30:
+            return "trending"
+        return "ranging"
+
+    def _get_volatility_adjustment(self, signal_score: float) -> Decimal:
+        """Return position size multiplier based on implied volatility from score magnitude."""
+        magnitude = abs(signal_score)
+        if magnitude > 60:
+            return Decimal("0.5")   # high vol -> smaller positions
+        elif magnitude > 40:
+            return Decimal("0.75")
+        elif magnitude < 15:
+            return Decimal("1.25")  # low vol -> larger positions
+        return Decimal("1.0")
+
+    async def evaluate(
+        self,
+        signal_score: float,
+        market_condition: str,
+        cycle_phase: str,
+        portfolio: Portfolio,
+        current_prices: Dict[str, Decimal]
+    ) -> List[SignalAction]:
+        actions = []
+        self._reset_daily_budget()
+
+        remaining_budget = self.daily_budget - self._spent_today
+        if remaining_budget < Decimal("1"):
+            return actions
+
+        market_type = self._classify_market(signal_score)
+        vol_adj = self._get_volatility_adjustment(signal_score)
+        now = datetime.utcnow()
+
+        for asset in self.config.supported_assets:
+            symbol = f"{asset}/USD"
+            price = current_prices.get(asset, Decimal("0"))
+            if price == 0:
+                continue
+
+            position = portfolio.positions.get(symbol)
+
+            # --- EXIT LOGIC: check stop-loss / take-profit / time-based exits ---
+            if position and position.quantity > 0:
+                pnl_pct = position.pnl_percent
+                entry_time = self._position_entries.get(symbol, now)
+                hours_held = (now - entry_time).total_seconds() / 3600
+
+                # Stop loss
+                if pnl_pct <= -self.stop_loss_pct:
+                    actions.append(SignalAction(
+                        action="sell",
+                        symbol=symbol,
+                        suggested_quantity=position.quantity,
+                        suggested_price=price,
+                        confidence=0.9,
+                        reasoning=f"Stop loss triggered ({pnl_pct:.1f}% loss)",
+                        signal_score=signal_score,
+                        urgency="immediate",
+                        risk_level="high",
+                    ))
+                    continue
+
+                # Take profit
+                if pnl_pct >= self.take_profit_pct:
+                    sell_qty = (position.quantity * Decimal("0.75")).quantize(
+                        Decimal("0.00000001"), rounding=ROUND_DOWN
+                    )
+                    if sell_qty > 0:
+                        actions.append(SignalAction(
+                            action="sell",
+                            symbol=symbol,
+                            suggested_quantity=sell_qty,
+                            suggested_price=price,
+                            confidence=0.85,
+                            reasoning=f"Take profit ({pnl_pct:.1f}% gain, selling 75%)",
+                            signal_score=signal_score,
+                            urgency="immediate",
+                            risk_level="low",
+                        ))
+                    continue
+
+                # Time-based exit: close positions held > max hold hours
+                if hours_held >= self.max_position_hold_hours:
+                    actions.append(SignalAction(
+                        action="sell",
+                        symbol=symbol,
+                        suggested_quantity=position.quantity,
+                        suggested_price=price,
+                        confidence=0.7,
+                        reasoning=f"Time exit: held {hours_held:.0f}h (max {self.max_position_hold_hours}h)",
+                        signal_score=signal_score,
+                        urgency="soon",
+                        risk_level="medium",
+                    ))
+                    continue
+
+                # Trailing profit-take in trending favorable direction
+                if market_type == "trending" and pnl_pct > Decimal("2"):
+                    # In momentum, let it ride unless signal reverses
+                    if signal_score > 40 and pnl_pct > Decimal("3"):
+                        sell_qty = (position.quantity * Decimal("0.5")).quantize(
+                            Decimal("0.00000001"), rounding=ROUND_DOWN
+                        )
+                        if sell_qty > 0:
+                            actions.append(SignalAction(
+                                action="sell",
+                                symbol=symbol,
+                                suggested_quantity=sell_qty,
+                                suggested_price=price,
+                                confidence=0.7,
+                                reasoning=f"Momentum exit: signal reversing to greed ({signal_score:.0f})",
+                                signal_score=signal_score,
+                                urgency="soon",
+                                risk_level="low",
+                            ))
+                    continue
+
+            # --- ENTRY LOGIC ---
+            if remaining_budget < Decimal("1"):
+                continue
+
+            # Per-asset budget allocation
+            num_assets = len(self.config.supported_assets)
+            per_asset_budget = (remaining_budget / num_assets).quantize(
+                Decimal("0.01"), rounding=ROUND_DOWN
+            )
+            adjusted_budget = (per_asset_budget * vol_adj).quantize(
+                Decimal("0.01"), rounding=ROUND_DOWN
+            )
+
+            if adjusted_budget < Decimal("0.50"):
+                continue
+
+            if market_type == "trending":
+                # MOMENTUM: buy into strong fear signals, avoid buying greed
+                if signal_score < -20:
+                    quantity = (adjusted_budget / price).quantize(
+                        Decimal("0.00000001"), rounding=ROUND_DOWN
+                    )
+                    if quantity > 0:
+                        actions.append(SignalAction(
+                            action="buy",
+                            symbol=symbol,
+                            suggested_quantity=quantity,
+                            suggested_price=price,
+                            confidence=min(0.85, 0.5 + abs(signal_score) / 150),
+                            reasoning=f"Momentum buy: trending fear (score {signal_score:.0f}, vol_adj {vol_adj})",
+                            signal_score=signal_score,
+                            urgency="immediate" if signal_score < -50 else "soon",
+                            risk_level="medium",
+                        ))
+                        self._spent_today += adjusted_budget
+                        self._position_entries[symbol] = now
+
+            else:
+                # MEAN REVERSION: buy oversold in ranging markets
+                if signal_score < -10 and (not position or position.quantity == 0):
+                    quantity = (adjusted_budget / price).quantize(
+                        Decimal("0.00000001"), rounding=ROUND_DOWN
+                    )
+                    if quantity > 0:
+                        actions.append(SignalAction(
+                            action="buy",
+                            symbol=symbol,
+                            suggested_quantity=quantity,
+                            suggested_price=price,
+                            confidence=0.65,
+                            reasoning=f"Mean reversion buy: ranging oversold (score {signal_score:.0f})",
+                            signal_score=signal_score,
+                            urgency="soon",
+                            risk_level="medium",
+                        ))
+                        self._spent_today += adjusted_budget
+                        self._position_entries[symbol] = now
+
+                # Sell overbought in ranging markets
+                elif signal_score > 15 and position and position.quantity > 0:
+                    sell_qty = (position.quantity * Decimal("0.5")).quantize(
+                        Decimal("0.00000001"), rounding=ROUND_DOWN
+                    )
+                    if sell_qty > 0:
+                        actions.append(SignalAction(
+                            action="sell",
+                            symbol=symbol,
+                            suggested_quantity=sell_qty,
+                            suggested_price=price,
+                            confidence=0.6,
+                            reasoning=f"Mean reversion sell: ranging overbought (score {signal_score:.0f})",
+                            signal_score=signal_score,
+                            urgency="patient",
+                            risk_level="low",
+                        ))
+
+        return actions
+
+
 class RebalanceStrategy(TradingStrategy):
     """
     Portfolio rebalancing strategy.
@@ -1383,6 +1613,7 @@ def create_paper_agent(
         "mean_reversion": MeanReversionStrategy(config),
         "grid": GridStrategy(config),
         "rebalance": RebalanceStrategy(config),
+        "adaptive_day_trade": AdaptiveDayTradeStrategy(config),
     }
     
     strategy_list = []

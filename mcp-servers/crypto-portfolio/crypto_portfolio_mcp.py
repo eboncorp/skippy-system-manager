@@ -54,10 +54,23 @@ except ImportError:
 # GTI Virtual ETF manager
 try:
     from etf_manager import GTIVirtualETF
-    from etf_config import ETF_ASSETS, ETF_DAILY_BUDGET, get_war_chest_rule
+    from etf_config import ETF_ASSETS, ETF_DAILY_BUDGET, PERSONAL_DAILY_BUDGET, get_war_chest_rule
     ETF_AVAILABLE = True
 except ImportError:
     ETF_AVAILABLE = False
+
+# Paper trading agents
+try:
+    from day_trading_agent import PaperDayTrader
+    DAY_TRADER_AVAILABLE = True
+except ImportError:
+    DAY_TRADER_AVAILABLE = False
+
+try:
+    from dca_agent import PaperDCAAgent
+    DCA_AGENT_AVAILABLE = True
+except ImportError:
+    DCA_AGENT_AVAILABLE = False
 
 # On-chain and DeFi trackers for real wallet data
 try:
@@ -2165,6 +2178,56 @@ class ETFRebalanceInput(BaseModel):
     )
 
 
+class PaperDayTradeInput(BaseModel):
+    """Input for running a paper day-trading session."""
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    hours: int = Field(
+        default=4,
+        description="Number of hourly cycles to run (1-24)",
+        ge=1,
+        le=24
+    )
+    assets: Optional[str] = Field(
+        default=None,
+        description="Comma-separated asset list (e.g. 'BTC,ETH,SOL'). Defaults to top 10 tradeable."
+    )
+    initial_cash: float = Field(
+        default=1000,
+        description="Initial paper cash in USD",
+        gt=0
+    )
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN,
+        description="Output format: 'markdown' or 'json'"
+    )
+
+
+class PaperDCAInput(BaseModel):
+    """Input for running a paper DCA cycle."""
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    fear_greed_override: Optional[int] = Field(
+        default=None,
+        description="Override Fear & Greed index value (0-100). Fetches live if not provided.",
+        ge=0,
+        le=100
+    )
+    dry_run: bool = Field(
+        default=False,
+        description="If true, generate orders but don't execute them"
+    )
+    initial_cash: float = Field(
+        default=5000,
+        description="Initial paper cash in USD",
+        gt=0
+    )
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN,
+        description="Output format: 'markdown' or 'json'"
+    )
+
+
 async def _get_fear_greed() -> int:
     """Fetch current Fear & Greed index."""
     import aiohttp
@@ -2322,6 +2385,141 @@ async def crypto_etf_rebalance(params: ETFRebalanceInput) -> str:
 
     except Exception as e:
         return handle_api_error(e, "generating ETF rebalance orders")
+
+
+# =============================================================================
+# PAPER TRADING TOOLS
+# =============================================================================
+
+
+@mcp.tool(
+    name="crypto_run_paper_day_trade",
+    annotations={
+        "title": "Run Paper Day-Trading Session",
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True
+    }
+)
+async def crypto_run_paper_day_trade(params: PaperDayTradeInput) -> str:
+    """Run a paper day-trading session using the adaptive strategy.
+
+    Simulates hourly trading cycles using live signal data and prices.
+    Switches between momentum and mean-reversion based on market conditions.
+    Budget: $12/day personal allocation. All trades are simulated.
+
+    Args:
+        params (PaperDayTradeInput): Session parameters including:
+            - hours (int): Number of hourly cycles (1-24)
+            - assets (str): Comma-separated assets (default: top 10)
+            - initial_cash (float): Starting paper cash
+            - response_format (str): 'markdown' or 'json'
+
+    Returns:
+        str: Session summary with trades, P&L, and strategy switches
+    """
+    if not DAY_TRADER_AVAILABLE:
+        return "Day trading agent not available. Check day_trading_agent.py."
+
+    try:
+        from decimal import Decimal as D
+
+        assets = params.assets.split(",") if params.assets else None
+        trader = PaperDayTrader(
+            assets=assets,
+            initial_cash=D(str(params.initial_cash)),
+        )
+
+        # Fetch live prices to seed
+        prices = {}
+        try:
+            import aiohttp
+            from etf_config import get_coingecko_ids
+            cg_ids = get_coingecko_ids()
+            id_to_symbol = {v: k for k, v in cg_ids.items()}
+            ids_param = ",".join(cg_ids.values())
+
+            async with aiohttp.ClientSession() as session:
+                url = f"https://api.coingecko.com/api/v3/simple/price?ids={ids_param}&vs_currencies=usd"
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        target_assets = set(assets) if assets else set(trader.assets)
+                        for cg_id, price_data in data.items():
+                            sym = id_to_symbol.get(cg_id)
+                            if sym and sym in target_assets and "usd" in price_data:
+                                prices[sym] = D(str(price_data["usd"]))
+        except Exception:
+            pass
+
+        await trader.initialize(prices=prices if prices else None)
+        summary = await trader.run_paper_session(hours=params.hours)
+
+        if params.response_format == ResponseFormat.JSON:
+            return json.dumps(summary, indent=2, default=str)
+
+        return trader.format_summary_markdown(summary)
+
+    except Exception as e:
+        return handle_api_error(e, "running paper day-trading session")
+
+
+@mcp.tool(
+    name="crypto_run_paper_dca",
+    annotations={
+        "title": "Run Paper DCA Cycle",
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True
+    }
+)
+async def crypto_run_paper_dca(params: PaperDCAInput) -> str:
+    """Run a paper DCA cycle for the GTI Virtual ETF.
+
+    Generates daily DCA orders based on ETF target allocations and current
+    Fear & Greed index. Prioritizes underweight assets and handles war chest
+    deployment in fear conditions. Budget: $28/day business allocation.
+
+    Args:
+        params (PaperDCAInput): Cycle parameters including:
+            - fear_greed_override (int): Optional F&G override (0-100)
+            - dry_run (bool): Generate orders without executing
+            - initial_cash (float): Starting paper cash
+            - response_format (str): 'markdown' or 'json'
+
+    Returns:
+        str: DCA cycle report with orders, executions, and NAV
+    """
+    if not DCA_AGENT_AVAILABLE:
+        return "DCA agent not available. Check dca_agent.py."
+
+    if not ETF_AVAILABLE:
+        return "ETF module not available. Check etf_config.py and etf_manager.py."
+
+    try:
+        from decimal import Decimal as D
+
+        agent = PaperDCAAgent(initial_cash=D(str(params.initial_cash)))
+
+        # Fetch live prices
+        prices = await agent.fetch_live_prices()
+        if prices:
+            await agent.seed_prices(prices)
+
+        result = await agent.run_daily_dca(
+            fear_greed=params.fear_greed_override,
+            dry_run=params.dry_run,
+        )
+
+        if params.response_format == ResponseFormat.JSON:
+            return json.dumps(result, indent=2, default=str)
+
+        return agent.format_result_markdown(result)
+
+    except Exception as e:
+        return handle_api_error(e, "running paper DCA cycle")
 
 
 # =============================================================================
