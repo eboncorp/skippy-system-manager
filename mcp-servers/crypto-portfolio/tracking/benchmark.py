@@ -8,11 +8,10 @@ Compares portfolio performance against:
 - Custom benchmarks
 """
 
-import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 import aiohttp
 import statistics
 
@@ -31,7 +30,7 @@ class PerformanceMetrics:
     volatility: Optional[Decimal] = None  # Standard deviation of returns
     sharpe_ratio: Optional[Decimal] = None  # Risk-adjusted return
     max_drawdown: Optional[Decimal] = None  # Largest peak-to-trough decline
-    
+
     @property
     def return_multiple(self) -> Decimal:
         """How many X the investment grew."""
@@ -63,18 +62,18 @@ class FullBenchmarkReport:
 
 class PerformanceAnalyzer:
     """Analyzes portfolio performance and compares to benchmarks."""
-    
+
     COINGECKO_URL = "https://api.coingecko.com/api/v3"
-    
+
     def __init__(self, price_service: Optional[PriceService] = None):
         self.price_service = price_service or PriceService()
         self._session: Optional[aiohttp.ClientSession] = None
-    
+
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession()
         return self._session
-    
+
     async def get_historical_prices(
         self,
         asset_id: str,
@@ -82,27 +81,27 @@ class PerformanceAnalyzer:
     ) -> List[Tuple[datetime, Decimal]]:
         """Get historical prices from CoinGecko."""
         session = await self._get_session()
-        
+
         url = f"{self.COINGECKO_URL}/coins/{asset_id}/market_chart"
         params = {
             "vs_currency": "usd",
             "days": days,
         }
-        
+
         try:
             async with session.get(url, params=params) as resp:
                 data = await resp.json()
-                
+
                 prices = []
                 for timestamp_ms, price in data.get("prices", []):
                     dt = datetime.fromtimestamp(timestamp_ms / 1000)
                     prices.append((dt, Decimal(str(price))))
-                
+
                 return prices
         except Exception as e:
             print(f"Failed to get historical prices for {asset_id}: {e}")
             return []
-    
+
     def calculate_metrics(
         self,
         values: List[Tuple[datetime, Decimal]],
@@ -116,14 +115,14 @@ class PerformanceAnalyzer:
                 percentage_return=Decimal("0"),
                 annualized_return=Decimal("0"),
             )
-        
+
         start_date, start_value = values[0]
         end_date, end_value = values[-1]
-        
+
         # Basic returns
         absolute_return = end_value - start_value
         percentage_return = (absolute_return / start_value * 100) if start_value > 0 else Decimal("0")
-        
+
         # Annualized return
         days = (end_date - start_date).days
         if days > 0 and start_value > 0:
@@ -134,7 +133,7 @@ class PerformanceAnalyzer:
                 annualized_return = Decimal("-100")
         else:
             annualized_return = Decimal("0")
-        
+
         # Calculate daily returns for volatility
         daily_returns = []
         for i in range(1, len(values)):
@@ -143,35 +142,35 @@ class PerformanceAnalyzer:
             if prev_value > 0:
                 daily_return = float((curr_value - prev_value) / prev_value)
                 daily_returns.append(daily_return)
-        
+
         # Volatility (annualized standard deviation)
         volatility = None
         if len(daily_returns) > 1:
             std_dev = statistics.stdev(daily_returns)
             volatility = Decimal(str(std_dev * (252 ** 0.5) * 100))  # Annualized
-        
+
         # Sharpe ratio (assuming 5% risk-free rate)
         sharpe_ratio = None
         if volatility and volatility > 0:
             risk_free_rate = Decimal("5")  # 5% annual
             excess_return = annualized_return - risk_free_rate
             sharpe_ratio = excess_return / volatility
-        
+
         # Maximum drawdown
         max_drawdown = None
         if len(values) > 1:
             peak = values[0][1]
             max_dd = Decimal("0")
-            
+
             for _, value in values:
                 if value > peak:
                     peak = value
                 drawdown = (peak - value) / peak if peak > 0 else Decimal("0")
                 if drawdown > max_dd:
                     max_dd = drawdown
-            
+
             max_drawdown = max_dd * 100
-        
+
         return PerformanceMetrics(
             start_value=start_value,
             end_value=end_value,
@@ -182,7 +181,7 @@ class PerformanceAnalyzer:
             sharpe_ratio=sharpe_ratio,
             max_drawdown=max_drawdown,
         )
-    
+
     def get_portfolio_values(
         self,
         start_date: datetime,
@@ -190,12 +189,12 @@ class PerformanceAnalyzer:
     ) -> List[Tuple[datetime, Decimal]]:
         """Get historical portfolio values from database."""
         snapshots = db.get_snapshots(start_date=start_date, end_date=end_date, limit=1000)
-        
+
         # Sort by timestamp
         snapshots.sort(key=lambda x: x["timestamp"])
-        
+
         return [(s["timestamp"], s["total_usd_value"]) for s in snapshots]
-    
+
     async def compare_to_benchmark(
         self,
         portfolio_values: List[Tuple[datetime, Decimal]],
@@ -205,18 +204,18 @@ class PerformanceAnalyzer:
         """Compare portfolio to a single benchmark."""
         if not portfolio_values:
             raise ValueError("No portfolio values provided")
-        
+
         start_date = portfolio_values[0][0]
         days = (portfolio_values[-1][0] - start_date).days
-        
+
         # Get benchmark prices
         benchmark_prices = await self.get_historical_prices(benchmark_id, days + 1)
-        
+
         # Normalize benchmark to same starting value as portfolio
         if benchmark_prices:
             start_value = portfolio_values[0][1]
             benchmark_start = benchmark_prices[0][1]
-            
+
             if benchmark_start > 0:
                 scale = start_value / benchmark_start
                 benchmark_values = [
@@ -226,14 +225,14 @@ class PerformanceAnalyzer:
                 benchmark_values = benchmark_prices
         else:
             benchmark_values = []
-        
+
         # Calculate metrics
         portfolio_metrics = self.calculate_metrics(portfolio_values)
         benchmark_metrics = self.calculate_metrics(benchmark_values)
-        
+
         # Calculate alpha (excess return)
         alpha = portfolio_metrics.percentage_return - benchmark_metrics.percentage_return
-        
+
         return BenchmarkComparison(
             portfolio=portfolio_metrics,
             benchmark=benchmark_metrics,
@@ -241,7 +240,7 @@ class PerformanceAnalyzer:
             alpha=alpha,
             outperformed=alpha > 0,
         )
-    
+
     async def generate_benchmark_report(
         self,
         days: int = 30,
@@ -249,17 +248,17 @@ class PerformanceAnalyzer:
     ) -> FullBenchmarkReport:
         """
         Generate a full benchmark comparison report.
-        
+
         Args:
             days: Number of days to analyze
             benchmarks: List of (coingecko_id, display_name) tuples
-            
+
         Returns:
             Complete benchmark report
         """
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
-        
+
         # Default benchmarks
         if benchmarks is None:
             benchmarks = [
@@ -267,16 +266,16 @@ class PerformanceAnalyzer:
                 ("ethereum", "Ethereum"),
                 ("solana", "Solana"),
             ]
-        
+
         # Get portfolio values
         portfolio_values = self.get_portfolio_values(start_date, end_date)
-        
+
         if not portfolio_values:
             raise ValueError("No portfolio data available for the specified period")
-        
+
         # Calculate portfolio metrics
         portfolio_metrics = self.calculate_metrics(portfolio_values)
-        
+
         # Compare to each benchmark
         comparisons = []
         for benchmark_id, benchmark_name in benchmarks:
@@ -287,7 +286,7 @@ class PerformanceAnalyzer:
                 comparisons.append(comparison)
             except Exception as e:
                 print(f"Failed to compare to {benchmark_name}: {e}")
-        
+
         return FullBenchmarkReport(
             period_start=start_date,
             period_end=end_date,
@@ -295,7 +294,7 @@ class PerformanceAnalyzer:
             portfolio_metrics=portfolio_metrics,
             comparisons=comparisons,
         )
-    
+
     async def close(self):
         """Close the session."""
         if self._session:
@@ -310,7 +309,7 @@ def format_benchmark_report(report: FullBenchmarkReport) -> str:
     lines.append("=" * 70)
     lines.append(f"Period: {report.period_start.strftime('%Y-%m-%d')} to {report.period_end.strftime('%Y-%m-%d')} ({report.period_days} days)")
     lines.append("")
-    
+
     # Portfolio metrics
     pm = report.portfolio_metrics
     lines.append("PORTFOLIO PERFORMANCE")
@@ -320,22 +319,22 @@ def format_benchmark_report(report: FullBenchmarkReport) -> str:
     lines.append(f"  Absolute Return:    ${float(pm.absolute_return):>+12,.2f}")
     lines.append(f"  Percentage Return:  {float(pm.percentage_return):>+12.2f}%")
     lines.append(f"  Annualized Return:  {float(pm.annualized_return):>+12.2f}%")
-    
+
     if pm.volatility is not None:
         lines.append(f"  Volatility (Ann.):  {float(pm.volatility):>12.2f}%")
     if pm.sharpe_ratio is not None:
         lines.append(f"  Sharpe Ratio:       {float(pm.sharpe_ratio):>12.2f}")
     if pm.max_drawdown is not None:
         lines.append(f"  Max Drawdown:       {float(pm.max_drawdown):>12.2f}%")
-    
+
     lines.append("")
-    
+
     # Benchmark comparisons
     lines.append("BENCHMARK COMPARISONS")
     lines.append("-" * 40)
     lines.append(f"{'Benchmark':<15} {'Return':>10} {'Alpha':>10} {'Result':>12}")
     lines.append("-" * 50)
-    
+
     for comp in report.comparisons:
         result = "✅ Beat" if comp.outperformed else "❌ Lagged"
         lines.append(
@@ -344,20 +343,20 @@ def format_benchmark_report(report: FullBenchmarkReport) -> str:
             f"{float(comp.alpha):>+9.2f}% "
             f"{result:>12}"
         )
-    
+
     lines.append("")
-    
+
     # Summary
     beat_count = sum(1 for c in report.comparisons if c.outperformed)
     total = len(report.comparisons)
-    
+
     if beat_count == total:
         lines.append(f"🏆 Portfolio outperformed all {total} benchmarks!")
     elif beat_count > 0:
         lines.append(f"📊 Portfolio beat {beat_count}/{total} benchmarks")
     else:
-        lines.append(f"📉 Portfolio underperformed all benchmarks")
-    
+        lines.append("📉 Portfolio underperformed all benchmarks")
+
     return "\n".join(lines)
 
 

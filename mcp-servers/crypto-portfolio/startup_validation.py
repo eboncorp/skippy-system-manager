@@ -6,11 +6,9 @@ reports on available features at startup.
 """
 
 import os
-import sys
-import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 from enum import Enum
 
 

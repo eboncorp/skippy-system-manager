@@ -17,7 +17,7 @@ Usage:
 import os
 import time
 import requests
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 from dataclasses import dataclass
 from dotenv import load_dotenv
 

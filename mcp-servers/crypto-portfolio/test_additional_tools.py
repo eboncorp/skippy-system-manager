@@ -6,9 +6,7 @@ Tests for trading, staking management, DCA bots, alerts,
 market data, NFTs, and tax reporting tools.
 """
 
-import json
 import pytest
-from datetime import datetime
 
 import sys
 sys.path.insert(0, '..')
@@ -17,14 +15,11 @@ from additional_tools import (
     # Input Models
     PlaceOrderInput,
     CancelOrderInput,
-    GetOpenOrdersInput,
     StakeAssetInput,
     UnstakeAssetInput,
-    ClaimRewardsInput,
     CreateDCABotInput,
     ModifyDCABotInput,
     CreateAlertInput,
-    DeleteAlertInput,
     GetPricesInput,
     GetPriceHistoryInput,
     MarketSentimentInput,
@@ -36,7 +31,6 @@ from additional_tools import (
     TimeInForce,
     AlertType,
     Frequency,
-    ResponseFormat,
     Exchange,
 )
 
@@ -243,7 +237,7 @@ class TestCreateDCABotInput:
             frequency=Frequency.DAILY
         )
         assert inp.amount_usd == 1.0
-        
+
         # Maximum
         inp = CreateDCABotInput(
             exchange=Exchange.COINBASE,
@@ -383,7 +377,7 @@ class TestGetPriceHistoryInput:
         """Test limit must be in valid range."""
         inp = GetPriceHistoryInput(asset="BTC", limit=365)
         assert inp.limit == 365
-        
+
         with pytest.raises(ValueError):
             GetPriceHistoryInput(asset="BTC", limit=400)
 
@@ -472,10 +466,10 @@ class TestExportTaxReportInput:
         """Test tax year valid range."""
         inp = ExportTaxReportInput(tax_year=2015)
         assert inp.tax_year == 2015
-        
+
         inp = ExportTaxReportInput(tax_year=2030)
         assert inp.tax_year == 2030
-        
+
         with pytest.raises(ValueError):
             ExportTaxReportInput(tax_year=2010)
 

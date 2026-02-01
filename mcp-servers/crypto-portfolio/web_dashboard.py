@@ -8,10 +8,8 @@ Provides real-time portfolio monitoring, analysis tools, and trading interface.
 import asyncio
 import json
 import os
-from datetime import datetime, timedelta
-from decimal import Decimal
-from typing import Dict, List, Optional, Any
-from pathlib import Path
+from datetime import datetime
+from typing import Dict, List, Optional
 
 # FastAPI and related imports
 try:

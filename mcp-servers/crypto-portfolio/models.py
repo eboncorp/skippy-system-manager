@@ -17,7 +17,7 @@ Tables:
 
 Usage:
     from database.models import get_engine, get_session, Portfolio, Transaction
-    
+
     engine = get_engine("sqlite:///portfolio.db")
     async with get_session(engine) as session:
         portfolio = Portfolio(...)
@@ -27,9 +27,8 @@ Usage:
 
 import os
 from datetime import datetime
-from decimal import Decimal
 from enum import Enum as PyEnum
-from typing import Any, Dict, List, Optional
+from typing import Optional
 from contextlib import asynccontextmanager
 
 from sqlalchemy import (
@@ -37,7 +36,6 @@ from sqlalchemy import (
     Column,
     DateTime,
     Enum,
-    Float,
     ForeignKey,
     Index,
     Integer,
@@ -117,26 +115,26 @@ class StakingStatus(str, PyEnum):
 
 class Portfolio(Base):
     """Portfolio snapshot at a point in time."""
-    
+
     __tablename__ = "portfolios"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
-    
+
     # Totals
     total_value_usd = Column(Numeric(20, 8), nullable=False)
     total_cost_basis_usd = Column(Numeric(20, 8), nullable=True)
     total_staking_value_usd = Column(Numeric(20, 8), default=0)
     total_defi_value_usd = Column(Numeric(20, 8), default=0)
     total_nft_value_usd = Column(Numeric(20, 8), default=0)
-    
+
     # Breakdown stored as JSON
     holdings_by_asset = Column(JSON, nullable=True)  # {"BTC": {"amount": 1.5, "value_usd": 67500}}
     holdings_by_exchange = Column(JSON, nullable=True)  # {"coinbase": {"value_usd": 50000}}
-    
+
     # Metadata
     snapshot_type = Column(String(20), default="scheduled")  # scheduled, manual, trade
-    
+
     __table_args__ = (
         Index("ix_portfolios_timestamp_type", "timestamp", "snapshot_type"),
     )
@@ -144,40 +142,40 @@ class Portfolio(Base):
 
 class Transaction(Base):
     """Individual transaction record."""
-    
+
     __tablename__ = "transactions"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     external_id = Column(String(100), nullable=True, index=True)  # Exchange's transaction ID
-    
+
     # Transaction details
     transaction_type = Column(Enum(TransactionType), nullable=False, index=True)
     asset = Column(String(20), nullable=False, index=True)
     amount = Column(Numeric(30, 18), nullable=False)
-    
+
     # Pricing
     price_usd = Column(Numeric(20, 8), nullable=True)
     total_usd = Column(Numeric(20, 8), nullable=True)
     fee_amount = Column(Numeric(20, 8), default=0)
     fee_currency = Column(String(20), nullable=True)
     fee_usd = Column(Numeric(20, 8), default=0)
-    
+
     # Source/destination
     exchange = Column(String(50), nullable=True, index=True)
     wallet_address = Column(String(100), nullable=True)
     counterparty = Column(String(100), nullable=True)  # For transfers
-    
+
     # Timestamps
     timestamp = Column(DateTime, nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     # Additional data
     notes = Column(Text, nullable=True)
     raw_data = Column(JSON, nullable=True)  # Original API response
-    
+
     # Relationships
     tax_lots = relationship("TaxLot", back_populates="transaction")
-    
+
     __table_args__ = (
         Index("ix_transactions_asset_timestamp", "asset", "timestamp"),
         Index("ix_transactions_exchange_timestamp", "exchange", "timestamp"),
@@ -186,35 +184,35 @@ class Transaction(Base):
 
 class TaxLot(Base):
     """Individual tax lot for cost basis tracking."""
-    
+
     __tablename__ = "tax_lots"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=False)
-    
+
     # Lot details
     asset = Column(String(20), nullable=False, index=True)
     amount = Column(Numeric(30, 18), nullable=False)
     remaining_amount = Column(Numeric(30, 18), nullable=False)  # After partial disposals
     cost_basis_usd = Column(Numeric(20, 8), nullable=False)
     cost_basis_per_unit = Column(Numeric(20, 8), nullable=False)
-    
+
     # Acquisition info
     acquired_at = Column(DateTime, nullable=False, index=True)
     exchange = Column(String(50), nullable=True)
-    
+
     # Disposal info (if sold)
     disposed_at = Column(DateTime, nullable=True)
     proceeds_usd = Column(Numeric(20, 8), nullable=True)
     gain_loss_usd = Column(Numeric(20, 8), nullable=True)
     is_long_term = Column(Boolean, nullable=True)  # Held > 1 year
-    
+
     # Status
     is_closed = Column(Boolean, default=False, index=True)
-    
+
     # Relationships
     transaction = relationship("Transaction", back_populates="tax_lots")
-    
+
     __table_args__ = (
         Index("ix_tax_lots_asset_acquired", "asset", "acquired_at"),
         Index("ix_tax_lots_open", "asset", "is_closed", "acquired_at"),
@@ -223,38 +221,38 @@ class TaxLot(Base):
 
 class StakingPosition(Base):
     """Staking position record."""
-    
+
     __tablename__ = "staking_positions"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     external_id = Column(String(100), nullable=True)
-    
+
     # Position details
     exchange = Column(String(50), nullable=False, index=True)
     asset = Column(String(20), nullable=False, index=True)
     amount = Column(Numeric(30, 18), nullable=False)
-    
+
     # Yield info
     apy = Column(Numeric(10, 4), nullable=True)
     rewards_earned = Column(Numeric(30, 18), default=0)
     rewards_claimed = Column(Numeric(30, 18), default=0)
-    
+
     # Status
     status = Column(Enum(StakingStatus), default=StakingStatus.ACTIVE, index=True)
     validator = Column(String(200), nullable=True)
-    
+
     # Timestamps
     staked_at = Column(DateTime, nullable=False)
     unbonding_at = Column(DateTime, nullable=True)
     unstaked_at = Column(DateTime, nullable=True)
-    
+
     # Lock info
     lock_period_days = Column(Integer, nullable=True)
     unlock_at = Column(DateTime, nullable=True)
-    
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     __table_args__ = (
         Index("ix_staking_exchange_asset", "exchange", "asset"),
     )
@@ -262,149 +260,149 @@ class StakingPosition(Base):
 
 class DCABot(Base):
     """Dollar Cost Averaging bot configuration."""
-    
+
     __tablename__ = "dca_bots"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=True)
-    
+
     # Configuration
     exchange = Column(String(50), nullable=False)
     asset = Column(String(20), nullable=False)
     quote_currency = Column(String(20), default="USD")
     amount_per_execution = Column(Numeric(20, 8), nullable=False)
     frequency = Column(String(20), nullable=False)  # hourly, daily, weekly, biweekly, monthly
-    
+
     # Limits
     max_total_amount = Column(Numeric(20, 8), nullable=True)
     max_executions = Column(Integer, nullable=True)
-    
+
     # Status
     status = Column(Enum(DCAStatus), default=DCAStatus.ACTIVE, index=True)
-    
+
     # Execution tracking
     total_invested = Column(Numeric(20, 8), default=0)
     total_acquired = Column(Numeric(30, 18), default=0)
     execution_count = Column(Integer, default=0)
     average_price = Column(Numeric(20, 8), nullable=True)
-    
+
     # Scheduling
     next_execution_at = Column(DateTime, nullable=True, index=True)
     last_execution_at = Column(DateTime, nullable=True)
-    
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
     executions = relationship("DCAExecution", back_populates="bot")
 
 
 class DCAExecution(Base):
     """Individual DCA bot execution record."""
-    
+
     __tablename__ = "dca_executions"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     bot_id = Column(Integer, ForeignKey("dca_bots.id"), nullable=False)
-    
+
     # Execution details
     amount_usd = Column(Numeric(20, 8), nullable=False)
     amount_acquired = Column(Numeric(30, 18), nullable=False)
     price = Column(Numeric(20, 8), nullable=False)
     fee_usd = Column(Numeric(20, 8), default=0)
-    
+
     # Status
     status = Column(String(20), nullable=False)  # success, failed, skipped
     error_message = Column(Text, nullable=True)
-    
+
     # Order reference
     order_id = Column(String(100), nullable=True)
-    
+
     executed_at = Column(DateTime, default=datetime.utcnow, index=True)
-    
+
     # Relationships
     bot = relationship("DCABot", back_populates="executions")
 
 
 class Alert(Base):
     """Price and portfolio alerts."""
-    
+
     __tablename__ = "alerts"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
-    
+
     # Alert configuration
     alert_type = Column(Enum(AlertType), nullable=False)
     asset = Column(String(20), nullable=True)  # For price alerts
     threshold = Column(Numeric(20, 8), nullable=False)
     comparison = Column(String(10), nullable=True)  # above, below, change
-    
+
     # Notification settings
     notification_channels = Column(JSON, default=["app"])  # app, email, sms, webhook
     cooldown_minutes = Column(Integer, default=60)  # Min time between triggers
-    
+
     # Status
     status = Column(Enum(AlertStatus), default=AlertStatus.ACTIVE, index=True)
-    
+
     # Trigger tracking
     trigger_count = Column(Integer, default=0)
     last_triggered_at = Column(DateTime, nullable=True)
     last_value = Column(Numeric(20, 8), nullable=True)
-    
+
     # Metadata
     note = Column(String(200), nullable=True)
-    
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
     triggers = relationship("AlertTrigger", back_populates="alert")
 
 
 class AlertTrigger(Base):
     """Alert trigger history."""
-    
+
     __tablename__ = "alert_triggers"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     alert_id = Column(Integer, ForeignKey("alerts.id"), nullable=False)
-    
+
     # Trigger details
     triggered_value = Column(Numeric(20, 8), nullable=False)
     threshold = Column(Numeric(20, 8), nullable=False)
-    
+
     # Notification status
     notifications_sent = Column(JSON, nullable=True)  # {"email": true, "sms": false}
-    
+
     triggered_at = Column(DateTime, default=datetime.utcnow, index=True)
-    
+
     # Relationships
     alert = relationship("Alert", back_populates="triggers")
 
 
 class Wallet(Base):
     """Tracked wallet addresses."""
-    
+
     __tablename__ = "wallets"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
-    
+
     # Wallet info
     address = Column(String(100), nullable=False, unique=True)
     chain = Column(String(20), nullable=False)  # ethereum, polygon, arbitrum, etc.
     label = Column(String(100), nullable=True)
-    
+
     # Tracking settings
     track_transactions = Column(Boolean, default=True)
     track_defi = Column(Boolean, default=True)
     track_nfts = Column(Boolean, default=False)
-    
+
     # Last sync
     last_synced_at = Column(DateTime, nullable=True)
     last_block_synced = Column(Integer, nullable=True)
-    
+
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     __table_args__ = (
         Index("ix_wallets_chain_address", "chain", "address"),
     )
@@ -412,48 +410,48 @@ class Wallet(Base):
 
 class DeFiPosition(Base):
     """DeFi protocol position."""
-    
+
     __tablename__ = "defi_positions"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
-    
+
     # Position identification
     protocol = Column(String(50), nullable=False, index=True)
     chain = Column(String(20), nullable=False)
     wallet_address = Column(String(100), nullable=False, index=True)
     position_type = Column(String(30), nullable=False)  # lending, borrowing, liquidity, staking
-    
+
     # Position details
     pool_address = Column(String(100), nullable=True)
     pool_name = Column(String(100), nullable=True)
-    
+
     # For single asset positions
     asset = Column(String(20), nullable=True)
     amount = Column(Numeric(30, 18), nullable=True)
-    
+
     # For LP positions
     token0 = Column(String(20), nullable=True)
     token1 = Column(String(20), nullable=True)
     token0_amount = Column(Numeric(30, 18), nullable=True)
     token1_amount = Column(Numeric(30, 18), nullable=True)
-    
+
     # Value tracking
     value_usd = Column(Numeric(20, 8), nullable=True)
     apy = Column(Numeric(10, 4), nullable=True)
-    
+
     # Risk metrics
     health_factor = Column(Numeric(10, 4), nullable=True)  # For lending
     impermanent_loss_percent = Column(Numeric(10, 4), nullable=True)  # For LP
-    
+
     # Earnings
     earnings_usd = Column(Numeric(20, 8), default=0)
     fees_earned_usd = Column(Numeric(20, 8), default=0)
     rewards_earned_usd = Column(Numeric(20, 8), default=0)
-    
+
     # Timestamps
     opened_at = Column(DateTime, nullable=True)
     last_updated_at = Column(DateTime, default=datetime.utcnow)
-    
+
     __table_args__ = (
         Index("ix_defi_protocol_wallet", "protocol", "wallet_address"),
     )
@@ -461,30 +459,30 @@ class DeFiPosition(Base):
 
 class PriceCache(Base):
     """Cached price data."""
-    
+
     __tablename__ = "price_cache"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
-    
+
     asset = Column(String(20), nullable=False, index=True)
     price_usd = Column(Numeric(20, 8), nullable=False)
-    
+
     # 24h data
     price_24h_ago = Column(Numeric(20, 8), nullable=True)
     change_24h_percent = Column(Numeric(10, 4), nullable=True)
     high_24h = Column(Numeric(20, 8), nullable=True)
     low_24h = Column(Numeric(20, 8), nullable=True)
     volume_24h_usd = Column(Numeric(20, 8), nullable=True)
-    
+
     # Market data
     market_cap_usd = Column(Numeric(30, 8), nullable=True)
     circulating_supply = Column(Numeric(30, 8), nullable=True)
-    
+
     # Source
     source = Column(String(30), nullable=True)  # coingecko, coinbase, etc.
-    
+
     updated_at = Column(DateTime, default=datetime.utcnow, index=True)
-    
+
     __table_args__ = (
         UniqueConstraint("asset", name="uq_price_cache_asset"),
     )
@@ -492,9 +490,9 @@ class PriceCache(Base):
 
 class Setting(Base):
     """Application settings storage."""
-    
+
     __tablename__ = "settings"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     key = Column(String(100), nullable=False, unique=True)
     value = Column(JSON, nullable=True)
@@ -517,12 +515,12 @@ def get_database_url(url: Optional[str] = None) -> str:
 def get_async_database_url(url: Optional[str] = None) -> str:
     """Convert database URL to async version."""
     url = get_database_url(url)
-    
+
     if url.startswith("sqlite:"):
         return url.replace("sqlite:", "sqlite+aiosqlite:")
     elif url.startswith("postgresql:"):
         return url.replace("postgresql:", "postgresql+asyncpg:")
-    
+
     return url
 
 
@@ -530,7 +528,7 @@ def get_engine(url: Optional[str] = None, echo: bool = False):
     """Create synchronous database engine."""
     database_url = get_database_url(url)
     engine = create_engine(database_url, echo=echo)
-    
+
     # Enable foreign keys for SQLite
     if database_url.startswith("sqlite:"):
         @event.listens_for(engine, "connect")
@@ -538,7 +536,7 @@ def get_engine(url: Optional[str] = None, echo: bool = False):
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
-    
+
     return engine
 
 
@@ -602,13 +600,13 @@ async def example_usage():
     """Demonstrate database usage."""
     from datetime import datetime
     from decimal import Decimal
-    
+
     # Create async engine
     engine = get_async_engine("sqlite+aiosqlite:///test_portfolio.db")
-    
+
     # Create tables
     await create_tables_async(engine)
-    
+
     # Use session
     async with get_session(engine) as session:
         # Create portfolio snapshot
@@ -621,7 +619,7 @@ async def example_usage():
             }
         )
         session.add(portfolio)
-        
+
         # Create transaction
         transaction = Transaction(
             transaction_type=TransactionType.BUY,
@@ -633,9 +631,9 @@ async def example_usage():
             timestamp=datetime.utcnow()
         )
         session.add(transaction)
-        
+
         # Commit is automatic via context manager
-    
+
     print("Database example completed!")
 
 

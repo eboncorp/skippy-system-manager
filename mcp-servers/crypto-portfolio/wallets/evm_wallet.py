@@ -140,7 +140,7 @@ class TokenBalance:
     amount: Decimal
     decimals: int
     contract_address: Optional[str] = None  # None for native token
-    
+
     @property
     def is_native(self) -> bool:
         return self.contract_address is None
@@ -152,7 +152,7 @@ class WalletSummary:
     address: str
     balances: List[TokenBalance]
     total_by_symbol: Dict[str, Decimal]  # Aggregated across chains
-    
+
     def get_balance(self, symbol: str, chain: Optional[str] = None) -> Decimal:
         """Get balance for a symbol, optionally filtered by chain."""
         total = Decimal("0")
@@ -165,7 +165,7 @@ class WalletSummary:
 
 class EVMWalletTracker:
     """Tracks balances across multiple EVM chains."""
-    
+
     def __init__(
         self,
         addresses: List[str],
@@ -176,12 +176,12 @@ class EVMWalletTracker:
         self.chains = chains or list(CHAINS.keys())
         self.alchemy_api_key = alchemy_api_key
         self._session: Optional[aiohttp.ClientSession] = None
-    
+
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession()
         return self._session
-    
+
     async def _rpc_call(
         self,
         chain: str,
@@ -192,40 +192,40 @@ class EVMWalletTracker:
         config = CHAINS.get(chain)
         if not config:
             raise ValueError(f"Unknown chain: {chain}")
-        
+
         # Use Alchemy if available and chain is supported
         if self.alchemy_api_key and config.alchemy_network:
             url = f"https://{config.alchemy_network}.g.alchemy.com/v2/{self.alchemy_api_key}"
         else:
             url = config.rpc_url
-        
+
         session = await self._get_session()
-        
+
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
             "method": method,
             "params": params,
         }
-        
+
         async with session.post(url, json=payload) as resp:
             data = await resp.json()
             if "error" in data:
                 raise Exception(f"RPC error: {data['error']}")
             return data.get("result")
-    
+
     async def get_native_balance(self, address: str, chain: str) -> Decimal:
         """Get native token balance for an address on a chain."""
         result = await self._rpc_call(chain, "eth_getBalance", [address, "latest"])
-        
+
         if result is None:
             return Decimal("0")
-        
+
         # Convert from hex wei to decimal
         wei = int(result, 16)
         config = CHAINS[chain]
         return Decimal(wei) / Decimal(10 ** config.native_decimals)
-    
+
     async def get_token_balance(
         self,
         address: str,
@@ -236,19 +236,19 @@ class EVMWalletTracker:
         """Get ERC-20 token balance."""
         # balanceOf(address) function selector
         data = f"0x70a08231000000000000000000000000{address[2:]}"
-        
+
         result = await self._rpc_call(
             chain,
             "eth_call",
             [{"to": token_address, "data": data}, "latest"]
         )
-        
+
         if result is None or result == "0x":
             return Decimal("0")
-        
+
         balance = int(result, 16)
         return Decimal(balance) / Decimal(10 ** decimals)
-    
+
     async def _get_alchemy_token_balances(self, address: str, chain: str) -> List[TokenBalance]:
         """Use Alchemy's getTokenBalances to discover all ERC-20 tokens for an address."""
         config = CHAINS.get(chain)
@@ -365,7 +365,7 @@ class EVMWalletTracker:
                     )
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # Collect all results, deduplicate, and filter spam
         seen = {}  # (symbol, chain, contract) -> TokenBalance
         for result in results:
@@ -381,7 +381,7 @@ class EVMWalletTracker:
                     seen[key] = item
 
         return list(seen.values())
-    
+
     async def _get_native_balance_task(
         self,
         address: str,
@@ -405,7 +405,7 @@ class EVMWalletTracker:
                 amount=Decimal("0"),
                 decimals=config.native_decimals,
             )
-    
+
     async def _get_token_balance_task(
         self,
         address: str,
@@ -433,33 +433,33 @@ class EVMWalletTracker:
                 decimals=decimals,
                 contract_address=token_address,
             )
-    
+
     async def get_wallet_summary(self, address: str) -> WalletSummary:
         """Get complete wallet summary for an address."""
         balances = await self.get_all_balances(address)
-        
+
         # Aggregate by symbol
         total_by_symbol: Dict[str, Decimal] = {}
         for bal in balances:
             if bal.symbol not in total_by_symbol:
                 total_by_symbol[bal.symbol] = Decimal("0")
             total_by_symbol[bal.symbol] += bal.amount
-        
+
         return WalletSummary(
             address=address,
             balances=balances,
             total_by_symbol=total_by_symbol,
         )
-    
+
     async def get_all_wallets_summary(self) -> Dict[str, WalletSummary]:
         """Get summaries for all configured addresses."""
         summaries = {}
-        
+
         for address in self.addresses:
             summaries[address] = await self.get_wallet_summary(address)
-        
+
         return summaries
-    
+
     async def discover_related_wallets(
         self,
         min_transfers: int = 1,
@@ -587,23 +587,23 @@ def format_wallet_summary(summary: WalletSummary) -> str:
     lines = []
     lines.append(f"Wallet: {summary.address[:8]}...{summary.address[-6:]}")
     lines.append("=" * 50)
-    
+
     # Group by symbol
     lines.append(f"{'Symbol':<8} {'Chain':<12} {'Amount':>18}")
     lines.append("-" * 50)
-    
+
     # Sort by symbol then chain
     sorted_balances = sorted(summary.balances, key=lambda x: (x.symbol, x.chain))
-    
+
     for bal in sorted_balances:
         lines.append(f"{bal.symbol:<8} {bal.chain:<12} {float(bal.amount):>18.6f}")
-    
+
     lines.append("-" * 50)
     lines.append("\nTotals by Symbol:")
-    
+
     for symbol, total in sorted(summary.total_by_symbol.items(), key=lambda x: -float(x[1])):
         lines.append(f"  {symbol}: {float(total):.6f}")
-    
+
     return "\n".join(lines)
 
 

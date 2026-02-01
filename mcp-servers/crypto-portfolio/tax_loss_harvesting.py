@@ -8,9 +8,8 @@ maintaining market exposure through correlated assets.
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from enum import Enum
-import asyncio
 
 
 class HarvestingStrategy(Enum):

@@ -35,9 +35,8 @@ ULTRA SIGNALS (136-225):
 This provides the most comprehensive cryptocurrency market analysis available.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
 from typing import Dict, List, Optional, Tuple, Any
 import asyncio
 import logging
@@ -55,10 +54,8 @@ except ImportError:
     AdvancedOnChainAnalyzer = None
 
 from .ultra_signals import (
-    UltraSignalsAnalyzer, 
-    UltraAnalysis, 
-    UltraSignalResult,
-    SignalStrength,
+    UltraSignalsAnalyzer,
+    UltraAnalysis,
     RegimeState
 )
 
@@ -83,35 +80,35 @@ class MasterAnalysis:
     """Complete 225+ signal analysis."""
     timestamp: datetime
     asset: str
-    
+
     # Module results
     extended_analysis: Optional[Any]  # ComprehensiveSignalAnalysis
     onchain_analysis: Optional[Any]   # AdvancedOnChainAnalysis
     ultra_analysis: Optional[UltraAnalysis]
-    
+
     # Aggregated metrics
     total_signals: int
     available_signals: int
     data_coverage: float
-    
+
     # Category summaries (merged across modules)
     category_summaries: Dict[str, MasterSignalSummary]
-    
+
     # Master scores
     master_composite_score: float  # -100 to +100
     confidence: float  # 0-1
-    
+
     # Final recommendations
     recommended_dca_multiplier: float
     recommended_buffer_deployment: float
     risk_level: str  # "very_low", "low", "moderate", "high", "extreme"
     opportunity_level: str  # "exceptional", "strong", "moderate", "low", "none"
-    
+
     # Action plan
     primary_action: str
     secondary_actions: List[str]
     risk_warnings: List[str]
-    
+
     # Regime context
     current_regime: RegimeState
     regime_recommendation: str
@@ -121,7 +118,7 @@ class MasterSignalIntegrator:
     """
     Integrates all 225+ signals from three modules into unified analysis.
     """
-    
+
     # Category mappings across modules
     CATEGORY_MAPPINGS = {
         "technical": ["technical", "advanced_technical"],
@@ -135,7 +132,7 @@ class MasterSignalIntegrator:
         "regime": ["regime", "market_structure"],
         "extreme": ["extreme", "additional"],
     }
-    
+
     # Category weights for final score
     CATEGORY_WEIGHTS = {
         "technical": 1.0,
@@ -149,12 +146,12 @@ class MasterSignalIntegrator:
         "regime": 1.4,  # Regime is critical context
         "extreme": 1.5,  # Extreme events matter most
     }
-    
+
     def __init__(self):
         self._extended_analyzer = ExtendedSignalsAnalyzer() if ExtendedSignalsAnalyzer else None
         self._onchain_analyzer = AdvancedOnChainAnalyzer() if AdvancedOnChainAnalyzer else None
         self._ultra_analyzer = UltraSignalsAnalyzer()
-    
+
     async def close(self):
         """Close all analyzers."""
         if self._extended_analyzer:
@@ -162,43 +159,43 @@ class MasterSignalIntegrator:
         if self._onchain_analyzer:
             await self._onchain_analyzer.close()
         await self._ultra_analyzer.close()
-    
-    async def analyze(self, asset: str = "BTC", 
+
+    async def analyze(self, asset: str = "BTC",
                       include_extended: bool = True,
                       include_onchain: bool = True,
                       include_ultra: bool = True) -> MasterAnalysis:
         """
         Run comprehensive 225+ signal analysis.
-        
+
         Args:
             asset: Asset to analyze (BTC, ETH, SOL, etc.)
             include_extended: Include signals 1-60
             include_onchain: Include signals 61-135
             include_ultra: Include signals 136-225
-            
+
         Returns:
             MasterAnalysis with all results
         """
         tasks = []
-        
+
         # Extended signals (1-60)
         if include_extended and self._extended_analyzer:
             tasks.append(("extended", self._extended_analyzer.analyze(asset)))
         else:
             tasks.append(("extended", asyncio.coroutine(lambda: None)()))
-        
+
         # Advanced on-chain (61-135)
         if include_onchain and self._onchain_analyzer:
             tasks.append(("onchain", self._onchain_analyzer.analyze(asset)))
         else:
             tasks.append(("onchain", asyncio.coroutine(lambda: None)()))
-        
+
         # Ultra signals (136-225)
         if include_ultra:
             tasks.append(("ultra", self._ultra_analyzer.analyze(asset)))
         else:
             tasks.append(("ultra", asyncio.coroutine(lambda: None)()))
-        
+
         # Run all analyses in parallel
         results = {}
         for name, task in tasks:
@@ -207,31 +204,31 @@ class MasterSignalIntegrator:
             except Exception as e:
                 logger.error(f"Error in {name} analysis: {e}")
                 results[name] = None
-        
+
         extended_analysis = results.get("extended")
         onchain_analysis = results.get("onchain")
         ultra_analysis = results.get("ultra")
-        
+
         # Aggregate all signals
         all_signals = self._collect_all_signals(
             extended_analysis, onchain_analysis, ultra_analysis
         )
-        
+
         # Calculate totals
         total_signals = len(all_signals)
-        available_signals = len([s for s in all_signals 
+        available_signals = len([s for s in all_signals
                                 if s.get("signal") != "unavailable"])
         data_coverage = available_signals / total_signals if total_signals > 0 else 0
-        
+
         # Build category summaries
         category_summaries = self._build_category_summaries(all_signals)
-        
+
         # Calculate master composite score
         master_score = self._calculate_master_score(all_signals, category_summaries)
-        
+
         # Determine confidence
         confidence = self._calculate_confidence(all_signals, data_coverage)
-        
+
         # Get regime from ultra analysis
         current_regime = ultra_analysis.current_regime if ultra_analysis else RegimeState(
             volatility_regime="unknown",
@@ -242,12 +239,12 @@ class MasterSignalIntegrator:
             phase="unknown",
             confidence=0
         )
-        
+
         # Generate final recommendations
         (dca_mult, buffer_deploy, risk_level, opportunity_level,
          primary_action, secondary_actions, risk_warnings, regime_rec) = \
             self._generate_recommendations(master_score, confidence, current_regime)
-        
+
         return MasterAnalysis(
             timestamp=datetime.utcnow(),
             asset=asset,
@@ -270,11 +267,11 @@ class MasterSignalIntegrator:
             current_regime=current_regime,
             regime_recommendation=regime_rec
         )
-    
+
     def _collect_all_signals(self, extended, onchain, ultra) -> List[Dict]:
         """Collect all signals from all modules into unified format."""
         all_signals = []
-        
+
         # From extended analysis (1-60)
         if extended and hasattr(extended, 'all_signals'):
             for sig in extended.all_signals:
@@ -289,7 +286,7 @@ class MasterSignalIntegrator:
                     "confidence": getattr(sig, 'confidence', 0.7),
                     "module": "extended"
                 })
-        
+
         # From on-chain analysis (61-135)
         if onchain and hasattr(onchain, 'all_signals'):
             for sig in onchain.all_signals:
@@ -304,7 +301,7 @@ class MasterSignalIntegrator:
                     "confidence": getattr(sig, 'confidence', 0.7),
                     "module": "onchain"
                 })
-        
+
         # From ultra analysis (136-225)
         if ultra:
             ultra_signals = (
@@ -329,36 +326,36 @@ class MasterSignalIntegrator:
                     "confidence": sig.confidence,
                     "module": "ultra"
                 })
-        
+
         return all_signals
-    
+
     def _build_category_summaries(self, signals: List[Dict]) -> Dict[str, MasterSignalSummary]:
         """Build summary for each master category."""
         summaries = {}
-        
+
         for master_cat, sub_cats in self.CATEGORY_MAPPINGS.items():
             cat_signals = [s for s in signals if s["category"] in sub_cats]
             available = [s for s in cat_signals if s["signal"] != "unavailable"]
-            
+
             bullish = len([s for s in available if s["score"] > 0])
             bearish = len([s for s in available if s["score"] < 0])
             neutral = len([s for s in available if s["score"] == 0])
-            
+
             # Calculate weighted score
             total_weight = sum(s["weight"] * s.get("confidence", 0.7) for s in available)
             weighted_score = sum(
-                s["score"] * s["weight"] * s.get("confidence", 0.7) 
+                s["score"] * s["weight"] * s.get("confidence", 0.7)
                 for s in available
             ) / total_weight if total_weight > 0 else 0
-            
+
             # Top signals (sorted by absolute score * weight)
             sorted_signals = sorted(
-                available, 
+                available,
                 key=lambda x: abs(x["score"]) * x["weight"],
                 reverse=True
             )[:5]
             top_signals = [(s["name"], s["score"], s["description"]) for s in sorted_signals]
-            
+
             summaries[master_cat] = MasterSignalSummary(
                 name=master_cat,
                 total_signals=len(cat_signals),
@@ -369,40 +366,40 @@ class MasterSignalIntegrator:
                 weighted_score=weighted_score,
                 top_signals=top_signals
             )
-        
+
         return summaries
-    
-    def _calculate_master_score(self, signals: List[Dict], 
+
+    def _calculate_master_score(self, signals: List[Dict],
                                 summaries: Dict[str, MasterSignalSummary]) -> float:
         """Calculate the master composite score from all signals."""
         total_weighted_score = 0
         total_weight = 0
-        
+
         for master_cat, summary in summaries.items():
             if summary.available_signals > 0:
                 cat_weight = self.CATEGORY_WEIGHTS.get(master_cat, 1.0)
                 # Weight by both category importance and data availability
                 availability_factor = summary.available_signals / max(summary.total_signals, 1)
                 combined_weight = cat_weight * availability_factor * summary.available_signals
-                
+
                 total_weighted_score += summary.weighted_score * combined_weight
                 total_weight += combined_weight
-        
+
         if total_weight == 0:
             return 0
-        
+
         # Normalize to -100 to +100
         return (total_weighted_score / total_weight) * 50
-    
-    def _calculate_confidence(self, signals: List[Dict], 
+
+    def _calculate_confidence(self, signals: List[Dict],
                               data_coverage: float) -> float:
         """Calculate overall confidence in the analysis."""
         if not signals:
             return 0
-        
+
         # Factor 1: Data coverage
         coverage_factor = data_coverage
-        
+
         # Factor 2: Signal agreement (how much do signals agree?)
         available = [s for s in signals if s["signal"] != "unavailable"]
         if available:
@@ -412,19 +409,19 @@ class MasterSignalIntegrator:
             agreement_factor = 1 / (1 + score_variance * 0.25)
         else:
             agreement_factor = 0
-        
+
         # Factor 3: Individual signal confidence
         avg_confidence = sum(s.get("confidence", 0.7) for s in available) / len(available) if available else 0
-        
+
         # Combine factors
         confidence = (coverage_factor * 0.4 + agreement_factor * 0.3 + avg_confidence * 0.3)
-        
+
         return min(max(confidence, 0), 1)
-    
+
     def _generate_recommendations(self, score: float, confidence: float,
                                   regime: RegimeState) -> Tuple:
         """Generate comprehensive recommendations."""
-        
+
         # Base recommendations from score
         if score <= -60:
             dca_mult = 3.0
@@ -474,15 +471,15 @@ class MasterSignalIntegrator:
             risk_level = "extreme"
             opportunity = "none"
             primary = "🚨 EXTREME GREED: Minimize buying, consider taking profits"
-        
+
         # Secondary actions based on regime
         secondary = []
         risk_warnings = []
-        
+
         if regime.volatility_regime == "extreme":
             secondary.append("💥 Extreme volatility - consider smaller, more frequent buys")
             dca_mult *= 1.1  # Slightly increase for volatility opportunity
-        
+
         if regime.phase == "accumulation":
             secondary.append("🏗️ Accumulation phase - smart money entering")
             dca_mult *= 1.1
@@ -490,31 +487,31 @@ class MasterSignalIntegrator:
             secondary.append("📤 Distribution phase - smart money exiting")
             risk_warnings.append("Distribution phase often precedes significant declines")
             dca_mult *= 0.9
-        
+
         if regime.trend_regime in ["strong_bear", "bear"]:
             secondary.append("📉 Bear market - excellent for long-term DCA")
         elif regime.trend_regime in ["strong_bull"]:
             secondary.append("📈 Strong bull - momentum favor but watch for exhaustion")
             risk_warnings.append("Extended bull runs increase correction risk")
-        
+
         # Confidence adjustment
         if confidence < 0.5:
             risk_warnings.append(f"Low data confidence ({confidence:.0%}) - use smaller position sizes")
             dca_mult *= 0.8
-        
+
         # Regime recommendation
         regime_rec = self._get_regime_recommendation(regime)
-        
-        return (dca_mult, buffer, risk_level, opportunity, 
+
+        return (dca_mult, buffer, risk_level, opportunity,
                 primary, secondary, risk_warnings, regime_rec)
-    
+
     def _get_regime_recommendation(self, regime: RegimeState) -> str:
         """Generate regime-specific recommendation."""
         recs = []
-        
+
         if regime.volatility_regime in ["high", "extreme"]:
             recs.append("High volatility favors DCA over lump sum")
-        
+
         if regime.phase == "accumulation":
             recs.append("Accumulation detected - ideal for aggressive buying")
         elif regime.phase == "markup":
@@ -523,10 +520,10 @@ class MasterSignalIntegrator:
             recs.append("Distribution - reduce exposure gradually")
         elif regime.phase == "markdown":
             recs.append("Markdown - wait for capitulation signs before heavy buying")
-        
+
         if regime.trend_regime == "range":
             recs.append("Range-bound market - buy support, reduce at resistance")
-        
+
         return " | ".join(recs) if recs else "No specific regime recommendation"
 
 
@@ -539,46 +536,46 @@ def format_master_analysis(analysis: MasterAnalysis) -> str:
         f"  {analysis.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')}",
         "═" * 90,
         "",
-        f"  ╔══════════════════════════════════════════════════════════════════════════════════╗",
+        "  ╔══════════════════════════════════════════════════════════════════════════════════╗",
         f"  ║  MASTER COMPOSITE SCORE: {analysis.master_composite_score:+6.1f} / 100                                  ║",
         f"  ║  Data Coverage: {analysis.available_signals:3d}/{analysis.total_signals:3d} signals ({analysis.data_coverage:.0%})                                   ║",
         f"  ║  Confidence: {analysis.confidence:.0%}                                                              ║",
-        f"  ╚══════════════════════════════════════════════════════════════════════════════════╝",
+        "  ╚══════════════════════════════════════════════════════════════════════════════════╝",
         "",
     ]
-    
+
     # Opportunity and risk levels
     opp_emoji = {"exceptional": "💎", "strong": "🟢", "moderate": "📈", "low": "⚪", "none": "🔴"}
     risk_emoji = {"very_low": "🟢", "low": "🟡", "moderate": "🟠", "high": "🔴", "extreme": "🚨"}
-    
+
     lines.extend([
         f"  Opportunity Level: {opp_emoji.get(analysis.opportunity_level, '⚪')} {analysis.opportunity_level.upper()}",
         f"  Risk Level:        {risk_emoji.get(analysis.risk_level, '⚪')} {analysis.risk_level.upper()}",
         "",
         "─" * 90,
-        f"  📋 PRIMARY ACTION:",
+        "  📋 PRIMARY ACTION:",
         f"     {analysis.primary_action}",
         "",
-        f"  💰 RECOMMENDED SETTINGS:",
+        "  💰 RECOMMENDED SETTINGS:",
         f"     DCA Multiplier:     {analysis.recommended_dca_multiplier:.2f}x",
         f"     Buffer Deployment:  {analysis.recommended_buffer_deployment:.0%}",
         "",
     ])
-    
+
     # Secondary actions
     if analysis.secondary_actions:
         lines.append("  📝 SECONDARY ACTIONS:")
         for action in analysis.secondary_actions:
             lines.append(f"     • {action}")
         lines.append("")
-    
+
     # Risk warnings
     if analysis.risk_warnings:
         lines.append("  ⚠️  RISK WARNINGS:")
         for warning in analysis.risk_warnings:
             lines.append(f"     • {warning}")
         lines.append("")
-    
+
     # Current regime
     lines.extend([
         "─" * 90,
@@ -591,14 +588,14 @@ def format_master_analysis(analysis: MasterAnalysis) -> str:
         f"  💡 REGIME INSIGHT: {analysis.regime_recommendation}",
         "",
     ])
-    
+
     # Category summaries
     lines.extend([
         "─" * 90,
         "  📈 CATEGORY BREAKDOWN:",
         ""
     ])
-    
+
     for cat_name, summary in analysis.category_summaries.items():
         if summary.available_signals > 0:
             indicator = "🟢" if summary.weighted_score > 0.5 else "🔴" if summary.weighted_score < -0.5 else "⚪"
@@ -606,20 +603,20 @@ def format_master_analysis(analysis: MasterAnalysis) -> str:
                 f"     {indicator} {cat_name.upper():15} Score: {summary.weighted_score:+5.2f}  "
                 f"({summary.bullish_count}🟢 {summary.bearish_count}🔴 {summary.neutral_count}⚪)"
             )
-            
+
             # Top signals in category
             for name, score, desc in summary.top_signals[:2]:
                 sig_ind = "🟢" if score > 0 else "🔴" if score < 0 else "⚪"
                 lines.append(f"        {sig_ind} {name}: {desc[:50]}...")
             lines.append("")
-    
+
     lines.extend([
         "═" * 90,
         "  225+ SIGNAL ANALYSIS COMPLETE",
         "═" * 90,
         ""
     ])
-    
+
     return "\n".join(lines)
 
 

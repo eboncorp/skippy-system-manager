@@ -20,7 +20,7 @@ Usage:
         register_management_tools,
         register_market_tools
     )
-    
+
     # Register with your MCP server
     register_trading_tools(mcp)
 """
@@ -28,10 +28,10 @@ Usage:
 import json
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 # =============================================================================
@@ -94,7 +94,7 @@ class Exchange(str, Enum):
 class PlaceOrderInput(BaseModel):
     """Input for placing a trade order."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     exchange: Exchange = Field(
         ...,
         description="Exchange to place order on"
@@ -148,7 +148,7 @@ class PlaceOrderInput(BaseModel):
 class CancelOrderInput(BaseModel):
     """Input for canceling an order."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     exchange: Exchange = Field(
         ...,
         description="Exchange where order was placed"
@@ -164,7 +164,7 @@ class CancelOrderInput(BaseModel):
 class GetOpenOrdersInput(BaseModel):
     """Input for getting open orders."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     exchange: Optional[Exchange] = Field(
         default=None,
         description="Filter by exchange (all if not specified)"
@@ -188,7 +188,7 @@ class GetOpenOrdersInput(BaseModel):
 class StakeAssetInput(BaseModel):
     """Input for staking assets."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     exchange: Exchange = Field(
         ...,
         description="Exchange to stake on"
@@ -214,7 +214,7 @@ class StakeAssetInput(BaseModel):
 class UnstakeAssetInput(BaseModel):
     """Input for unstaking assets."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     exchange: Exchange = Field(
         ...,
         description="Exchange to unstake from"
@@ -235,7 +235,7 @@ class UnstakeAssetInput(BaseModel):
 class ClaimRewardsInput(BaseModel):
     """Input for claiming staking rewards."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     exchange: Exchange = Field(
         ...,
         description="Exchange to claim rewards from"
@@ -255,7 +255,7 @@ class ClaimRewardsInput(BaseModel):
 class CreateDCABotInput(BaseModel):
     """Input for creating a DCA bot."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     exchange: Exchange = Field(
         ...,
         description="Exchange for DCA purchases"
@@ -290,7 +290,7 @@ class CreateDCABotInput(BaseModel):
 class ModifyDCABotInput(BaseModel):
     """Input for modifying a DCA bot."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     bot_id: str = Field(
         ...,
         description="Bot ID to modify",
@@ -312,7 +312,7 @@ class ModifyDCABotInput(BaseModel):
 class CreateAlertInput(BaseModel):
     """Input for creating a price/portfolio alert."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     alert_type: AlertType = Field(
         ...,
         description="Type of alert"
@@ -341,7 +341,7 @@ class CreateAlertInput(BaseModel):
 class DeleteAlertInput(BaseModel):
     """Input for deleting an alert."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     alert_id: str = Field(
         ...,
         description="Alert ID to delete",
@@ -358,7 +358,7 @@ class DeleteAlertInput(BaseModel):
 class GetPricesInput(BaseModel):
     """Input for getting current prices."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     assets: Optional[List[str]] = Field(
         default=None,
         description="Assets to get prices for (top 20 if not specified)",
@@ -377,7 +377,7 @@ class GetPricesInput(BaseModel):
 class GetPriceHistoryInput(BaseModel):
     """Input for getting historical prices."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     asset: str = Field(
         ...,
         description="Asset to get history for",
@@ -404,7 +404,7 @@ class GetPriceHistoryInput(BaseModel):
 class MarketSentimentInput(BaseModel):
     """Input for getting market sentiment."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     include_fear_greed: bool = Field(
         default=True,
         description="Include Fear & Greed Index"
@@ -431,7 +431,7 @@ class MarketSentimentInput(BaseModel):
 class NFTHoldingsInput(BaseModel):
     """Input for getting NFT holdings."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     wallet_address: Optional[str] = Field(
         default=None,
         description="Specific wallet (uses configured wallets if not specified)",
@@ -455,7 +455,7 @@ class NFTHoldingsInput(BaseModel):
 class ExportTaxReportInput(BaseModel):
     """Input for exporting tax report."""
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    
+
     tax_year: int = Field(
         ...,
         description="Tax year to export",
@@ -485,7 +485,7 @@ class ExportTaxReportInput(BaseModel):
 
 def register_trading_tools(mcp: FastMCP):
     """Register trading-related tools with the MCP server."""
-    
+
     @mcp.tool(
         name="crypto_place_order",
         annotations={
@@ -592,7 +592,7 @@ def register_trading_tools(mcp: FastMCP):
                 "status": "error",
                 "message": str(e)
             }, indent=2)
-    
+
     @mcp.tool(
         name="crypto_cancel_order",
         annotations={
@@ -650,7 +650,7 @@ def register_trading_tools(mcp: FastMCP):
                 "status": "error",
                 "message": str(e)
             }, indent=2)
-    
+
     @mcp.tool(
         name="crypto_open_orders",
         annotations={
@@ -726,7 +726,7 @@ def register_trading_tools(mcp: FastMCP):
 
 def register_staking_management_tools(mcp: FastMCP):
     """Register staking management tools."""
-    
+
     @mcp.tool(
         name="crypto_stake_asset",
         annotations={
@@ -739,10 +739,10 @@ def register_staking_management_tools(mcp: FastMCP):
     )
     async def crypto_stake_asset(params: StakeAssetInput) -> str:
         """Stake assets to earn rewards.
-        
+
         Args:
             params: Exchange, asset, and amount to stake
-        
+
         Returns:
             Staking confirmation
         """
@@ -754,7 +754,7 @@ def register_staking_management_tools(mcp: FastMCP):
             "estimated_apy": 4.5,
             "message": f"Successfully staked {params.amount} {params.asset}"
         }, indent=2)
-    
+
     @mcp.tool(
         name="crypto_unstake_asset",
         annotations={
@@ -767,10 +767,10 @@ def register_staking_management_tools(mcp: FastMCP):
     )
     async def crypto_unstake_asset(params: UnstakeAssetInput) -> str:
         """Unstake assets (may have unbonding period).
-        
+
         Args:
             params: Exchange, asset, and optional amount
-        
+
         Returns:
             Unstaking confirmation with unbonding info
         """
@@ -783,7 +783,7 @@ def register_staking_management_tools(mcp: FastMCP):
             "available_at": "2024-03-10T00:00:00Z",
             "message": "Unstaking initiated"
         }, indent=2)
-    
+
     @mcp.tool(
         name="crypto_claim_rewards",
         annotations={
@@ -796,10 +796,10 @@ def register_staking_management_tools(mcp: FastMCP):
     )
     async def crypto_claim_rewards(params: ClaimRewardsInput) -> str:
         """Claim accumulated staking rewards.
-        
+
         Args:
             params: Exchange and optional asset filter
-        
+
         Returns:
             Claimed rewards summary
         """
@@ -817,7 +817,7 @@ def register_staking_management_tools(mcp: FastMCP):
 
 def register_dca_management_tools(mcp: FastMCP):
     """Register DCA bot management tools."""
-    
+
     @mcp.tool(
         name="crypto_create_dca_bot",
         annotations={
@@ -830,10 +830,10 @@ def register_dca_management_tools(mcp: FastMCP):
     )
     async def crypto_create_dca_bot(params: CreateDCABotInput) -> str:
         """Create a new Dollar Cost Averaging bot.
-        
+
         Args:
             params: Bot configuration including asset, amount, frequency
-        
+
         Returns:
             Bot creation confirmation
         """
@@ -852,7 +852,7 @@ def register_dca_management_tools(mcp: FastMCP):
             },
             "message": f"DCA bot created for {params.asset}"
         }, indent=2)
-    
+
     @mcp.tool(
         name="crypto_modify_dca_bot",
         annotations={
@@ -865,10 +865,10 @@ def register_dca_management_tools(mcp: FastMCP):
     )
     async def crypto_modify_dca_bot(params: ModifyDCABotInput) -> str:
         """Pause, resume, or delete a DCA bot.
-        
+
         Args:
             params: Bot ID and action (pause/resume/delete)
-        
+
         Returns:
             Action confirmation
         """
@@ -882,7 +882,7 @@ def register_dca_management_tools(mcp: FastMCP):
 
 def register_alert_management_tools(mcp: FastMCP):
     """Register alert management tools."""
-    
+
     @mcp.tool(
         name="crypto_create_alert",
         annotations={
@@ -895,10 +895,10 @@ def register_alert_management_tools(mcp: FastMCP):
     )
     async def crypto_create_alert(params: CreateAlertInput) -> str:
         """Create a price or portfolio alert.
-        
+
         Args:
             params: Alert type, asset, threshold, notification channels
-        
+
         Returns:
             Alert creation confirmation
         """
@@ -916,7 +916,7 @@ def register_alert_management_tools(mcp: FastMCP):
             },
             "message": "Alert created successfully"
         }, indent=2)
-    
+
     @mcp.tool(
         name="crypto_delete_alert",
         annotations={
@@ -929,10 +929,10 @@ def register_alert_management_tools(mcp: FastMCP):
     )
     async def crypto_delete_alert(params: DeleteAlertInput) -> str:
         """Delete an existing alert.
-        
+
         Args:
             params: Alert ID to delete
-        
+
         Returns:
             Deletion confirmation
         """
@@ -945,7 +945,7 @@ def register_alert_management_tools(mcp: FastMCP):
 
 def register_market_data_tools(mcp: FastMCP):
     """Register market data tools."""
-    
+
     @mcp.tool(
         name="crypto_get_prices",
         annotations={
@@ -958,10 +958,10 @@ def register_market_data_tools(mcp: FastMCP):
     )
     async def crypto_get_prices(params: GetPricesInput) -> str:
         """Get current cryptocurrency prices.
-        
+
         Args:
             params: Optional asset list, include 24h change
-        
+
         Returns:
             Current prices with optional 24h change
         """
@@ -971,22 +971,22 @@ def register_market_data_tools(mcp: FastMCP):
             "SOL": {"price": 121.00, "change_24h": -1.5},
             "USDC": {"price": 1.00, "change_24h": 0.0}
         }
-        
+
         if params.assets:
             mock_prices = {k: v for k, v in mock_prices.items() if k in params.assets}
-        
+
         if params.response_format == ResponseFormat.JSON:
             return json.dumps({"prices": mock_prices, "timestamp": datetime.utcnow().isoformat()}, indent=2)
-        
+
         md = "# Current Prices\n\n"
         md += "| Asset | Price | 24h Change |\n"
         md += "|-------|-------|------------|\n"
         for asset, data in mock_prices.items():
             change = f"+{data['change_24h']:.2f}%" if data['change_24h'] > 0 else f"{data['change_24h']:.2f}%"
             md += f"| {asset} | ${data['price']:,.2f} | {change} |\n"
-        
+
         return md
-    
+
     @mcp.tool(
         name="crypto_market_sentiment",
         annotations={
@@ -999,17 +999,17 @@ def register_market_data_tools(mcp: FastMCP):
     )
     async def crypto_market_sentiment(params: MarketSentimentInput) -> str:
         """Get market sentiment indicators.
-        
+
         Args:
             params: Include fear/greed, dominance, trending
-        
+
         Returns:
             Market sentiment data
         """
         data = {
             "timestamp": datetime.utcnow().isoformat()
         }
-        
+
         if params.include_fear_greed:
             data["fear_greed_index"] = {
                 "value": 65,
@@ -1017,48 +1017,48 @@ def register_market_data_tools(mcp: FastMCP):
                 "previous_day": 62,
                 "previous_week": 58
             }
-        
+
         if params.include_dominance:
             data["dominance"] = {
                 "btc": 52.3,
                 "eth": 17.8,
                 "others": 29.9
             }
-        
+
         if params.include_trending:
             data["trending"] = [
                 {"rank": 1, "asset": "PEPE", "mentions_24h": 15420},
                 {"rank": 2, "asset": "WIF", "mentions_24h": 12350},
                 {"rank": 3, "asset": "BONK", "mentions_24h": 8920}
             ]
-        
+
         if params.response_format == ResponseFormat.JSON:
             return json.dumps(data, indent=2)
-        
+
         md = "# Market Sentiment\n\n"
-        
+
         if params.include_fear_greed and "fear_greed_index" in data:
             fg = data["fear_greed_index"]
-            md += f"## Fear & Greed Index\n"
+            md += "## Fear & Greed Index\n"
             md += f"**{fg['value']}** - {fg['classification']}\n\n"
-        
+
         if params.include_dominance and "dominance" in data:
             dom = data["dominance"]
-            md += f"## Market Dominance\n"
+            md += "## Market Dominance\n"
             md += f"- BTC: {dom['btc']:.1f}%\n"
             md += f"- ETH: {dom['eth']:.1f}%\n\n"
-        
+
         if params.include_trending and "trending" in data:
-            md += f"## Trending\n"
+            md += "## Trending\n"
             for t in data["trending"]:
                 md += f"{t['rank']}. **{t['asset']}** ({t['mentions_24h']:,} mentions)\n"
-        
+
         return md
 
 
 def register_nft_tools(mcp: FastMCP):
     """Register NFT tracking tools."""
-    
+
     @mcp.tool(
         name="crypto_nft_holdings",
         annotations={
@@ -1071,10 +1071,10 @@ def register_nft_tools(mcp: FastMCP):
     )
     async def crypto_nft_holdings(params: NFTHoldingsInput) -> str:
         """Get NFT holdings and valuations.
-        
+
         Args:
             params: Optional wallet filter, include floor prices
-        
+
         Returns:
             NFT holdings with estimated values
         """
@@ -1100,10 +1100,10 @@ def register_nft_tools(mcp: FastMCP):
                 {"collection": "Pudgy Penguins", "token_id": "5678", "rarity_rank": 2341}
             ]
         }
-        
+
         if params.response_format == ResponseFormat.JSON:
             return json.dumps(mock_nfts, indent=2)
-        
+
         md = f"""# NFT Holdings
 
 **Total Estimated Value:** {mock_nfts['total_value_eth']:.2f} ETH (${mock_nfts['total_value_usd']:,.2f})
@@ -1115,13 +1115,13 @@ def register_nft_tools(mcp: FastMCP):
         for c in mock_nfts['collections']:
             if c['count'] > 0:
                 md += f"| {c['name']} | {c['count']} | {c['floor_eth']:.2f} | {c['estimated_value_eth']:.2f} |\n"
-        
+
         return md
 
 
 def register_tax_tools(mcp: FastMCP):
     """Register tax report tools."""
-    
+
     @mcp.tool(
         name="crypto_export_tax_report",
         annotations={
@@ -1134,10 +1134,10 @@ def register_tax_tools(mcp: FastMCP):
     )
     async def crypto_export_tax_report(params: ExportTaxReportInput) -> str:
         """Generate and export tax report.
-        
+
         Args:
             params: Tax year, format, cost basis method
-        
+
         Returns:
             Export status and download link
         """

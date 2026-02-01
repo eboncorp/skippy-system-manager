@@ -51,7 +51,7 @@ class CoinbaseConfig:
     """Coinbase API configuration."""
     api_key: str = field(default_factory=lambda: get_env("COINBASE_API_KEY", ""))
     api_secret: str = field(default_factory=lambda: get_env("COINBASE_API_SECRET", ""))
-    
+
     @property
     def is_configured(self) -> bool:
         return bool(self.api_key and self.api_secret)
@@ -64,7 +64,7 @@ class CoinbasePrimeConfig:
     api_secret: str = field(default_factory=lambda: get_env("COINBASE_PRIME_API_SECRET", ""))
     passphrase: str = field(default_factory=lambda: get_env("COINBASE_PRIME_PASSPHRASE", ""))
     portfolio_id: str = field(default_factory=lambda: get_env("COINBASE_PRIME_PORTFOLIO_ID", ""))
-    
+
     @property
     def is_configured(self) -> bool:
         return bool(self.api_key and self.api_secret and self.passphrase)
@@ -75,7 +75,7 @@ class KrakenConfig:
     """Kraken API configuration."""
     api_key: str = field(default_factory=lambda: get_env("KRAKEN_API_KEY", ""))
     api_secret: str = field(default_factory=lambda: get_env("KRAKEN_API_SECRET", ""))
-    
+
     @property
     def is_configured(self) -> bool:
         return bool(self.api_key and self.api_secret)
@@ -161,20 +161,20 @@ class Settings:
     data: DataConfig = field(default_factory=DataConfig)
     market_data: MarketDataConfig = field(default_factory=MarketDataConfig)
     scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)
-    
+
     def validate(self) -> List[str]:
         """Validate settings and return list of warnings."""
         warnings = []
-        
+
         if not self.coinbase.is_configured and not self.coinbase_prime.is_configured:
             warnings.append("No Coinbase API configured")
-        
+
         if not self.kraken.is_configured:
             warnings.append("Kraken API not configured")
-        
+
         if not self.wallets.evm_addresses and not self.wallets.solana_address:
             warnings.append("No wallet addresses configured")
-        
+
         return warnings
 
 
@@ -191,7 +191,7 @@ if __name__ == "__main__":
     print(f"  EVM wallets: {len(settings.wallets.evm_addresses)}")
     print(f"  Solana wallet: {'Yes' if settings.wallets.solana_address else 'No'}")
     print(f"  Notifications: {settings.notifications.method}")
-    
+
     warnings = settings.validate()
     if warnings:
         print("\nWarnings:")

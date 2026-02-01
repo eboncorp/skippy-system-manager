@@ -4,10 +4,8 @@ Fixtures and configuration for test suite.
 """
 
 import pytest
-import os
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -60,7 +58,7 @@ def sample_portfolio():
 def sample_transactions():
     """Sample transaction data for testing."""
     from datetime import datetime, timezone
-    
+
     return [
         {
             "source": "coinbase",
@@ -98,15 +96,15 @@ def temp_db(tmp_path):
 
 class MockResponse:
     """Mock HTTP response object."""
-    
+
     def __init__(self, json_data, status_code=200):
         self.json_data = json_data
         self.status_code = status_code
         self.text = str(json_data)
-    
+
     def json(self):
         return self.json_data
-    
+
     def raise_for_status(self):
         if self.status_code >= 400:
             from requests.exceptions import HTTPError

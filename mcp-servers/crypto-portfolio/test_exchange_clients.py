@@ -5,10 +5,8 @@ Tests authentication, API calls, and response parsing for all supported exchange
 
 import pytest
 import responses
-import json
-from datetime import datetime
 from decimal import Decimal
-from unittest.mock import AsyncMock, Mock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
 # Import clients
 import sys
@@ -26,24 +24,24 @@ class TestCoinbaseClient:
     @pytest.fixture
     def client(self):
         return CoinbaseClient("test_key", "test_secret")
-    
+
     def test_init(self, client):
         """Test client initialization."""
         assert client.api_key == "test_key"
         assert client.api_secret == "test_secret"
         assert client.BASE_URL == "https://api.coinbase.com"
-    
+
     def test_generate_signature(self, client):
         """Test HMAC signature generation."""
         timestamp = "1234567890"
         method = "GET"
         path = "/api/v3/brokerage/accounts"
-        
+
         signature = client._generate_signature(timestamp, method, path)
-        
+
         assert isinstance(signature, str)
         assert len(signature) == 64  # SHA256 hex digest
-    
+
     @responses.activate
     def test_get_accounts_success(self, client):
         """Test successful account retrieval."""
@@ -68,13 +66,13 @@ class TestCoinbaseClient:
             },
             status=200
         )
-        
+
         accounts = client.get_accounts()
-        
+
         assert len(accounts) == 2
         assert accounts[0]["currency"] == "BTC"
         assert accounts[1]["currency"] == "ETH"
-    
+
     @responses.activate
     def test_get_accounts_empty(self, client):
         """Test empty account list."""
@@ -84,10 +82,10 @@ class TestCoinbaseClient:
             json={"accounts": []},
             status=200
         )
-        
+
         accounts = client.get_accounts()
         assert accounts == []
-    
+
     @responses.activate
     def test_get_spot_price(self, client):
         """Test spot price retrieval."""
@@ -97,11 +95,11 @@ class TestCoinbaseClient:
             json={"price": "45000.00"},
             status=200
         )
-        
+
         price = client.get_spot_price("BTC", "USD")
-        
+
         assert price == 45000.00
-    
+
     @responses.activate
     def test_get_spot_price_not_found(self, client):
         """Test spot price for non-existent pair."""
@@ -111,10 +109,10 @@ class TestCoinbaseClient:
             json={"error": "Not found"},
             status=404
         )
-        
+
         price = client.get_spot_price("FAKE", "USD")
         assert price is None
-    
+
     def test_staked_token_detection(self, client):
         """Test that staked tokens are properly identified."""
         # Mock the API response
@@ -133,14 +131,14 @@ class TestCoinbaseClient:
                     }
                 ]
             }
-            
+
             accounts = client.get_accounts()
-            
+
             # CBETH should be marked as staked
             cbeth = [a for a in accounts if a["currency"] == "CBETH"][0]
-            assert cbeth.get("is_staked") == True
+            assert cbeth.get("is_staked") is True
             assert cbeth.get("staked_asset") == "ETH"
-            
+
             # BTC should not be staked
             btc = [a for a in accounts if a["currency"] == "BTC"][0]
             assert btc.get("is_staked") == False
@@ -150,22 +148,22 @@ class TestCoinbaseClient:
 
 class TestKrakenClient:
     """Tests for Kraken API client."""
-    
+
     @pytest.fixture
     def client(self):
         # Kraken requires base64-encoded secret
         import base64
         secret = base64.b64encode(b"test_secret").decode()
         return KrakenClient("test_key", secret)
-    
+
     def test_init(self, client):
         """Test client initialization."""
         assert client.api_key == "test_key"
         assert client.BASE_URL == "https://api.kraken.com"
-    
+
     def test_symbol_normalization(self, client):
         """Test symbol conversion from Kraken to standard format."""
-        from exchanges.kraken_client import normalize_symbol, to_kraken_symbol
+        from exchanges.kraken_client import to_kraken_symbol
         assert to_kraken_symbol("BTC") == "XBT"
         assert to_kraken_symbol("ETH") == "ETH"  # Unchanged
 
@@ -175,7 +173,7 @@ class TestKrakenClient:
         assert normalize_symbol("XBT") == "BTC"
         assert normalize_symbol("XXBT") == "BTC"  # With X prefix
         assert normalize_symbol("ETH") == "ETH"
-    
+
     @pytest.mark.asyncio
     async def test_get_ticker_price(self, client):
         """Test ticker price retrieval via async get_ticker_price."""
@@ -211,25 +209,25 @@ class TestKrakenClient:
 
 class TestCryptoComClient:
     """Tests for Crypto.com Exchange API client."""
-    
+
     @pytest.fixture
     def client(self):
         return CryptoComClient("test_key", "test_secret")
-    
+
     def test_init(self, client):
         """Test client initialization."""
         assert client.api_key == "test_key"
         assert client.api_secret == "test_secret"
-    
+
     def test_signature_generation(self, client):
         """Test HMAC signature generation."""
         method = "private/get-account-summary"
         request_id = 1234567890
         params = {"currency": "BTC"}
         nonce = 1234567890
-        
+
         signature = client._generate_signature(method, request_id, params, nonce)
-        
+
         assert isinstance(signature, str)
         assert len(signature) == 64  # SHA256 hex digest
 
@@ -238,21 +236,21 @@ class TestCryptoComClient:
 
 class TestGeminiClient:
     """Tests for Gemini API client."""
-    
+
     @pytest.fixture
     def client(self):
         return GeminiClient("test_key", "test_secret")
-    
+
     def test_init(self, client):
         """Test client initialization."""
         assert client.api_key == "test_key"
         assert client.BASE_URL == "https://api.gemini.com"
-    
+
     def test_sandbox_mode(self):
         """Test sandbox environment initialization."""
         client = GeminiClient("test_key", "test_secret", sandbox=True)
         assert client.BASE_URL == "https://api.sandbox.gemini.com"
-    
+
     @pytest.mark.asyncio
     async def test_get_ticker_price(self, client):
         """Test ticker price retrieval via async get_ticker_price."""
@@ -285,7 +283,7 @@ class TestGeminiClient:
 
 class TestMultiExchangeIntegration:
     """Integration tests for multi-exchange functionality."""
-    
+
     def test_standardized_account_format(self):
         """Test that all clients return accounts in standardized format."""
         # Create mock accounts from each exchange
@@ -295,20 +293,20 @@ class TestMultiExchangeIntegration:
             "hold": {"value": "0", "currency": "BTC"},
             "uuid": "abc123"
         }
-        
+
         kraken_account = {
             "currency": "BTC",
             "available_balance": {"value": "1.0", "currency": "BTC"},
             "hold": {"value": "0", "currency": "BTC"},
             "uuid": "XBT"
         }
-        
+
         # Both should have same required keys
         required_keys = {"currency", "available_balance", "uuid"}
-        
+
         assert required_keys.issubset(coinbase_account.keys())
         assert required_keys.issubset(kraken_account.keys())
-    
+
     @pytest.mark.skip(reason="CoinbaseClient uses wrapper pattern")
     def test_price_methods_consistent(self):
         """Test that price methods exist on all clients."""
@@ -318,7 +316,7 @@ class TestMultiExchangeIntegration:
             CryptoComClient("k", "s"),
             GeminiClient("k", "s")
         ]
-        
+
         for client in clients:
             assert hasattr(client, 'get_spot_price')
             assert hasattr(client, 'get_accounts')

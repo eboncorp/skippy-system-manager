@@ -5,14 +5,13 @@ This module provides the core trading execution layer with built-in
 safety checks, logging, and confirmation prompts.
 """
 
-import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from exchanges import CoinbaseClient
-from config import TradingConfig, TradingMode, SafetyLimits
+from config import TradingConfig, TradingMode
 
 
 @dataclass
@@ -35,7 +34,7 @@ class TradeRecord:
 class TradingEngine:
     """
     Core trading engine with safety guardrails.
-    
+
     Features:
     - Multiple trading modes (paper, confirm, live)
     - Safety limit enforcement
@@ -43,34 +42,34 @@ class TradingEngine:
     - Preview before execution
     - Cooldown tracking
     """
-    
+
     def __init__(self, client: CoinbaseClient, config: TradingConfig = None):
         self.client = client
         self.config = config or TradingConfig()
-        
+
         # Trade tracking
         self.trade_history: list[TradeRecord] = []
         self.daily_trades: int = 0
         self.daily_volume_usd: float = 0.0
         self.daily_reset_time: datetime = datetime.now()
         self.last_trade_time: dict[str, datetime] = {}  # Per-asset cooldowns
-        
+
         # Setup logging
         self._setup_logging()
-    
+
     def _setup_logging(self):
         """Configure logging for trade activity."""
         self.logger = logging.getLogger("TradingEngine")
         self.logger.setLevel(logging.DEBUG if self.config.verbose else logging.INFO)
-        
+
         # File handler
         fh = logging.FileHandler(self.config.log_file)
         fh.setLevel(logging.DEBUG)
-        
+
         # Console handler
         ch = logging.StreamHandler()
         ch.setLevel(logging.INFO)
-        
+
         # Formatter
         formatter = logging.Formatter(
             '%(asctime)s - %(levelname)s - %(message)s',
@@ -78,10 +77,10 @@ class TradingEngine:
         )
         fh.setFormatter(formatter)
         ch.setFormatter(formatter)
-        
+
         self.logger.addHandler(fh)
         self.logger.addHandler(ch)
-    
+
     def _reset_daily_limits(self):
         """Reset daily trade counters if a new day has started."""
         now = datetime.now()
@@ -90,11 +89,11 @@ class TradingEngine:
             self.daily_volume_usd = 0.0
             self.daily_reset_time = now
             self.logger.info("Daily trade limits reset")
-    
+
     def _check_safety_limits(
-        self, 
-        product_id: str, 
-        side: str, 
+        self,
+        product_id: str,
+        side: str,
         usd_amount: float,
         asset_amount: Optional[float] = None,
         total_asset_value: Optional[float] = None
@@ -106,46 +105,46 @@ class TradingEngine:
         self._reset_daily_limits()
         safety = self.config.safety
         asset = product_id.split("-")[0]
-        
+
         # Check blacklist
         if asset in safety.blacklist:
             return False, f"{asset} is blacklisted"
-        
+
         # Check whitelist
         if safety.whitelist and asset not in safety.whitelist:
             return False, f"{asset} is not in whitelist"
-        
+
         # Check max trade size
         if usd_amount > safety.max_trade_usd:
             return False, f"Trade ${usd_amount:.2f} exceeds max ${safety.max_trade_usd:.2f}"
-        
+
         # Check daily trade count
         if self.daily_trades >= safety.max_trades_per_day:
             return False, f"Daily trade limit reached ({safety.max_trades_per_day})"
-        
+
         # Check daily volume
         if self.daily_volume_usd + usd_amount > safety.max_daily_volume_usd:
             remaining = safety.max_daily_volume_usd - self.daily_volume_usd
             return False, f"Would exceed daily volume limit. Remaining: ${remaining:.2f}"
-        
+
         # Check sell percentage limit
         if side == "SELL" and total_asset_value and asset_amount:
             current_price = usd_amount / asset_amount if asset_amount > 0 else 0
             sell_value = asset_amount * current_price
             sell_percent = (sell_value / total_asset_value) * 100 if total_asset_value > 0 else 0
-            
+
             if sell_percent > safety.max_sell_percent:
                 return False, f"Sell {sell_percent:.1f}% exceeds max {safety.max_sell_percent:.1f}%"
-        
+
         # Check cooldown
         if asset in self.last_trade_time:
             elapsed = (datetime.now() - self.last_trade_time[asset]).total_seconds()
             if elapsed < safety.trade_cooldown_seconds:
                 remaining = safety.trade_cooldown_seconds - elapsed
                 return False, f"Cooldown active for {asset}. {remaining:.0f}s remaining"
-        
+
         return True, "All checks passed"
-    
+
     def preview_trade(
         self,
         product_id: str,
@@ -165,15 +164,15 @@ class TradingEngine:
             "estimate": None,
             "warnings": []
         }
-        
+
         # Get current price for estimates
         asset = product_id.split("-")[0]
         current_price = self.client.get_spot_price(asset)
-        
+
         if not current_price:
             result["warnings"].append(f"Could not get price for {asset}")
             return result
-        
+
         # Calculate amounts
         if usd_amount:
             estimated_asset = usd_amount / current_price
@@ -183,11 +182,11 @@ class TradingEngine:
         else:
             result["warnings"].append("Must specify usd_amount or asset_amount")
             return result
-        
+
         # Safety check
         passed, reason = self._check_safety_limits(product_id, side, usd_amount)
         result["safety_check"] = {"passed": passed, "reason": reason}
-        
+
         # Get estimate from Coinbase
         try:
             if side.upper() == "BUY":
@@ -204,7 +203,7 @@ class TradingEngine:
                     order_type="MARKET",
                     size=str(estimated_asset)
                 )
-            
+
             if preview:
                 result["estimate"] = {
                     "current_price": current_price,
@@ -219,9 +218,9 @@ class TradingEngine:
                 "usd_amount": usd_amount,
                 "asset_amount": estimated_asset
             }
-        
+
         return result
-    
+
     def _confirm_trade(self, product_id: str, side: str, usd_amount: float, asset_amount: float) -> bool:
         """Prompt user for trade confirmation."""
         print("\n" + "="*60)
@@ -232,10 +231,10 @@ class TradingEngine:
         print(f"  Value:   ${usd_amount:.2f} USD")
         print(f"  Mode:    {self.config.mode.value}")
         print("="*60)
-        
+
         response = input("\nExecute this trade? (yes/no): ").strip().lower()
         return response in ["yes", "y"]
-    
+
     def execute_trade(
         self,
         product_id: str,
@@ -248,7 +247,7 @@ class TradingEngine:
     ) -> TradeRecord:
         """
         Execute a trade with safety checks.
-        
+
         Args:
             product_id: Trading pair (e.g., "BTC-USD")
             side: "BUY" or "SELL"
@@ -257,16 +256,16 @@ class TradingEngine:
             order_type: "MARKET" or "LIMIT"
             limit_price: Price for limit orders
             skip_confirmation: Skip manual confirmation (use with caution)
-        
+
         Returns:
             TradeRecord with execution details
         """
         asset = product_id.split("-")[0]
         side = side.upper()
-        
+
         # Get current price
         current_price = self.client.get_spot_price(asset) or 0
-        
+
         # Normalize amounts
         if side == "BUY":
             if not usd_amount:
@@ -297,7 +296,7 @@ class TradingEngine:
                 )
             usd_amount = asset_amount * current_price
             calc_asset_amount = asset_amount
-        
+
         # Safety checks
         passed, reason = self._check_safety_limits(product_id, side, usd_amount)
         if not passed:
@@ -312,7 +311,7 @@ class TradingEngine:
                 executed=False,
                 error=f"Safety check failed: {reason}"
             )
-        
+
         # Paper trading mode - simulate only
         if self.config.mode == TradingMode.PAPER:
             self.logger.info(f"[PAPER] {side} {calc_asset_amount:.8f} {asset} (${usd_amount:.2f})")
@@ -331,7 +330,7 @@ class TradingEngine:
             )
             self._record_trade(record, asset)
             return record
-        
+
         # Confirmation mode - require approval
         if self.config.mode == TradingMode.CONFIRM and not skip_confirmation:
             if not self._confirm_trade(product_id, side, usd_amount, calc_asset_amount):
@@ -346,10 +345,10 @@ class TradingEngine:
                     executed=False,
                     error="Cancelled by user"
                 )
-        
+
         # Execute the actual trade
         self.logger.info(f"Executing {side} order: {calc_asset_amount:.8f} {asset} (${usd_amount:.2f})")
-        
+
         try:
             if order_type == "MARKET":
                 if side == "BUY":
@@ -363,11 +362,11 @@ class TradingEngine:
                     result = self.client.limit_buy(product_id, calc_asset_amount, limit_price)
                 else:
                     result = self.client.limit_sell(product_id, calc_asset_amount, limit_price)
-            
+
             if result and result.get("success"):
                 order_id = result.get("order_id") or result.get("success_response", {}).get("order_id")
                 self.logger.info(f"Order placed successfully: {order_id}")
-                
+
                 record = TradeRecord(
                     timestamp=datetime.now(),
                     product_id=product_id,
@@ -395,7 +394,7 @@ class TradingEngine:
                     executed=False,
                     error=error_msg
                 )
-                
+
         except Exception as e:
             self.logger.error(f"Trade execution error: {str(e)}")
             return TradeRecord(
@@ -408,18 +407,18 @@ class TradingEngine:
                 executed=False,
                 error=str(e)
             )
-    
+
     def _record_trade(self, record: TradeRecord, asset: str):
         """Record a successful trade and update counters."""
         self.trade_history.append(record)
         self.daily_trades += 1
         self.daily_volume_usd += record.requested_usd
         self.last_trade_time[asset] = record.timestamp
-    
+
     def get_trade_summary(self) -> dict:
         """Get summary of today's trading activity."""
         self._reset_daily_limits()
-        
+
         return {
             "mode": self.config.mode.value,
             "today": {
@@ -444,7 +443,7 @@ class TradingEngine:
                 for t in self.trade_history[-10:]
             ]
         }
-    
+
     def buy(self, asset: str, usd_amount: float) -> TradeRecord:
         """Convenience method: Buy asset with USD."""
         return self.execute_trade(
@@ -452,7 +451,7 @@ class TradingEngine:
             side="BUY",
             usd_amount=usd_amount
         )
-    
+
     def sell(self, asset: str, amount: float) -> TradeRecord:
         """Convenience method: Sell asset amount."""
         return self.execute_trade(

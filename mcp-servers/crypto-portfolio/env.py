@@ -37,7 +37,7 @@ def get_url():
 def run_migrations_offline() -> None:
     """
     Run migrations in 'offline' mode.
-    
+
     This generates SQL scripts without connecting to the database.
     Useful for reviewing changes before applying or for environments
     where direct database access isn't available.
@@ -59,13 +59,13 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """
     Run migrations in 'online' mode.
-    
+
     Creates an engine and connection, then runs migrations
     against the live database.
     """
     configuration = config.get_section(config.config_ini_section)
     configuration["sqlalchemy.url"] = get_url()
-    
+
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",

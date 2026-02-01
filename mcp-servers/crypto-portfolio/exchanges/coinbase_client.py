@@ -174,7 +174,7 @@ class CoinbaseClient(ExchangeClient):
                 break
 
         return balances
-    
+
     async def get_staking_rewards(
         self,
         start_date: Optional[datetime] = None,
@@ -183,25 +183,25 @@ class CoinbaseClient(ExchangeClient):
         """Get staking rewards from transaction history."""
         rewards = []
         cursor = None
-        
+
         # Coinbase returns rewards as transactions with type "staking_reward"
         while True:
             path = "/api/v3/brokerage/transaction_summary"
             if cursor:
                 path += f"?cursor={cursor}"
-            
+
             try:
                 data = await self._request("GET", path)
-                
+
                 for tx in data.get("transactions", []):
                     if tx.get("type") == "staking_reward":
                         tx_time = datetime.fromisoformat(tx["created_at"].replace("Z", "+00:00"))
-                        
+
                         if start_date and tx_time < start_date:
                             continue
                         if end_date and tx_time > end_date:
                             continue
-                        
+
                         rewards.append(StakingReward(
                             asset=tx["amount"]["currency"],
                             amount=Decimal(tx["amount"]["value"]),
@@ -209,18 +209,18 @@ class CoinbaseClient(ExchangeClient):
                             usd_value=Decimal(tx.get("native_amount", {}).get("value", "0")),
                             source="coinbase",
                         ))
-                
+
                 cursor = data.get("cursor")
                 if not cursor or not data.get("has_next"):
                     break
-                    
+
             except Exception as e:
                 # If endpoint not available, try alternative
                 logger.warning(f"Could not fetch staking rewards: {e}")
                 break
-        
+
         return rewards
-    
+
     async def get_trade_history(
         self,
         start_date: Optional[datetime] = None,
@@ -229,24 +229,24 @@ class CoinbaseClient(ExchangeClient):
     ) -> List[Trade]:
         """Get trade/fill history."""
         trades = []
-        
+
         # Use fills endpoint
         path = "/api/v3/brokerage/orders/historical/fills"
         params = []
-        
+
         if start_date:
             params.append(f"start_sequence_timestamp={start_date.isoformat()}")
         if end_date:
             params.append(f"end_sequence_timestamp={end_date.isoformat()}")
         if asset:
             params.append(f"product_id={asset}-USD")
-        
+
         if params:
             path += "?" + "&".join(params)
-        
+
         try:
             data = await self._request("GET", path)
-            
+
             for fill in data.get("fills", []):
                 trades.append(Trade(
                     id=fill["trade_id"],
@@ -260,9 +260,9 @@ class CoinbaseClient(ExchangeClient):
                 ))
         except Exception as e:
             logger.warning(f"Could not fetch trade history: {e}")
-        
+
         return trades
-    
+
     async def place_market_order(
         self,
         asset: str,
@@ -274,24 +274,24 @@ class CoinbaseClient(ExchangeClient):
         order_config = {
             "market_market_ioc": {}
         }
-        
+
         if side == "buy" and quote_amount:
             order_config["market_market_ioc"]["quote_size"] = str(quote_amount)
         elif amount:
             order_config["market_market_ioc"]["base_size"] = str(amount)
         else:
             return OrderResult(success=False, error="Must specify amount or quote_amount")
-        
+
         body = {
             "client_order_id": f"pm_{int(time.time() * 1000)}",
             "product_id": f"{asset}-USD",
             "side": side.upper(),
             "order_configuration": order_config,
         }
-        
+
         try:
             data = await self._request("POST", "/api/v3/brokerage/orders", body)
-            
+
             return OrderResult(
                 success=data.get("success", False),
                 order_id=data.get("order_id"),
@@ -301,7 +301,7 @@ class CoinbaseClient(ExchangeClient):
             )
         except Exception as e:
             return OrderResult(success=False, error=str(e))
-    
+
     async def get_ticker_price(self, asset: str) -> Decimal:
         """Get current price for an asset."""
         if self._sdk_client:
@@ -313,7 +313,7 @@ class CoinbaseClient(ExchangeClient):
         path = f"/api/v3/brokerage/products/{asset}-USD"
         data = await self._request("GET", path)
         return Decimal(data["price"])
-    
+
     async def stake(self, asset: str, amount: Decimal) -> bool:
         """
         Stake an asset via Coinbase.
@@ -378,7 +378,7 @@ class CoinbaseClient(ExchangeClient):
             logger.error(f"Error fetching staking balances: {e}")
 
         return staked
-    
+
     async def close(self):
         """Close the session."""
         if self._session:
@@ -388,10 +388,10 @@ class CoinbaseClient(ExchangeClient):
 
 class CoinbasePrimeClient(ExchangeClient):
     """Client for Coinbase Prime institutional API."""
-    
+
     name = "coinbase_prime"
     BASE_URL = "https://api.prime.coinbase.com"
-    
+
     def __init__(
         self,
         api_key: str,
@@ -420,7 +420,7 @@ class CoinbasePrimeClient(ExchangeClient):
             hashlib.sha256
         )
         return base64.b64encode(signature.digest()).decode()
-    
+
     async def _request(
         self,
         method: str,
@@ -431,9 +431,9 @@ class CoinbasePrimeClient(ExchangeClient):
         session = await self._get_session()
         timestamp = str(int(time.time()))
         body_str = json.dumps(body) if body else ""
-        
+
         signature = self._sign_request(timestamp, method, path, body_str)
-        
+
         headers = {
             "X-CB-ACCESS-KEY": self.api_key,
             "X-CB-ACCESS-SIGNATURE": signature,
@@ -441,27 +441,27 @@ class CoinbasePrimeClient(ExchangeClient):
             "X-CB-ACCESS-PASSPHRASE": self.passphrase,
             "Content-Type": "application/json",
         }
-        
+
         url = f"{self.BASE_URL}{path}"
-        
+
         async with session.request(method, url, headers=headers, data=body_str or None) as resp:
             data = await resp.json()
             if resp.status >= 400:
                 raise Exception(f"Coinbase Prime API error: {data}")
             return data
-    
+
     async def get_balances(self) -> Dict[str, Balance]:
         """Get all portfolio balances."""
         path = f"/v1/portfolios/{self.portfolio_id}/balances"
         data = await self._request("GET", path)
-        
+
         balances = {}
         for balance in data.get("balances", []):
             asset = balance["symbol"]
             total = Decimal(balance["amount"])
             holds = Decimal(balance.get("holds", "0"))
             staked = Decimal(balance.get("staked_balance", "0"))
-            
+
             if total > 0:
                 balances[asset] = Balance(
                     asset=asset,
@@ -469,9 +469,9 @@ class CoinbasePrimeClient(ExchangeClient):
                     available=total - holds - staked,
                     staked=staked,
                 )
-        
+
         return balances
-    
+
     async def get_staking_rewards(
         self,
         start_date: Optional[datetime] = None,
@@ -479,21 +479,21 @@ class CoinbasePrimeClient(ExchangeClient):
     ) -> List[StakingReward]:
         """Get staking rewards history."""
         rewards = []
-        
+
         path = f"/v1/portfolios/{self.portfolio_id}/staking/rewards"
         params = []
-        
+
         if start_date:
             params.append(f"start_time={start_date.isoformat()}")
         if end_date:
             params.append(f"end_time={end_date.isoformat()}")
-        
+
         if params:
             path += "?" + "&".join(params)
-        
+
         try:
             data = await self._request("GET", path)
-            
+
             for reward in data.get("rewards", []):
                 rewards.append(StakingReward(
                     asset=reward["symbol"],
@@ -504,9 +504,9 @@ class CoinbasePrimeClient(ExchangeClient):
                 ))
         except Exception as e:
             logger.warning(f"Could not fetch staking rewards: {e}")
-        
+
         return rewards
-    
+
     async def get_trade_history(
         self,
         start_date: Optional[datetime] = None,
@@ -515,26 +515,26 @@ class CoinbasePrimeClient(ExchangeClient):
     ) -> List[Trade]:
         """Get trade history."""
         trades = []
-        
+
         path = f"/v1/portfolios/{self.portfolio_id}/fills"
         params = []
-        
+
         if start_date:
             params.append(f"start_time={start_date.isoformat()}")
         if end_date:
             params.append(f"end_time={end_date.isoformat()}")
-        
+
         if params:
             path += "?" + "&".join(params)
-        
+
         try:
             data = await self._request("GET", path)
-            
+
             for fill in data.get("fills", []):
                 fill_asset = fill["product_id"].split("-")[0]
                 if asset and fill_asset != asset:
                     continue
-                
+
                 trades.append(Trade(
                     id=fill["fill_id"],
                     timestamp=datetime.fromisoformat(fill["time"].replace("Z", "+00:00")),
@@ -547,9 +547,9 @@ class CoinbasePrimeClient(ExchangeClient):
                 ))
         except Exception as e:
             logger.warning(f"Could not fetch trade history: {e}")
-        
+
         return trades
-    
+
     async def place_market_order(
         self,
         asset: str,
@@ -565,17 +565,17 @@ class CoinbasePrimeClient(ExchangeClient):
             "type": "MARKET",
             "client_order_id": f"pm_{int(time.time() * 1000)}",
         }
-        
+
         if side == "buy" and quote_amount:
             body["quote_value"] = str(quote_amount)
         elif amount:
             body["base_quantity"] = str(amount)
         else:
             return OrderResult(success=False, error="Must specify amount or quote_amount")
-        
+
         try:
             data = await self._request("POST", f"/v1/portfolios/{self.portfolio_id}/order", body)
-            
+
             return OrderResult(
                 success=True,
                 order_id=data.get("order_id"),
@@ -585,20 +585,20 @@ class CoinbasePrimeClient(ExchangeClient):
             )
         except Exception as e:
             return OrderResult(success=False, error=str(e))
-    
+
     async def get_ticker_price(self, asset: str) -> Decimal:
         """Get current price for an asset."""
         path = f"/v1/products/{asset}-USD"
         data = await self._request("GET", path)
         return Decimal(data["price"])
-    
+
     async def stake(self, asset: str, amount: Decimal) -> bool:
         """Stake an asset via Prime staking."""
         body = {
             "symbol": asset,
             "amount": str(amount),
         }
-        
+
         try:
             await self._request(
                 "POST",
@@ -609,14 +609,14 @@ class CoinbasePrimeClient(ExchangeClient):
         except Exception as e:
             logger.error(f"Staking failed: {e}")
             return False
-    
+
     async def unstake(self, asset: str, amount: Decimal) -> bool:
         """Unstake an asset."""
         body = {
             "symbol": asset,
             "amount": str(amount),
         }
-        
+
         try:
             await self._request(
                 "POST",
@@ -627,7 +627,7 @@ class CoinbasePrimeClient(ExchangeClient):
         except Exception as e:
             logger.error(f"Unstaking failed: {e}")
             return False
-    
+
     async def close(self):
         """Close the session."""
         if self._session:

@@ -113,12 +113,10 @@ MACHINE LEARNING DERIVED (216-225)
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from decimal import Decimal
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Any
 import asyncio
 import aiohttp
-import json
 import logging
 import math
 import statistics
@@ -171,7 +169,7 @@ class UltraAnalysis:
     """Complete ultra-comprehensive analysis."""
     timestamp: datetime
     asset: str
-    
+
     # All 90 additional signals (136-225)
     behavioral_signals: List[UltraSignalResult]
     advanced_technical: List[UltraSignalResult]
@@ -181,16 +179,16 @@ class UltraAnalysis:
     extreme_indicators: List[UltraSignalResult]
     timing_signals: List[UltraSignalResult]
     ml_derived: List[UltraSignalResult]
-    
+
     # Regime detection
     current_regime: RegimeState
-    
+
     # Scores
     total_signals: int
     available_signals: int
     category_scores: Dict[str, float]
     ultra_composite_score: float
-    
+
     # Integrated recommendations
     final_dca_multiplier: float
     final_buffer_deployment: float
@@ -202,7 +200,7 @@ class UltraSignalsAnalyzer:
     """
     Analyzes signals 136-225 for ultra-comprehensive market analysis.
     """
-    
+
     CATEGORY_WEIGHTS = {
         "behavioral": 0.7,  # Contrarian value
         "advanced_technical": 1.0,
@@ -213,26 +211,26 @@ class UltraSignalsAnalyzer:
         "timing": 0.5,  # Seasonality is minor
         "ml_derived": 1.1,
     }
-    
+
     def __init__(self):
         self._session: Optional[aiohttp.ClientSession] = None
         self._cache: Dict[str, Tuple[Any, datetime]] = {}
         self._cache_ttl = timedelta(minutes=5)
         self._price_history: Dict[str, List[Tuple[datetime, float]]] = {}
         self._volume_history: Dict[str, List[Tuple[datetime, float]]] = {}
-    
+
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession(
                 timeout=aiohttp.ClientTimeout(total=30)
             )
         return self._session
-    
+
     async def close(self):
         if self._session and not self._session.closed:
             await self._session.close()
-    
-    def _unavailable_signal(self, id: int, name: str, category: str, 
+
+    def _unavailable_signal(self, id: int, name: str, category: str,
                            subcategory: str = "") -> UltraSignalResult:
         return UltraSignalResult(
             id=id,
@@ -247,11 +245,11 @@ class UltraSignalsAnalyzer:
             confidence=0.0,
             data_freshness="unavailable"
         )
-    
+
     # =========================================================================
     # BEHAVIORAL ECONOMICS (136-145)
     # =========================================================================
-    
+
     async def _get_recency_bias(self, asset: str, price_data: Dict) -> UltraSignalResult:
         """
         136. Recency Bias Indicator
@@ -261,33 +259,33 @@ class UltraSignalsAnalyzer:
         try:
             if not price_data:
                 return self._unavailable_signal(136, "Recency Bias", "behavioral")
-            
+
             # Compare 7-day momentum vs 90-day momentum
             price_7d_change = price_data.get("price_change_7d", 0)
             price_90d_change = price_data.get("price_change_90d", 0)
-            
+
             if price_90d_change == 0:
                 return self._unavailable_signal(136, "Recency Bias", "behavioral")
-            
+
             # If short-term is much worse than long-term, recency bias is creating opportunity
             ratio = price_7d_change / price_90d_change if price_90d_change != 0 else 1
-            
+
             if price_7d_change < -15 and ratio < 0.3:
                 signal, score = SignalStrength.STRONG_BUY, 2
                 desc = f"Extreme recency bias: 7d {price_7d_change:.1f}% vs 90d {price_90d_change:.1f}%"
             elif price_7d_change < -10 and ratio < 0.5:
                 signal, score = SignalStrength.BUY, 1
-                desc = f"High recency bias creating opportunity"
+                desc = "High recency bias creating opportunity"
             elif price_7d_change > 15 and ratio > 2:
                 signal, score = SignalStrength.SELL, -1
-                desc = f"Recency bias inflating recent gains"
+                desc = "Recency bias inflating recent gains"
             elif price_7d_change > 25 and ratio > 3:
                 signal, score = SignalStrength.STRONG_SELL, -2
-                desc = f"Extreme positive recency bias - euphoria"
+                desc = "Extreme positive recency bias - euphoria"
             else:
                 signal, score = SignalStrength.NEUTRAL, 0
                 desc = "Normal recency patterns"
-            
+
             return UltraSignalResult(
                 id=136,
                 name="Recency Bias",
@@ -305,8 +303,8 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in recency bias: {e}")
             return self._unavailable_signal(136, "Recency Bias", "behavioral")
-    
-    async def _get_round_number_anchoring(self, asset: str, 
+
+    async def _get_round_number_anchoring(self, asset: str,
                                           current_price: float) -> UltraSignalResult:
         """
         137. Anchoring Effect
@@ -325,15 +323,15 @@ class UltraSignalsAnalyzer:
                 round_interval = 10
             else:
                 round_interval = 1
-            
+
             lower_round = (current_price // round_interval) * round_interval
             upper_round = lower_round + round_interval
-            
+
             # Calculate position between round numbers
             position = (current_price - lower_round) / round_interval
             distance_to_lower = (current_price - lower_round) / current_price * 100
             distance_to_upper = (upper_round - current_price) / current_price * 100
-            
+
             # Near lower round number (support) = bullish
             # Near upper round number (resistance) = need confirmation
             if distance_to_lower < 2:
@@ -345,7 +343,7 @@ class UltraSignalsAnalyzer:
             else:
                 signal, score = SignalStrength.NEUTRAL, 0
                 desc = f"Between ${lower_round:,.0f} and ${upper_round:,.0f}"
-            
+
             return UltraSignalResult(
                 id=137,
                 name="Round Number Anchoring",
@@ -367,7 +365,7 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in anchoring: {e}")
             return self._unavailable_signal(137, "Round Number Anchoring", "behavioral")
-    
+
     async def _get_herding_index(self, asset: str) -> UltraSignalResult:
         """
         138. Herding Index
@@ -376,7 +374,7 @@ class UltraSignalsAnalyzer:
         """
         try:
             session = await self._get_session()
-            
+
             # Try to get retail flow data from available APIs
             # This would typically come from Santiment or similar
             async with session.get(
@@ -386,32 +384,32 @@ class UltraSignalsAnalyzer:
                 if resp.status == 200:
                     data = await resp.json()
                     fng_values = [int(d["value"]) for d in data.get("data", [])]
-                    
+
                     if len(fng_values) >= 7:
                         # Calculate variance - low variance = high herding
                         variance = statistics.variance(fng_values) if len(fng_values) > 1 else 100
                         mean_fng = statistics.mean(fng_values)
-                        
+
                         # High herding (low variance) in fear = buy
                         # High herding in greed = sell
                         herding_score = 100 - min(variance, 100)
-                        
+
                         if herding_score > 70 and mean_fng < 30:
                             signal, score = SignalStrength.STRONG_BUY, 2
                             desc = f"Extreme herding into fear (score: {herding_score:.0f})"
                         elif herding_score > 50 and mean_fng < 40:
                             signal, score = SignalStrength.BUY, 1
-                            desc = f"Herding into fear"
+                            desc = "Herding into fear"
                         elif herding_score > 70 and mean_fng > 70:
                             signal, score = SignalStrength.STRONG_SELL, -2
-                            desc = f"Extreme herding into greed"
+                            desc = "Extreme herding into greed"
                         elif herding_score > 50 and mean_fng > 60:
                             signal, score = SignalStrength.SELL, -1
-                            desc = f"Herding into greed"
+                            desc = "Herding into greed"
                         else:
                             signal, score = SignalStrength.NEUTRAL, 0
-                            desc = f"Normal sentiment dispersion"
-                        
+                            desc = "Normal sentiment dispersion"
+
                         return UltraSignalResult(
                             id=138,
                             name="Herding Index",
@@ -430,12 +428,12 @@ class UltraSignalsAnalyzer:
                                 "variance": variance
                             }
                         )
-            
+
             return self._unavailable_signal(138, "Herding Index", "behavioral")
         except Exception as e:
             logger.error(f"Error in herding index: {e}")
             return self._unavailable_signal(138, "Herding Index", "behavioral")
-    
+
     async def _get_loss_aversion_proxy(self, asset: str) -> UltraSignalResult:
         """
         139. Loss Aversion Proxy
@@ -449,7 +447,7 @@ class UltraSignalsAnalyzer:
                 if resp.status == 200:
                     data = await resp.json()
                     fng = int(data["data"][0]["value"])
-                    
+
                     # Extreme fear correlates with high loss realization
                     if fng < 15:
                         signal, score = SignalStrength.STRONG_BUY, 2
@@ -466,7 +464,7 @@ class UltraSignalsAnalyzer:
                     else:
                         signal, score = SignalStrength.NEUTRAL, 0
                         desc = "Normal loss aversion levels"
-                    
+
                     return UltraSignalResult(
                         id=139,
                         name="Loss Aversion Proxy",
@@ -480,12 +478,12 @@ class UltraSignalsAnalyzer:
                         confidence=0.6,
                         data_freshness="daily"
                     )
-            
+
             return self._unavailable_signal(139, "Loss Aversion Proxy", "behavioral")
         except Exception as e:
             logger.error(f"Error in loss aversion: {e}")
             return self._unavailable_signal(139, "Loss Aversion Proxy", "behavioral")
-    
+
     async def _get_overconfidence_indicator(self, asset: str) -> UltraSignalResult:
         """
         140. Overconfidence Indicator
@@ -493,20 +491,20 @@ class UltraSignalsAnalyzer:
         """
         try:
             session = await self._get_session()
-            
+
             # Get open interest and volatility data
             # Using Coinglass free API
             async with session.get(
-                f"https://open-api.coinglass.com/public/v2/open_interest",
+                "https://open-api.coinglass.com/public/v2/open_interest",
                 params={"symbol": asset}
             ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    
+
                     if data.get("success") and data.get("data"):
                         oi_data = data["data"]
                         oi_change_24h = oi_data.get("change24h", 0)
-                        
+
                         # Rising OI in uncertain markets = overconfidence
                         if oi_change_24h > 15:
                             signal, score = SignalStrength.SELL, -1
@@ -523,7 +521,7 @@ class UltraSignalsAnalyzer:
                         else:
                             signal, score = SignalStrength.NEUTRAL, 0
                             desc = "Normal confidence levels"
-                        
+
                         return UltraSignalResult(
                             id=140,
                             name="Overconfidence Indicator",
@@ -538,13 +536,13 @@ class UltraSignalsAnalyzer:
                             data_freshness="hourly",
                             details={"oi_change_24h": oi_change_24h}
                         )
-            
+
             return self._unavailable_signal(140, "Overconfidence Indicator", "behavioral")
         except Exception as e:
             logger.error(f"Error in overconfidence: {e}")
             return self._unavailable_signal(140, "Overconfidence Indicator", "behavioral")
-    
-    async def _get_gamblers_fallacy(self, asset: str, 
+
+    async def _get_gamblers_fallacy(self, asset: str,
                                     price_data: Dict) -> UltraSignalResult:
         """
         141. Gambler's Fallacy Detector
@@ -553,7 +551,7 @@ class UltraSignalsAnalyzer:
         try:
             consecutive_down_days = price_data.get("consecutive_down_days", 0)
             consecutive_up_days = price_data.get("consecutive_up_days", 0)
-            
+
             # Long streaks often trigger gambler's fallacy buying/selling
             if consecutive_down_days >= 7:
                 signal, score = SignalStrength.STRONG_BUY, 2
@@ -570,7 +568,7 @@ class UltraSignalsAnalyzer:
             else:
                 signal, score = SignalStrength.NEUTRAL, 0
                 desc = "No significant streak"
-            
+
             return UltraSignalResult(
                 id=141,
                 name="Gambler's Fallacy Detector",
@@ -591,7 +589,7 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in gambler's fallacy: {e}")
             return self._unavailable_signal(141, "Gambler's Fallacy Detector", "behavioral")
-    
+
     async def _get_disposition_effect(self, asset: str) -> UltraSignalResult:
         """
         142. Disposition Effect Measure
@@ -601,7 +599,7 @@ class UltraSignalsAnalyzer:
             # Would use on-chain data for realized profits/losses
             # Using proxy based on price vs recent highs/lows
             session = await self._get_session()
-            
+
             async with session.get(
                 f"https://api.coingecko.com/api/v3/coins/{asset.lower()}/market_chart",
                 params={"vs_currency": "usd", "days": 30}
@@ -609,16 +607,16 @@ class UltraSignalsAnalyzer:
                 if resp.status == 200:
                     data = await resp.json()
                     prices = [p[1] for p in data.get("prices", [])]
-                    
+
                     if prices:
                         current = prices[-1]
                         high_30d = max(prices)
                         low_30d = min(prices)
                         range_30d = high_30d - low_30d
-                        
+
                         if range_30d > 0:
                             position = (current - low_30d) / range_30d
-                            
+
                             # Near lows = disposition effect likely causing holding
                             # Near highs = disposition effect causing selling
                             if position < 0.15:
@@ -636,7 +634,7 @@ class UltraSignalsAnalyzer:
                             else:
                                 signal, score = SignalStrength.NEUTRAL, 0
                                 desc = "Mid-range position"
-                            
+
                             return UltraSignalResult(
                                 id=142,
                                 name="Disposition Effect",
@@ -656,17 +654,17 @@ class UltraSignalsAnalyzer:
                                     "position": position
                                 }
                             )
-            
+
             return self._unavailable_signal(142, "Disposition Effect", "behavioral")
         except Exception as e:
             logger.error(f"Error in disposition effect: {e}")
             return self._unavailable_signal(142, "Disposition Effect", "behavioral")
-    
+
     # =========================================================================
     # ADVANCED TECHNICAL (146-160)
     # =========================================================================
-    
-    async def _get_wyckoff_phase(self, asset: str, 
+
+    async def _get_wyckoff_phase(self, asset: str,
                                  price_data: Dict) -> UltraSignalResult:
         """
         146. Wyckoff Accumulation/Distribution Phase
@@ -676,25 +674,25 @@ class UltraSignalsAnalyzer:
             # Simplified Wyckoff detection based on price patterns
             prices = price_data.get("prices_30d", [])
             volumes = price_data.get("volumes_30d", [])
-            
+
             if len(prices) < 20:
                 return self._unavailable_signal(146, "Wyckoff Phase", "advanced_technical")
-            
+
             # Calculate trend and volume characteristics
             early_avg = sum(prices[:10]) / 10
             late_avg = sum(prices[-10:]) / 10
             price_trend = (late_avg - early_avg) / early_avg * 100
-            
+
             early_vol = sum(volumes[:10]) / 10 if volumes else 0
             late_vol = sum(volumes[-10:]) / 10 if volumes else 0
             vol_trend = (late_vol - early_vol) / early_vol * 100 if early_vol else 0
-            
+
             # Wyckoff phases:
             # Accumulation: Price flat/down, volume increasing on bounces
             # Markup: Price up, volume confirming
             # Distribution: Price flat/up, volume on drops
             # Markdown: Price down, volume confirming
-            
+
             if price_trend < -10 and vol_trend < -20:
                 phase = "markdown"
                 signal, score = SignalStrength.NEUTRAL, 0
@@ -716,7 +714,7 @@ class UltraSignalsAnalyzer:
                 phase = "unclear"
                 signal, score = SignalStrength.NEUTRAL, 0
                 desc = "Phase unclear"
-            
+
             return UltraSignalResult(
                 id=146,
                 name="Wyckoff Phase",
@@ -734,8 +732,8 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in Wyckoff: {e}")
             return self._unavailable_signal(146, "Wyckoff Phase", "advanced_technical")
-    
-    async def _get_vwap_deviation(self, asset: str, 
+
+    async def _get_vwap_deviation(self, asset: str,
                                   price_data: Dict) -> UltraSignalResult:
         """
         149. VWAP Deviation
@@ -744,21 +742,21 @@ class UltraSignalsAnalyzer:
         try:
             prices = price_data.get("prices_24h", [])
             volumes = price_data.get("volumes_24h", [])
-            
+
             if not prices or not volumes or len(prices) != len(volumes):
                 return self._unavailable_signal(149, "VWAP Deviation", "advanced_technical")
-            
+
             # Calculate VWAP
             total_pv = sum(p * v for p, v in zip(prices, volumes))
             total_v = sum(volumes)
-            
+
             if total_v == 0:
                 return self._unavailable_signal(149, "VWAP Deviation", "advanced_technical")
-            
+
             vwap = total_pv / total_v
             current_price = prices[-1]
             deviation_pct = ((current_price - vwap) / vwap) * 100
-            
+
             if deviation_pct < -5:
                 signal, score = SignalStrength.STRONG_BUY, 2
                 desc = f"Price {abs(deviation_pct):.1f}% below VWAP - oversold"
@@ -774,7 +772,7 @@ class UltraSignalsAnalyzer:
             else:
                 signal, score = SignalStrength.NEUTRAL, 0
                 desc = "Price near VWAP - fair value"
-            
+
             return UltraSignalResult(
                 id=149,
                 name="VWAP Deviation",
@@ -792,8 +790,8 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in VWAP: {e}")
             return self._unavailable_signal(149, "VWAP Deviation", "advanced_technical")
-    
-    async def _get_momentum_divergence(self, asset: str, 
+
+    async def _get_momentum_divergence(self, asset: str,
                                        price_data: Dict) -> UltraSignalResult:
         """
         151. Momentum Divergence (Price vs RSI)
@@ -802,10 +800,10 @@ class UltraSignalsAnalyzer:
         """
         try:
             prices = price_data.get("prices_14d", [])
-            
+
             if len(prices) < 14:
                 return self._unavailable_signal(151, "Momentum Divergence", "advanced_technical")
-            
+
             # Calculate RSI
             gains = []
             losses = []
@@ -817,35 +815,35 @@ class UltraSignalsAnalyzer:
                 else:
                     gains.append(0)
                     losses.append(abs(change))
-            
+
             avg_gain = sum(gains[-14:]) / 14
             avg_loss = sum(losses[-14:]) / 14
-            
+
             if avg_loss == 0:
                 rsi = 100
             else:
                 rs = avg_gain / avg_loss
                 rsi = 100 - (100 / (1 + rs))
-            
+
             # Check for divergence
             price_trend = (prices[-1] - prices[0]) / prices[0] * 100
-            
+
             # Simplified divergence detection
             recent_price_low = min(prices[-7:])
             earlier_price_low = min(prices[:7])
-            
+
             if recent_price_low < earlier_price_low and rsi > 35:
                 # Price lower low but RSI higher = bullish divergence
                 signal, score = SignalStrength.STRONG_BUY, 2
                 desc = f"Bullish RSI divergence detected (RSI: {rsi:.0f})"
             elif prices[-1] > max(prices[:7]) and rsi < 65:
-                # Price higher but RSI lower = bearish divergence  
+                # Price higher but RSI lower = bearish divergence
                 signal, score = SignalStrength.SELL, -1
                 desc = f"Bearish RSI divergence detected (RSI: {rsi:.0f})"
             else:
                 signal, score = SignalStrength.NEUTRAL, 0
                 desc = f"No divergence (RSI: {rsi:.0f})"
-            
+
             return UltraSignalResult(
                 id=151,
                 name="Momentum Divergence",
@@ -863,8 +861,8 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in divergence: {e}")
             return self._unavailable_signal(151, "Momentum Divergence", "advanced_technical")
-    
-    async def _get_adx_trend_strength(self, asset: str, 
+
+    async def _get_adx_trend_strength(self, asset: str,
                                       price_data: Dict) -> UltraSignalResult:
         """
         152. Trend Strength Index (ADX-based)
@@ -874,45 +872,45 @@ class UltraSignalsAnalyzer:
             highs = price_data.get("highs_14d", [])
             lows = price_data.get("lows_14d", [])
             closes = price_data.get("closes_14d", [])
-            
+
             if len(highs) < 14:
                 return self._unavailable_signal(152, "Trend Strength (ADX)", "advanced_technical")
-            
+
             # Simplified ADX calculation
             tr_list = []
             plus_dm_list = []
             minus_dm_list = []
-            
+
             for i in range(1, len(highs)):
                 high_diff = highs[i] - highs[i-1]
                 low_diff = lows[i-1] - lows[i]
-                
+
                 plus_dm = high_diff if high_diff > low_diff and high_diff > 0 else 0
                 minus_dm = low_diff if low_diff > high_diff and low_diff > 0 else 0
-                
+
                 tr = max(
                     highs[i] - lows[i],
                     abs(highs[i] - closes[i-1]),
                     abs(lows[i] - closes[i-1])
                 )
-                
+
                 tr_list.append(tr)
                 plus_dm_list.append(plus_dm)
                 minus_dm_list.append(minus_dm)
-            
+
             # Calculate smoothed values
             atr = sum(tr_list[-14:]) / 14
             plus_di = (sum(plus_dm_list[-14:]) / 14) / atr * 100 if atr > 0 else 0
             minus_di = (sum(minus_dm_list[-14:]) / 14) / atr * 100 if atr > 0 else 0
-            
+
             # Calculate DX and ADX
             di_diff = abs(plus_di - minus_di)
             di_sum = plus_di + minus_di
             dx = (di_diff / di_sum) * 100 if di_sum > 0 else 0
-            
+
             # Simplified ADX (would normally use smoothed DX)
             adx = dx
-            
+
             if adx < 20:
                 signal, score = SignalStrength.NEUTRAL, 0
                 desc = f"Weak trend/ranging market (ADX: {adx:.0f})"
@@ -933,7 +931,7 @@ class UltraSignalsAnalyzer:
                 else:
                     signal, score = SignalStrength.STRONG_SELL, -2
                     desc = f"Very strong downtrend (ADX: {adx:.0f})"
-            
+
             return UltraSignalResult(
                 id=152,
                 name="Trend Strength (ADX)",
@@ -951,12 +949,12 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in ADX: {e}")
             return self._unavailable_signal(152, "Trend Strength (ADX)", "advanced_technical")
-    
+
     # =========================================================================
     # REGIME DETECTION (176-185)
     # =========================================================================
-    
-    async def _get_volatility_regime(self, asset: str, 
+
+    async def _get_volatility_regime(self, asset: str,
                                      price_data: Dict) -> UltraSignalResult:
         """
         176. Volatility Regime
@@ -964,19 +962,19 @@ class UltraSignalsAnalyzer:
         """
         try:
             prices = price_data.get("prices_30d", [])
-            
+
             if len(prices) < 20:
                 return self._unavailable_signal(176, "Volatility Regime", "regime")
-            
+
             # Calculate rolling volatility
-            returns = [(prices[i] - prices[i-1]) / prices[i-1] 
+            returns = [(prices[i] - prices[i-1]) / prices[i-1]
                       for i in range(1, len(prices))]
-            
+
             current_vol = statistics.stdev(returns[-7:]) * math.sqrt(365) * 100
             avg_vol = statistics.stdev(returns) * math.sqrt(365) * 100
-            
+
             vol_ratio = current_vol / avg_vol if avg_vol > 0 else 1
-            
+
             if vol_ratio < 0.5:
                 regime = "low"
                 signal, score = SignalStrength.NEUTRAL, 0
@@ -997,7 +995,7 @@ class UltraSignalsAnalyzer:
                 regime = "extreme"
                 signal, score = SignalStrength.STRONG_BUY, 2
                 desc = f"Extreme volatility - capitulation zone ({current_vol:.0f}% ann.)"
-            
+
             return UltraSignalResult(
                 id=176,
                 name="Volatility Regime",
@@ -1020,8 +1018,8 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in volatility regime: {e}")
             return self._unavailable_signal(176, "Volatility Regime", "regime")
-    
-    async def _get_trend_regime(self, asset: str, 
+
+    async def _get_trend_regime(self, asset: str,
                                 price_data: Dict) -> UltraSignalResult:
         """
         177. Trend Regime Classification
@@ -1029,17 +1027,17 @@ class UltraSignalsAnalyzer:
         """
         try:
             prices = price_data.get("prices_90d", [])
-            
+
             if len(prices) < 60:
                 return self._unavailable_signal(177, "Trend Regime", "regime")
-            
+
             current = prices[-1]
             ma_20 = sum(prices[-20:]) / 20
             ma_50 = sum(prices[-50:]) / 50
-            
+
             pct_from_ma20 = (current - ma_20) / ma_20 * 100
             pct_from_ma50 = (current - ma_50) / ma_50 * 100
-            
+
             # Trend classification
             if pct_from_ma20 > 10 and pct_from_ma50 > 20:
                 regime = "strong_bull"
@@ -1061,7 +1059,7 @@ class UltraSignalsAnalyzer:
                 regime = "range"
                 signal, score = SignalStrength.NEUTRAL, 0
                 desc = "Range-bound market"
-            
+
             return UltraSignalResult(
                 id=177,
                 name="Trend Regime",
@@ -1083,8 +1081,8 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in trend regime: {e}")
             return self._unavailable_signal(177, "Trend Regime", "regime")
-    
-    async def _get_market_phase(self, asset: str, 
+
+    async def _get_market_phase(self, asset: str,
                                 price_data: Dict) -> UltraSignalResult:
         """
         180. Market Phase Detection
@@ -1093,21 +1091,21 @@ class UltraSignalsAnalyzer:
         try:
             prices = price_data.get("prices_90d", [])
             volumes = price_data.get("volumes_90d", [])
-            
+
             if len(prices) < 60 or len(volumes) < 60:
                 return self._unavailable_signal(180, "Market Phase", "regime")
-            
+
             # Calculate metrics
             price_30d = prices[-30:]
             price_30d_before = prices[-60:-30]
             vol_30d = volumes[-30:]
             vol_30d_before = volumes[-60:-30]
-            
+
             price_change = (sum(price_30d[-10:]) / 10 - sum(price_30d[:10]) / 10) / (sum(price_30d[:10]) / 10) * 100
             price_change_before = (sum(price_30d_before[-10:]) / 10 - sum(price_30d_before[:10]) / 10) / (sum(price_30d_before[:10]) / 10) * 100
-            
+
             vol_change = (sum(vol_30d[-10:]) / 10 - sum(vol_30d[:10]) / 10) / (sum(vol_30d[:10]) / 10) * 100 if sum(vol_30d[:10]) > 0 else 0
-            
+
             # Phase detection logic
             if price_change < -5 and price_change_before < -10:
                 phase = "markdown"
@@ -1130,7 +1128,7 @@ class UltraSignalsAnalyzer:
                 phase = "transition"
                 signal, score = SignalStrength.NEUTRAL, 0
                 desc = "Transition phase - unclear direction"
-            
+
             return UltraSignalResult(
                 id=180,
                 name="Market Phase",
@@ -1152,12 +1150,12 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in market phase: {e}")
             return self._unavailable_signal(180, "Market Phase", "regime")
-    
+
     # =========================================================================
     # EXTREME INDICATORS (196-205)
     # =========================================================================
-    
-    async def _get_capitulation_score(self, asset: str, 
+
+    async def _get_capitulation_score(self, asset: str,
                                       all_signals: List[UltraSignalResult]) -> UltraSignalResult:
         """
         198. Capitulation Score (Multi-factor)
@@ -1172,10 +1170,10 @@ class UltraSignalsAnalyzer:
                 "Volatility Regime",
                 "Overconfidence Indicator"
             ]
-            
+
             cap_score = 0
             signals_found = 0
-            
+
             for sig in all_signals:
                 if sig.signal != SignalStrength.UNAVAILABLE:
                     # Capitulation indicators
@@ -1186,14 +1184,14 @@ class UltraSignalsAnalyzer:
                         elif sig.score == 1:
                             cap_score += 15
                             signals_found += 1
-            
+
             if signals_found == 0:
                 return self._unavailable_signal(198, "Capitulation Score", "extreme")
-            
+
             # Normalize
             max_possible = signals_found * 25
             normalized_score = (cap_score / max_possible) * 100 if max_possible > 0 else 0
-            
+
             if normalized_score >= 80:
                 signal, score = SignalStrength.STRONG_BUY, 2
                 desc = f"EXTREME CAPITULATION ({normalized_score:.0f}/100)"
@@ -1206,7 +1204,7 @@ class UltraSignalsAnalyzer:
             else:
                 signal, score = SignalStrength.NEUTRAL, 0
                 desc = f"Low capitulation signals ({normalized_score:.0f}/100)"
-            
+
             return UltraSignalResult(
                 id=198,
                 name="Capitulation Score",
@@ -1224,8 +1222,8 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in capitulation score: {e}")
             return self._unavailable_signal(198, "Capitulation Score", "extreme")
-    
-    async def _get_euphoria_score(self, asset: str, 
+
+    async def _get_euphoria_score(self, asset: str,
                                   all_signals: List[UltraSignalResult]) -> UltraSignalResult:
         """
         199. Euphoria Score (Multi-factor)
@@ -1239,10 +1237,10 @@ class UltraSignalsAnalyzer:
                 "Overconfidence Indicator",
                 "Trend Regime"
             ]
-            
+
             euph_score = 0
             signals_found = 0
-            
+
             for sig in all_signals:
                 if sig.signal != SignalStrength.UNAVAILABLE:
                     if sig.name in euphoria_signals:
@@ -1252,13 +1250,13 @@ class UltraSignalsAnalyzer:
                         elif sig.score == -1:
                             euph_score += 15
                             signals_found += 1
-            
+
             if signals_found == 0:
                 return self._unavailable_signal(199, "Euphoria Score", "extreme")
-            
+
             max_possible = signals_found * 25
             normalized_score = (euph_score / max_possible) * 100 if max_possible > 0 else 0
-            
+
             if normalized_score >= 80:
                 signal, score = SignalStrength.STRONG_SELL, -2
                 desc = f"EXTREME EUPHORIA ({normalized_score:.0f}/100) - reduce exposure"
@@ -1271,7 +1269,7 @@ class UltraSignalsAnalyzer:
             else:
                 signal, score = SignalStrength.NEUTRAL, 0
                 desc = f"Low euphoria ({normalized_score:.0f}/100)"
-            
+
             return UltraSignalResult(
                 id=199,
                 name="Euphoria Score",
@@ -1289,8 +1287,8 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in euphoria score: {e}")
             return self._unavailable_signal(199, "Euphoria Score", "extreme")
-    
-    async def _get_optimal_entry_composite(self, asset: str, 
+
+    async def _get_optimal_entry_composite(self, asset: str,
                                            all_signals: List[UltraSignalResult]) -> UltraSignalResult:
         """
         205. Optimal Entry Composite
@@ -1299,21 +1297,21 @@ class UltraSignalsAnalyzer:
         try:
             total_weighted_score = 0
             total_weight = 0
-            
+
             for sig in all_signals:
                 if sig.signal != SignalStrength.UNAVAILABLE:
                     category_weight = self.CATEGORY_WEIGHTS.get(sig.category, 1.0)
                     combined_weight = sig.weight * category_weight * sig.confidence
                     total_weighted_score += sig.score * combined_weight
                     total_weight += combined_weight
-            
+
             if total_weight == 0:
                 return self._unavailable_signal(205, "Optimal Entry Composite", "extreme")
-            
+
             # Scale to 0-100 where 50 = neutral
             composite = 50 + (total_weighted_score / total_weight) * 25
             composite = max(0, min(100, composite))
-            
+
             if composite >= 80:
                 signal, score = SignalStrength.STRONG_BUY, 2
                 desc = f"EXCEPTIONAL ENTRY ({composite:.0f}/100)"
@@ -1329,7 +1327,7 @@ class UltraSignalsAnalyzer:
             else:
                 signal, score = SignalStrength.NEUTRAL, 0
                 desc = f"Neutral entry conditions ({composite:.0f}/100)"
-            
+
             return UltraSignalResult(
                 id=205,
                 name="Optimal Entry Composite",
@@ -1347,11 +1345,11 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in optimal entry: {e}")
             return self._unavailable_signal(205, "Optimal Entry Composite", "extreme")
-    
+
     # =========================================================================
     # TIMING & SEASONALITY (206-215)
     # =========================================================================
-    
+
     async def _get_day_of_week_effect(self) -> UltraSignalResult:
         """
         206. Day of Week Effect
@@ -1360,7 +1358,7 @@ class UltraSignalsAnalyzer:
         try:
             now = datetime.utcnow()
             day = now.weekday()
-            
+
             # Historical BTC performance by day (example data)
             # Monday=0, Sunday=6
             day_performance = {
@@ -1372,12 +1370,12 @@ class UltraSignalsAnalyzer:
                 5: -0.10,  # Saturday - weekend dip
                 6: -0.08,  # Sunday - weekend dip
             }
-            
-            day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", 
+
+            day_names = ["Monday", "Tuesday", "Wednesday", "Thursday",
                         "Friday", "Saturday", "Sunday"]
-            
+
             perf = day_performance.get(day, 0)
-            
+
             if perf > 0.1:
                 signal, score = SignalStrength.BUY, 1
                 desc = f"{day_names[day]} historically positive"
@@ -1387,7 +1385,7 @@ class UltraSignalsAnalyzer:
             else:
                 signal, score = SignalStrength.NEUTRAL, 0
                 desc = f"{day_names[day]} - neutral seasonality"
-            
+
             return UltraSignalResult(
                 id=206,
                 name="Day of Week Effect",
@@ -1405,7 +1403,7 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in day effect: {e}")
             return self._unavailable_signal(206, "Day of Week Effect", "timing")
-    
+
     async def _get_month_seasonality(self) -> UltraSignalResult:
         """
         207. Month of Year Seasonality
@@ -1413,7 +1411,7 @@ class UltraSignalsAnalyzer:
         """
         try:
             month = datetime.utcnow().month
-            
+
             # Historical BTC monthly returns (example data)
             month_performance = {
                 1: 0.08,   # January - positive start
@@ -1429,13 +1427,13 @@ class UltraSignalsAnalyzer:
                 11: 0.18,  # November - strong
                 12: 0.10,  # December - year-end
             }
-            
+
             month_names = ["", "January", "February", "March", "April", "May",
                           "June", "July", "August", "September", "October",
                           "November", "December"]
-            
+
             perf = month_performance.get(month, 0)
-            
+
             if perf > 0.15:
                 signal, score = SignalStrength.BUY, 1
                 desc = f"{month_names[month]} - historically strong month"
@@ -1445,7 +1443,7 @@ class UltraSignalsAnalyzer:
             else:
                 signal, score = SignalStrength.NEUTRAL, 0
                 desc = f"{month_names[month]} - neutral seasonality"
-            
+
             return UltraSignalResult(
                 id=207,
                 name="Month Seasonality",
@@ -1463,7 +1461,7 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in month seasonality: {e}")
             return self._unavailable_signal(207, "Month Seasonality", "timing")
-    
+
     async def _get_halving_cycle_position(self, asset: str) -> UltraSignalResult:
         """
         208. Halving Cycle Position
@@ -1472,21 +1470,21 @@ class UltraSignalsAnalyzer:
         try:
             if asset.upper() != "BTC":
                 return self._unavailable_signal(208, "Halving Cycle", "timing")
-            
+
             # Last halving: April 2024
             # Next halving: ~April 2028
             last_halving = datetime(2024, 4, 20)
             halving_cycle_days = 4 * 365  # ~4 years
-            
+
             days_since_halving = (datetime.utcnow() - last_halving).days
             cycle_position = days_since_halving / halving_cycle_days
-            
+
             # Historical pattern:
             # 0-25%: Post-halving accumulation
             # 25-50%: Bull run begins
             # 50-75%: Cycle peak
             # 75-100%: Bear market / pre-halving accumulation
-            
+
             if cycle_position < 0.25:
                 signal, score = SignalStrength.STRONG_BUY, 2
                 desc = f"Post-halving accumulation phase ({cycle_position*100:.0f}%)"
@@ -1499,7 +1497,7 @@ class UltraSignalsAnalyzer:
             else:
                 signal, score = SignalStrength.BUY, 1
                 desc = f"Pre-halving accumulation ({cycle_position*100:.0f}%)"
-            
+
             return UltraSignalResult(
                 id=208,
                 name="Halving Cycle Position",
@@ -1520,20 +1518,20 @@ class UltraSignalsAnalyzer:
         except Exception as e:
             logger.error(f"Error in halving cycle: {e}")
             return self._unavailable_signal(208, "Halving Cycle Position", "timing")
-    
+
     # =========================================================================
     # MAIN ANALYSIS
     # =========================================================================
-    
+
     async def analyze(self, asset: str = "BTC") -> UltraAnalysis:
         """
         Run ultra-comprehensive analysis with signals 136-225.
         """
         # Fetch price data
         price_data = await self._fetch_price_data(asset)
-        
+
         all_signals = []
-        
+
         # BEHAVIORAL (136-145)
         behavioral_tasks = [
             self._get_recency_bias(asset, price_data),
@@ -1547,7 +1545,7 @@ class UltraSignalsAnalyzer:
         behavioral_signals = await asyncio.gather(*behavioral_tasks, return_exceptions=True)
         behavioral_signals = [s for s in behavioral_signals if isinstance(s, UltraSignalResult)]
         all_signals.extend(behavioral_signals)
-        
+
         # ADVANCED TECHNICAL (146-160)
         tech_tasks = [
             self._get_wyckoff_phase(asset, price_data),
@@ -1558,7 +1556,7 @@ class UltraSignalsAnalyzer:
         tech_signals = await asyncio.gather(*tech_tasks, return_exceptions=True)
         tech_signals = [s for s in tech_signals if isinstance(s, UltraSignalResult)]
         all_signals.extend(tech_signals)
-        
+
         # REGIME (176-185)
         regime_tasks = [
             self._get_volatility_regime(asset, price_data),
@@ -1568,7 +1566,7 @@ class UltraSignalsAnalyzer:
         regime_signals = await asyncio.gather(*regime_tasks, return_exceptions=True)
         regime_signals = [s for s in regime_signals if isinstance(s, UltraSignalResult)]
         all_signals.extend(regime_signals)
-        
+
         # TIMING (206-215)
         timing_tasks = [
             self._get_day_of_week_effect(),
@@ -1578,31 +1576,31 @@ class UltraSignalsAnalyzer:
         timing_signals = await asyncio.gather(*timing_tasks, return_exceptions=True)
         timing_signals = [s for s in timing_signals if isinstance(s, UltraSignalResult)]
         all_signals.extend(timing_signals)
-        
+
         # EXTREME (196-205) - these use other signals
         capitulation = await self._get_capitulation_score(asset, all_signals)
         euphoria = await self._get_euphoria_score(asset, all_signals)
         optimal_entry = await self._get_optimal_entry_composite(asset, all_signals)
-        
+
         extreme_signals = [capitulation, euphoria, optimal_entry]
         all_signals.extend(extreme_signals)
-        
+
         # Calculate category scores
         category_scores = self._calculate_category_scores(all_signals)
-        
+
         # Calculate overall composite
         ultra_composite = self._calculate_ultra_composite(all_signals)
-        
+
         # Detect current regime
         current_regime = self._detect_regime(regime_signals, price_data)
-        
+
         # Get final recommendations
         dca_mult, buffer_deploy, pos_adj, recommendation = self._get_final_recommendations(
             ultra_composite, current_regime
         )
-        
+
         available = [s for s in all_signals if s.signal != SignalStrength.UNAVAILABLE]
-        
+
         return UltraAnalysis(
             timestamp=datetime.utcnow(),
             asset=asset,
@@ -1624,19 +1622,19 @@ class UltraSignalsAnalyzer:
             position_sizing_adjustment=pos_adj,
             risk_adjusted_recommendation=recommendation
         )
-    
+
     async def _fetch_price_data(self, asset: str) -> Dict:
         """Fetch comprehensive price data for analysis."""
         try:
             session = await self._get_session()
-            
+
             # Get from CoinGecko
             cg_id = {
                 "BTC": "bitcoin",
                 "ETH": "ethereum",
                 "SOL": "solana"
             }.get(asset.upper(), asset.lower())
-            
+
             async with session.get(
                 f"https://api.coingecko.com/api/v3/coins/{cg_id}/market_chart",
                 params={"vs_currency": "usd", "days": 90}
@@ -1645,7 +1643,7 @@ class UltraSignalsAnalyzer:
                     data = await resp.json()
                     prices = [p[1] for p in data.get("prices", [])]
                     volumes = [v[1] for v in data.get("total_volumes", [])]
-                    
+
                     if prices:
                         return {
                             "current_price": prices[-1],
@@ -1659,48 +1657,48 @@ class UltraSignalsAnalyzer:
                             "price_change_7d": ((prices[-1] - prices[-7]) / prices[-7] * 100) if len(prices) >= 7 else 0,
                             "price_change_90d": ((prices[-1] - prices[0]) / prices[0] * 100) if prices else 0,
                         }
-            
+
             return {}
         except Exception as e:
             logger.error(f"Error fetching price data: {e}")
             return {}
-    
+
     def _calculate_category_scores(self, signals: List[UltraSignalResult]) -> Dict[str, float]:
         """Calculate weighted scores by category."""
         category_scores = {}
-        
+
         for category in self.CATEGORY_WEIGHTS.keys():
-            cat_signals = [s for s in signals if s.category == category 
+            cat_signals = [s for s in signals if s.category == category
                          and s.signal != SignalStrength.UNAVAILABLE]
-            
+
             if cat_signals:
                 total_score = sum(s.score * s.weight * s.confidence for s in cat_signals)
                 total_weight = sum(s.weight * s.confidence for s in cat_signals)
                 category_scores[category] = total_score / total_weight if total_weight > 0 else 0
             else:
                 category_scores[category] = 0
-        
+
         return category_scores
-    
+
     def _calculate_ultra_composite(self, signals: List[UltraSignalResult]) -> float:
         """Calculate final ultra composite score."""
         total_weighted_score = 0
         total_weight = 0
-        
+
         for signal in signals:
             if signal.signal != SignalStrength.UNAVAILABLE:
                 cat_weight = self.CATEGORY_WEIGHTS.get(signal.category, 1.0)
                 combined_weight = signal.weight * cat_weight * signal.confidence
                 total_weighted_score += signal.score * combined_weight
                 total_weight += combined_weight
-        
+
         if total_weight == 0:
             return 0
-        
+
         # Normalize to -100 to +100
         return (total_weighted_score / total_weight) * 50
-    
-    def _detect_regime(self, regime_signals: List[UltraSignalResult], 
+
+    def _detect_regime(self, regime_signals: List[UltraSignalResult],
                        price_data: Dict) -> RegimeState:
         """Detect current market regime from regime signals."""
         vol_regime = "normal"
@@ -1709,21 +1707,21 @@ class UltraSignalsAnalyzer:
         correlation_regime = "mixed"
         sentiment_regime = "neutral"
         phase = "transition"
-        
+
         for sig in regime_signals:
             if sig.signal == SignalStrength.UNAVAILABLE:
                 continue
-            
+
             if sig.name == "Volatility Regime":
                 vol_regime = sig.details.get("regime", "normal")
             elif sig.name == "Trend Regime":
                 trend_regime = sig.details.get("regime", "range")
             elif sig.name == "Market Phase":
                 phase = sig.details.get("phase", "transition")
-        
-        confidence = len([s for s in regime_signals 
+
+        confidence = len([s for s in regime_signals
                          if s.signal != SignalStrength.UNAVAILABLE]) / max(len(regime_signals), 1)
-        
+
         return RegimeState(
             volatility_regime=vol_regime,
             trend_regime=trend_regime,
@@ -1733,8 +1731,8 @@ class UltraSignalsAnalyzer:
             phase=phase,
             confidence=confidence
         )
-    
-    def _get_final_recommendations(self, composite: float, 
+
+    def _get_final_recommendations(self, composite: float,
                                    regime: RegimeState) -> Tuple[float, float, float, str]:
         """
         Get final DCA multiplier, buffer deployment, position sizing, and recommendation.
@@ -1780,20 +1778,20 @@ class UltraSignalsAnalyzer:
             buffer = 0.0
             pos_adj = 0.5
             rec = "🚨 EXTREME GREED: Minimize buying, consider taking profits"
-        
+
         # Regime adjustments
         if regime.volatility_regime == "extreme":
             dca_mult *= 1.2
             buffer = min(buffer + 0.1, 1.0)
             rec += " [Extreme vol: increased allocation]"
-        
+
         if regime.phase == "accumulation":
             dca_mult *= 1.15
             rec += " [Accumulation phase detected]"
         elif regime.phase == "distribution":
             dca_mult *= 0.85
             rec += " [Distribution phase - caution]"
-        
+
         return dca_mult, buffer, pos_adj, rec
 
 
@@ -1826,24 +1824,24 @@ def format_ultra_analysis(analysis: UltraAnalysis) -> str:
         "-" * 80,
         "  CATEGORY SCORES:",
     ]
-    
+
     for category, score in analysis.category_scores.items():
         indicator = "🟢" if score > 0.5 else "🔴" if score < -0.5 else "⚪"
         lines.append(f"    {indicator} {category.title():20} {score:+.2f}")
-    
+
     lines.append("")
     lines.append("-" * 80)
     lines.append("  INDIVIDUAL SIGNALS:")
     lines.append("")
-    
+
     all_signals = (
-        analysis.behavioral_signals + 
-        analysis.advanced_technical + 
+        analysis.behavioral_signals +
+        analysis.advanced_technical +
         analysis.regime_signals +
         analysis.timing_signals +
         analysis.extreme_indicators
     )
-    
+
     for signal in all_signals:
         if signal.signal == SignalStrength.UNAVAILABLE:
             indicator = "❓"
@@ -1857,10 +1855,10 @@ def format_ultra_analysis(analysis: UltraAnalysis) -> str:
             indicator = "🔴"
         else:
             indicator = "⚪"
-        
+
         lines.append(f"    {indicator} [{signal.id:3d}] {signal.name:30} {signal.description}")
-    
+
     lines.append("")
     lines.append("=" * 80)
-    
+
     return "\n".join(lines)

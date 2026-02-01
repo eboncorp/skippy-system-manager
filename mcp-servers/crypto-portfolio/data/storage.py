@@ -12,7 +12,6 @@ Uses SQLite for local persistence of:
 import sqlite3
 import json
 from contextlib import contextmanager
-from dataclasses import asdict
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -46,12 +45,12 @@ def decimal_decoder(dct: dict) -> dict:
 
 class Database:
     """SQLite database for portfolio data."""
-    
+
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = Path(db_path or settings.data.database_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
-    
+
     @contextmanager
     def _get_conn(self) -> Generator[sqlite3.Connection, None, None]:
         """Get a database connection."""
@@ -62,12 +61,12 @@ class Database:
             conn.commit()
         finally:
             conn.close()
-    
+
     def _init_db(self):
         """Initialize database schema."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            
+
             # Portfolio snapshots
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS portfolio_snapshots (
@@ -80,7 +79,7 @@ class Database:
                     drift_json TEXT NOT NULL
                 )
             """)
-            
+
             # Staking rewards
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS staking_rewards (
@@ -94,7 +93,7 @@ class Database:
                     tx_hash TEXT
                 )
             """)
-            
+
             # DCA executions
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS dca_executions (
@@ -110,7 +109,7 @@ class Database:
                     error TEXT
                 )
             """)
-            
+
             # Rebalancing sessions
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS rebalance_sessions (
@@ -121,7 +120,7 @@ class Database:
                     snapshot_json TEXT NOT NULL
                 )
             """)
-            
+
             # Price history (for tax calculations)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS price_history (
@@ -132,7 +131,7 @@ class Database:
                     UNIQUE(asset, timestamp)
                 )
             """)
-            
+
             # Tax lots (for cost basis tracking)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS tax_lots (
@@ -147,21 +146,21 @@ class Database:
                     proceeds TEXT
                 )
             """)
-            
+
             # Create indexes
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_snapshots_timestamp ON portfolio_snapshots(timestamp)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_rewards_timestamp ON staking_rewards(timestamp)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_rewards_asset ON staking_rewards(asset)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_dca_timestamp ON dca_executions(timestamp)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_asset_time ON price_history(asset, timestamp)")
-    
+
     # Portfolio Snapshots
-    
+
     def save_snapshot(self, snapshot: Any) -> int:
         """Save a portfolio snapshot."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            
+
             # Convert positions to JSON-serializable format
             positions_data = {}
             for asset, pos in snapshot.positions.items():
@@ -173,12 +172,12 @@ class Database:
                     "usd_value": str(pos.usd_value),
                     "price": str(pos.price),
                 }
-            
+
             allocation_data = {k: str(v) for k, v in snapshot.actual_allocation.items()}
             drift_data = {k: str(v) for k, v in snapshot.drift.items()}
-            
+
             cursor.execute("""
-                INSERT INTO portfolio_snapshots 
+                INSERT INTO portfolio_snapshots
                 (timestamp, total_usd_value, total_staked_value, positions_json, allocation_json, drift_json)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (
@@ -189,24 +188,24 @@ class Database:
                 json.dumps(allocation_data),
                 json.dumps(drift_data),
             ))
-            
+
             return cursor.lastrowid
-    
+
     def get_latest_snapshot(self) -> Optional[Dict]:
         """Get the most recent portfolio snapshot."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT * FROM portfolio_snapshots 
+                SELECT * FROM portfolio_snapshots
                 ORDER BY timestamp DESC LIMIT 1
             """)
             row = cursor.fetchone()
-            
+
             if not row:
                 return None
-            
+
             return self._row_to_snapshot(row)
-    
+
     def get_snapshots(
         self,
         start_date: Optional[datetime] = None,
@@ -216,23 +215,23 @@ class Database:
         """Get portfolio snapshots in a date range."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            
+
             query = "SELECT * FROM portfolio_snapshots WHERE 1=1"
             params = []
-            
+
             if start_date:
                 query += " AND timestamp >= ?"
                 params.append(start_date.isoformat())
             if end_date:
                 query += " AND timestamp <= ?"
                 params.append(end_date.isoformat())
-            
+
             query += " ORDER BY timestamp DESC LIMIT ?"
             params.append(limit)
-            
+
             cursor.execute(query, params)
             return [self._row_to_snapshot(row) for row in cursor.fetchall()]
-    
+
     def _row_to_snapshot(self, row: sqlite3.Row) -> Dict:
         """Convert a database row to snapshot dict."""
         return {
@@ -244,16 +243,16 @@ class Database:
             "allocation": json.loads(row["allocation_json"], object_hook=decimal_decoder),
             "drift": json.loads(row["drift_json"], object_hook=decimal_decoder),
         }
-    
+
     # Staking Rewards
-    
+
     def save_staking_reward(self, reward: Any) -> None:
         """Save a staking reward."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            
+
             cursor.execute("""
-                INSERT OR REPLACE INTO staking_rewards 
+                INSERT OR REPLACE INTO staking_rewards
                 (id, asset, amount, timestamp, usd_value, price, source, tx_hash)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
@@ -266,7 +265,7 @@ class Database:
                 reward.source,
                 reward.tx_hash,
             ))
-    
+
     def get_staking_rewards(
         self,
         start_date: Optional[datetime] = None,
@@ -276,10 +275,10 @@ class Database:
         """Get staking rewards with optional filters."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            
+
             query = "SELECT * FROM staking_rewards WHERE 1=1"
             params = []
-            
+
             if start_date:
                 query += " AND timestamp >= ?"
                 params.append(start_date.isoformat())
@@ -289,11 +288,11 @@ class Database:
             if asset:
                 query += " AND asset = ?"
                 params.append(asset)
-            
+
             query += " ORDER BY timestamp DESC"
-            
+
             cursor.execute(query, params)
-            
+
             return [{
                 "id": row["id"],
                 "asset": row["asset"],
@@ -304,16 +303,16 @@ class Database:
                 "source": row["source"],
                 "tx_hash": row["tx_hash"],
             } for row in cursor.fetchall()]
-    
+
     # DCA Executions
-    
+
     def save_dca_execution(self, execution: Any) -> None:
         """Save a DCA execution."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            
+
             cursor.execute("""
-                INSERT OR REPLACE INTO dca_executions 
+                INSERT OR REPLACE INTO dca_executions
                 (id, timestamp, asset, usd_amount, filled_amount, filled_price, exchange, status, order_id, error)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
@@ -328,7 +327,7 @@ class Database:
                 execution.order_id,
                 execution.error,
             ))
-    
+
     def get_dca_executions(
         self,
         start_date: Optional[datetime] = None,
@@ -338,10 +337,10 @@ class Database:
         """Get DCA executions with optional filters."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            
+
             query = "SELECT * FROM dca_executions WHERE 1=1"
             params = []
-            
+
             if start_date:
                 query += " AND timestamp >= ?"
                 params.append(start_date.isoformat())
@@ -351,11 +350,11 @@ class Database:
             if status:
                 query += " AND status = ?"
                 params.append(status)
-            
+
             query += " ORDER BY timestamp DESC"
-            
+
             cursor.execute(query, params)
-            
+
             return [{
                 "id": row["id"],
                 "timestamp": datetime.fromisoformat(row["timestamp"]),
@@ -368,19 +367,19 @@ class Database:
                 "order_id": row["order_id"],
                 "error": row["error"],
             } for row in cursor.fetchall()]
-    
+
     # Price History
-    
+
     def save_price(self, asset: str, price: Decimal, timestamp: datetime) -> None:
         """Save a price point."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            
+
             cursor.execute("""
                 INSERT OR REPLACE INTO price_history (asset, price, timestamp)
                 VALUES (?, ?, ?)
             """, (asset, str(price), timestamp.isoformat()))
-    
+
     def get_price_at_time(
         self,
         asset: str,
@@ -389,22 +388,22 @@ class Database:
         """Get price closest to a given timestamp."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            
+
             # Get closest price before or at timestamp
             cursor.execute("""
-                SELECT price FROM price_history 
+                SELECT price FROM price_history
                 WHERE asset = ? AND timestamp <= ?
                 ORDER BY timestamp DESC LIMIT 1
             """, (asset, timestamp.isoformat()))
-            
+
             row = cursor.fetchone()
             if row:
                 return Decimal(row["price"])
-            
+
             return None
-    
+
     # Tax Lots
-    
+
     def add_tax_lot(
         self,
         asset: str,
@@ -416,9 +415,9 @@ class Database:
         """Add a new tax lot."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            
+
             cursor.execute("""
-                INSERT INTO tax_lots 
+                INSERT INTO tax_lots
                 (asset, amount, cost_basis, acquisition_date, source, remaining_amount)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (
@@ -429,20 +428,20 @@ class Database:
                 source,
                 str(amount),
             ))
-            
+
             return cursor.lastrowid
-    
+
     def get_open_tax_lots(self, asset: str) -> List[Dict]:
         """Get open (non-zero remaining) tax lots for an asset."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            
+
             cursor.execute("""
-                SELECT * FROM tax_lots 
+                SELECT * FROM tax_lots
                 WHERE asset = ? AND CAST(remaining_amount AS REAL) > 0
                 ORDER BY acquisition_date ASC
             """, (asset,))
-            
+
             return [{
                 "id": row["id"],
                 "asset": row["asset"],
@@ -452,7 +451,7 @@ class Database:
                 "source": row["source"],
                 "remaining_amount": Decimal(row["remaining_amount"]),
             } for row in cursor.fetchall()]
-    
+
     def close_tax_lot(
         self,
         lot_id: int,
@@ -463,21 +462,21 @@ class Database:
         """Close (partially or fully) a tax lot."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            
+
             # Get current remaining amount
             cursor.execute("SELECT remaining_amount FROM tax_lots WHERE id = ?", (lot_id,))
             row = cursor.fetchone()
             if not row:
                 raise ValueError(f"Tax lot {lot_id} not found")
-            
+
             remaining = Decimal(row["remaining_amount"])
             new_remaining = remaining - amount_sold
-            
+
             if new_remaining < 0:
                 raise ValueError(f"Cannot sell more than remaining amount ({remaining})")
-            
+
             cursor.execute("""
-                UPDATE tax_lots 
+                UPDATE tax_lots
                 SET remaining_amount = ?, closed_date = ?, proceeds = ?
                 WHERE id = ?
             """, (str(new_remaining), close_date.isoformat(), str(proceeds), lot_id))

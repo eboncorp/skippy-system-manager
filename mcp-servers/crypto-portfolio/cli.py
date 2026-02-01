@@ -23,10 +23,7 @@ import asyncio
 import json
 import os
 import sys
-from datetime import datetime
-from decimal import Decimal
-from enum import Enum
-from typing import List, Optional
+from typing import Optional
 
 import typer
 from rich import print as rprint
@@ -143,7 +140,7 @@ def portfolio_summary(
     """Get portfolio summary across all exchanges."""
     with show_spinner("Fetching portfolio summary...") as progress:
         progress.add_task("Loading...", total=None)
-        
+
         inp = PortfolioSummaryInput(
             include_staking=include_staking,
             include_defi=include_defi,
@@ -151,7 +148,7 @@ def portfolio_summary(
             response_format=ResponseFormat.JSON if json_output else ResponseFormat.MARKDOWN,
         )
         result = run_async(crypto_portfolio_summary(inp))
-    
+
     output_result(result, json_output)
 
 
@@ -181,12 +178,12 @@ def list_holdings(
     """List holdings by exchange."""
     with show_spinner("Fetching holdings...") as progress:
         progress.add_task("Loading...", total=None)
-        
+
         try:
             exchange_enum = Exchange(exchange.lower())
         except ValueError:
             exchange_enum = Exchange.ALL
-        
+
         inp = ExchangeHoldingsInput(
             exchange=exchange_enum,
             asset=asset,
@@ -194,7 +191,7 @@ def list_holdings(
             response_format=ResponseFormat.JSON if json_output else ResponseFormat.MARKDOWN,
         )
         result = run_async(crypto_exchange_holdings(inp))
-    
+
     output_result(result, json_output)
 
 
@@ -212,19 +209,19 @@ def list_staking(
     """List staking positions."""
     with show_spinner("Fetching staking positions...") as progress:
         progress.add_task("Loading...", total=None)
-        
+
         try:
             exchange_enum = Exchange(exchange.lower())
         except ValueError:
             exchange_enum = Exchange.ALL
-        
+
         inp = StakingPositionsInput(
             exchange=exchange_enum,
             include_rewards=include_rewards,
             response_format=ResponseFormat.JSON if json_output else ResponseFormat.MARKDOWN,
         )
         result = run_async(crypto_staking_positions(inp))
-    
+
     output_result(result, json_output)
 
 
@@ -265,19 +262,19 @@ def list_defi(
     """List DeFi positions."""
     with show_spinner("Fetching DeFi positions...") as progress:
         progress.add_task("Loading...", total=None)
-        
+
         try:
             protocol_enum = DeFiProtocol(protocol.lower())
         except ValueError:
             protocol_enum = DeFiProtocol.ALL
-        
+
         inp = DeFiPositionsInput(
             protocol=protocol_enum,
             wallet_address=wallet,
             response_format=ResponseFormat.JSON if json_output else ResponseFormat.MARKDOWN,
         )
         result = run_async(crypto_defi_positions(inp))
-    
+
     output_result(result, json_output)
 
 
@@ -295,14 +292,14 @@ def list_dca_bots(
     """List DCA bots."""
     with show_spinner("Fetching DCA bots...") as progress:
         progress.add_task("Loading...", total=None)
-        
+
         inp = DCABotStatusInput(
             bot_id=bot_id,
             include_history=include_history,
             response_format=ResponseFormat.JSON if json_output else ResponseFormat.MARKDOWN,
         )
         result = run_async(crypto_dca_bot_status(inp))
-    
+
     output_result(result, json_output)
 
 
@@ -315,7 +312,7 @@ def create_dca_bot(
     max_total: Optional[float] = typer.Option(None, "--max-total", help="Maximum total to invest"),
 ):
     """Create a new DCA bot."""
-    rprint(f"[green]Creating DCA bot:[/green]")
+    rprint("[green]Creating DCA bot:[/green]")
     rprint(f"  Asset: {asset}")
     rprint(f"  Amount: ${amount}/execution")
     rprint(f"  Frequency: {frequency}")
@@ -364,14 +361,14 @@ def list_alerts(
     """List alerts."""
     with show_spinner("Fetching alerts...") as progress:
         progress.add_task("Loading...", total=None)
-        
+
         inp = AlertsInput(
             action=action,
             limit=limit,
             response_format=ResponseFormat.JSON if json_output else ResponseFormat.MARKDOWN,
         )
         result = run_async(crypto_alerts_status(inp))
-    
+
     output_result(result, json_output)
 
 
@@ -384,7 +381,7 @@ def create_alert(
     note: Optional[str] = typer.Option(None, "--note", "-n", help="Alert note"),
 ):
     """Create an alert."""
-    rprint(f"[green]Creating alert:[/green]")
+    rprint("[green]Creating alert:[/green]")
     rprint(f"  Type: {alert_type}")
     rprint(f"  Threshold: {threshold}")
     if asset:
@@ -413,12 +410,12 @@ def calculate_cost_basis(
     """Calculate cost basis for tax reporting."""
     with show_spinner("Calculating cost basis...") as progress:
         progress.add_task("Loading...", total=None)
-        
+
         try:
             method_enum = CostBasisMethod(method.lower())
         except ValueError:
             method_enum = CostBasisMethod.FIFO
-        
+
         inp = CostBasisInput(
             asset=asset,
             method=method_enum,
@@ -426,7 +423,7 @@ def calculate_cost_basis(
             response_format=ResponseFormat.JSON if json_output else ResponseFormat.MARKDOWN,
         )
         result = run_async(crypto_cost_basis(inp))
-    
+
     output_result(result, json_output)
 
 
@@ -453,17 +450,17 @@ def export_tax_report(
 @analysis_app.command("run")
 @app.command("analyze", hidden=True)  # Also available as top-level command
 def run_analysis(
-    analysis_type: str = typer.Option("comprehensive", "--type", "-t", 
+    analysis_type: str = typer.Option("comprehensive", "--type", "-t",
                                        help="Type: comprehensive, risk, performance, rebalancing, tax_optimization"),
     days: int = typer.Option(30, "--days", "-d", help="Days to analyze"),
-    recommendations: bool = typer.Option(True, "--recommendations/--no-recommendations", 
+    recommendations: bool = typer.Option(True, "--recommendations/--no-recommendations",
                                           help="Include recommendations"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
 ):
     """Run AI-powered portfolio analysis."""
     with show_spinner(f"Running {analysis_type} analysis...") as progress:
         progress.add_task("Loading...", total=None)
-        
+
         inp = AIAnalysisInput(
             analysis_type=analysis_type,
             time_range_days=days,
@@ -471,7 +468,7 @@ def run_analysis(
             response_format=ResponseFormat.JSON if json_output else ResponseFormat.MARKDOWN,
         )
         result = run_async(crypto_ai_analysis(inp))
-    
+
     output_result(result, json_output)
 
 
@@ -489,16 +486,16 @@ def scan_arbitrage(
     """Scan for arbitrage opportunities."""
     with show_spinner("Scanning for arbitrage opportunities...") as progress:
         progress.add_task("Loading...", total=None)
-        
+
         asset_list = assets.split(",") if assets else None
-        
+
         inp = ArbitrageOpportunitiesInput(
             min_spread_percent=min_spread,
             assets=asset_list,
             response_format=ResponseFormat.JSON if json_output else ResponseFormat.MARKDOWN,
         )
         result = run_async(crypto_arbitrage_opportunities(inp))
-    
+
     output_result(result, json_output)
 
 
@@ -520,12 +517,12 @@ def list_transactions(
     """List transaction history."""
     with show_spinner("Fetching transactions...") as progress:
         progress.add_task("Loading...", total=None)
-        
+
         try:
             exchange_enum = Exchange(exchange.lower())
         except ValueError:
             exchange_enum = Exchange.ALL
-        
+
         inp = TransactionHistoryInput(
             exchange=exchange_enum,
             asset=asset,
@@ -536,7 +533,7 @@ def list_transactions(
             response_format=ResponseFormat.JSON if json_output else ResponseFormat.MARKDOWN,
         )
         result = run_async(crypto_transaction_history(inp))
-    
+
     output_result(result, json_output)
 
 
@@ -551,25 +548,25 @@ def show_config():
     table = Table(title="Configuration")
     table.add_column("Setting", style="cyan")
     table.add_column("Value", style="green")
-    
+
     table.add_row("Paper Trading", os.getenv("PAPER_TRADING", "true"))
     table.add_row("Database", os.getenv("DATABASE_URL", "sqlite:///portfolio.db"))
     table.add_row("Redis", os.getenv("REDIS_URL", "not configured"))
-    
+
     # Check configured exchanges
     exchanges = []
     for ex in ["COINBASE", "KRAKEN", "CRYPTO_COM", "GEMINI"]:
         if os.getenv(f"{ex}_API_KEY"):
             exchanges.append(ex.lower())
     table.add_row("Exchanges", ", ".join(exchanges) if exchanges else "none")
-    
+
     # Check wallets
     wallets = []
     for i in range(1, 6):
         if os.getenv(f"ETH_WALLET_{i}"):
             wallets.append(f"ETH_WALLET_{i}")
     table.add_row("Wallets", ", ".join(wallets) if wallets else "none")
-    
+
     console.print(table)
 
 
