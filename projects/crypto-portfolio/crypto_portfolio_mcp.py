@@ -51,6 +51,14 @@ try:
 except ImportError:
     ADDITIONAL_TOOLS_AVAILABLE = False
 
+# GTI Virtual ETF manager
+try:
+    from etf_manager import GTIVirtualETF
+    from etf_config import ETF_ASSETS, ETF_DAILY_BUDGET, get_war_chest_rule
+    ETF_AVAILABLE = True
+except ImportError:
+    ETF_AVAILABLE = False
+
 # On-chain and DeFi trackers for real wallet data
 try:
     from defi_tracker import DeFiTracker
@@ -59,12 +67,29 @@ try:
 except ImportError:
     ONCHAIN_TRACKING_AVAILABLE = False
 
+# Startup validation and system status
+try:
+    from startup_validation import get_system_status, get_system_status_markdown, print_startup_report
+    STARTUP_VALIDATION_AVAILABLE = True
+except ImportError:
+    STARTUP_VALIDATION_AVAILABLE = False
+
+# Transaction history with CSV/XLSX import
+try:
+    from transaction_history import TransactionHistory
+    TRANSACTION_HISTORY_AVAILABLE = True
+except ImportError:
+    TRANSACTION_HISTORY_AVAILABLE = False
+
 # Global instances for on-chain tracking
 _defi_tracker: Optional["DeFiTracker"] = None
 _onchain_manager: Optional["OnChainWalletManager"] = None
 
 # Global aggregator instance (initialized in lifespan)
 _aggregator: Optional["PortfolioAggregator"] = None
+
+# Global transaction history instance (initialized in lifespan)
+_transaction_history: Optional["TransactionHistory"] = None
 
 # =============================================================================
 # CONFIGURATION
@@ -410,6 +435,24 @@ class TransactionHistoryInput(BaseModel):
     )
 
 
+class ImportTransactionsInput(BaseModel):
+    """Input for importing transaction history from CSV/XLSX files."""
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    file_paths: List[str] = Field(
+        description="List of file paths to import (CSV or XLSX exchange exports)"
+    )
+    exchange: Optional[str] = Field(
+        default=None,
+        description="Force parser: 'coinbase', 'kraken', 'gemini', 'gemini_staking', 'crypto_com'. Auto-detected if omitted.",
+        pattern=r"^(coinbase|kraken|gemini|gemini_staking|crypto_com)$"
+    )
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN,
+        description="Output format: 'markdown' or 'json'"
+    )
+
+
 # -----------------------------------------------------------------------------
 # Crypto.com AI Agent Input Models
 # -----------------------------------------------------------------------------
@@ -467,20 +510,47 @@ def format_datetime(dt: datetime) -> str:
 
 
 def handle_api_error(e: Exception, context: str = "") -> str:
-    """Consistent error formatting."""
+    """
+    Consistent error formatting with sanitization.
+
+    SECURITY: This function sanitizes error messages to prevent leaking
+    sensitive internal details (file paths, stack traces, credentials).
+    """
+    import logging
+    import re
+
     error_type = type(e).__name__
+    error_msg = str(e)
     context_str = f" while {context}" if context else ""
-    
-    if "authentication" in str(e).lower() or "api key" in str(e).lower():
+
+    # Log the full error internally for debugging
+    logging.error(f"API Error{context_str}: {error_type} - {error_msg}")
+
+    # Sanitize: remove potential sensitive data from error messages
+    # Remove file paths
+    sanitized_msg = re.sub(r'[/\\][\w/\\.-]+\.(py|json|env|key|pem)', '[path]', error_msg)
+    # Remove potential credentials/keys
+    sanitized_msg = re.sub(r'[a-zA-Z0-9]{20,}', '[redacted]', sanitized_msg)
+    # Remove IP addresses
+    sanitized_msg = re.sub(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', '[ip]', sanitized_msg)
+
+    # Return user-friendly messages for known error types
+    if "authentication" in error_msg.lower() or "api key" in error_msg.lower():
         return f"Error{context_str}: Authentication failed. Please verify your API keys are configured correctly in the .env file."
-    elif "rate limit" in str(e).lower():
+    elif "rate limit" in error_msg.lower():
         return f"Error{context_str}: Rate limit exceeded. Please wait a moment before retrying."
-    elif "timeout" in str(e).lower():
+    elif "timeout" in error_msg.lower():
         return f"Error{context_str}: Request timed out. The exchange may be experiencing high load."
-    elif "not found" in str(e).lower():
+    elif "not found" in error_msg.lower():
         return f"Error{context_str}: Resource not found. Please verify the identifier is correct."
+    elif "connection" in error_msg.lower():
+        return f"Error{context_str}: Connection failed. Please check your network and try again."
+    elif "permission" in error_msg.lower() or "forbidden" in error_msg.lower():
+        return f"Error{context_str}: Permission denied. Your API key may lack required permissions."
     else:
-        return f"Error{context_str}: {error_type} - {str(e)}"
+        # For unknown errors, return sanitized message (limit length)
+        truncated_msg = sanitized_msg[:100] + "..." if len(sanitized_msg) > 100 else sanitized_msg
+        return f"Error{context_str}: {error_type} - {truncated_msg}"
 
 
 # =============================================================================
@@ -647,8 +717,22 @@ async def app_lifespan(app):
     """Manage resources that persist across requests."""
     global _aggregator
 
+    # SECURITY: Default to paper trading mode for safety
+    # Live trading requires explicit TRADING_MODE=live environment variable
+    trading_mode = os.getenv("TRADING_MODE", "confirm").lower()
+    is_live = trading_mode == "live"
+
+    # If PAPER_TRADING is explicitly set to "false" AND TRADING_MODE is "live", allow live
+    # Otherwise default to paper/confirm mode for safety
+    paper_trading = True  # Safe default
+    if trading_mode == "live" and os.getenv("PAPER_TRADING", "true").lower() == "false":
+        paper_trading = False
+    elif os.getenv("PAPER_TRADING", "true").lower() == "true":
+        paper_trading = True
+
     config = {
-        "paper_trading": os.getenv("PAPER_TRADING", "false").lower() == "true",
+        "paper_trading": paper_trading,
+        "trading_mode": trading_mode,
         "exchanges_configured": [],
         "wallets_configured": [],
         "use_real_data": False
@@ -659,17 +743,39 @@ async def app_lifespan(app):
         try:
             _aggregator = PortfolioAggregator()
             config["exchanges_configured"] = list(_aggregator.exchanges.keys())
+            config["wallets_configured"] = list(_aggregator.wallets.keys()) if _aggregator.wallets else []
+            config["manual_sources_configured"] = list(_aggregator.manual_holdings.keys()) if _aggregator.manual_holdings else []
             config["use_real_data"] = len(_aggregator.exchanges) > 0
         except Exception as e:
             print(f"Warning: Failed to initialize portfolio aggregator: {e}")
             _aggregator = None
 
-    # Fallback: Check environment variables
+    # Fallback: Check environment variables and key files
     if not config["exchanges_configured"]:
         for exchange in SUPPORTED_EXCHANGES:
             key_var = f"{exchange.upper().replace('.', '_')}_API_KEY"
             if os.getenv(key_var):
                 config["exchanges_configured"].append(exchange)
+
+        # Check for Kraken key files if not already detected
+        if "kraken" not in config["exchanges_configured"]:
+            kraken_dir = Path.home() / ".config" / "kraken"
+            if kraken_dir.is_dir() and any(kraken_dir.glob("*_api_key.json")):
+                config["exchanges_configured"].append("kraken")
+
+    # Initialize transaction history with cached data
+    global _transaction_history
+    if TRANSACTION_HISTORY_AVAILABLE:
+        try:
+            _transaction_history = TransactionHistory()
+            loaded = _transaction_history.load()
+            if loaded:
+                config["transaction_history_loaded"] = len(_transaction_history.transactions)
+            else:
+                config["transaction_history_loaded"] = 0
+        except Exception as e:
+            print(f"Warning: Failed to initialize transaction history: {e}")
+            _transaction_history = None
 
     yield {"config": config}
 
@@ -715,7 +821,7 @@ async def crypto_portfolio_summary(params: PortfolioSummaryInput) -> str:
     try:
         # Use real data if aggregator is available
         if _aggregator and _aggregator.exchanges:
-            raw_data = _aggregator.get_combined_portfolio()
+            raw_data = await _aggregator.get_combined_portfolio()
 
             if params.response_format == ResponseFormat.JSON:
                 raw_data['data_source'] = 'live'
@@ -724,19 +830,34 @@ async def crypto_portfolio_summary(params: PortfolioSummaryInput) -> str:
             # Format real data as markdown
             total_value = raw_data.get('total_value_usd', 0)
             total_staked = raw_data.get('total_staked_usd', 0)
+            wallets_total = raw_data.get('wallets_total_usd', 0)
+            manual_total = raw_data.get('manual_total_usd', 0)
+
+            # Count data sources
+            num_exchanges = len(raw_data.get('exchanges', {}))
+            num_wallets = len(raw_data.get('wallets', {}))
+            num_manual = len(raw_data.get('manual_sources', {}))
+            source_parts = []
+            if num_exchanges:
+                source_parts.append(f"{num_exchanges} exchanges")
+            if num_wallets:
+                source_parts.append(f"{num_wallets} wallets")
+            if num_manual:
+                source_parts.append(f"{num_manual} manual sources")
+            source_desc = ", ".join(source_parts) if source_parts else "no sources"
 
             md = f"""# Portfolio Summary (LIVE DATA)
 
 **Last Updated:** {raw_data.get('timestamp', datetime.utcnow().isoformat())}
-**Data Source:** Live from {len(raw_data.get('exchanges', {}))} exchanges
+**Data Source:** Live from {source_desc}
 
 ## Total Value
 - **Portfolio Value:** {format_currency(total_value)}
 - **Total Staked:** {format_currency(total_staked)}
 
 ## Top Holdings by Asset
-| Asset | Total Amount | Value (USD) | Exchanges |
-|-------|--------------|-------------|-----------|
+| Asset | Total Amount | Value (USD) | Sources |
+|-------|--------------|-------------|---------|
 """
             # Show top 15 assets
             for asset in raw_data.get('assets_summary', [])[:15]:
@@ -745,9 +866,8 @@ async def crypto_portfolio_summary(params: PortfolioSummaryInput) -> str:
                 total_val = asset.get('total_value_usd', 0)
                 if total_val < 0.01:
                     continue
-                exchanges = ", ".join([e.get('exchange', '')[:8] for e in asset.get('exchanges', [])])
-                allocation = (total_val / total_value * 100) if total_value > 0 else 0
-                md += f"| {currency} | {total_bal:.6f} | {format_currency(total_val)} | {exchanges} |\n"
+                sources = ", ".join([e.get('exchange', '')[:10] for e in asset.get('exchanges', [])])
+                md += f"| {currency} | {total_bal:.6f} | {format_currency(total_val)} | {sources} |\n"
 
             md += f"""
 ## Holdings by Exchange
@@ -760,6 +880,37 @@ async def crypto_portfolio_summary(params: PortfolioSummaryInput) -> str:
                 count = len(ex_data.get('holdings', []))
                 staked = ex_data.get('total_staked_usd', 0)
                 md += f"| {name} | {format_currency(value)} | {count} | {format_currency(staked)} |\n"
+
+            # On-chain wallets section
+            wallets_data = raw_data.get('wallets', {})
+            if wallets_data:
+                md += f"""
+## On-Chain Wallets ({format_currency(wallets_total)})
+| Wallet | Value (USD) | Tokens |
+|--------|-------------|--------|
+"""
+                for label, w_data in wallets_data.items():
+                    w_value = w_data.get('total_value_usd', 0)
+                    w_count = len(w_data.get('holdings', []))
+                    if w_data.get('error'):
+                        md += f"| {label} | Error | - |\n"
+                    else:
+                        md += f"| {label} | {format_currency(w_value)} | {w_count} |\n"
+
+            # Manual holdings section
+            manual_data = raw_data.get('manual_sources', {})
+            if manual_data:
+                md += f"""
+## Manual Holdings ({format_currency(manual_total)})
+| Source | Value (USD) | Assets | Last Updated |
+|--------|-------------|--------|--------------|
+"""
+                for src_id, m_data in manual_data.items():
+                    m_label = m_data.get('label', src_id)
+                    m_value = m_data.get('total_value_usd', 0)
+                    m_count = len(m_data.get('holdings', []))
+                    m_updated = m_data.get('last_updated', 'unknown')
+                    md += f"| {m_label} | {format_currency(m_value)} | {m_count} | {m_updated} |\n"
 
             if params.include_staking and total_staked > 0:
                 md += f"\n## Staking Summary\n- **Total Staked:** {format_currency(total_staked)}\n"
@@ -840,14 +991,18 @@ async def crypto_exchange_holdings(params: ExchangeHoldingsInput) -> str:
     try:
         # Use real data if aggregator is available
         if _aggregator and _aggregator.exchanges:
-            raw_data = _aggregator.get_combined_portfolio()
+            raw_data = await _aggregator.get_combined_portfolio()
 
             # Filter by exchange if specified
             if params.exchange != Exchange.ALL:
                 exchange_key = params.exchange.value.replace('.', '_')
-                if exchange_key not in raw_data.get('exchanges', {}):
+                # Match exact key or sub-accounts (e.g. "kraken" matches "kraken_business", "kraken_personal")
+                exchanges_data = {
+                    k: v for k, v in raw_data.get('exchanges', {}).items()
+                    if k == exchange_key or k.startswith(exchange_key + "_")
+                }
+                if not exchanges_data:
                     return f"Exchange '{params.exchange.value}' not configured or has no holdings."
-                exchanges_data = {exchange_key: raw_data['exchanges'][exchange_key]}
             else:
                 exchanges_data = raw_data.get('exchanges', {})
 
@@ -946,7 +1101,7 @@ async def crypto_staking_positions(params: StakingPositionsInput) -> str:
     try:
         # Use real data if aggregator is available
         if _aggregator and _aggregator.exchanges:
-            raw_data = _aggregator.get_combined_portfolio()
+            raw_data = await _aggregator.get_combined_portfolio()
 
             # Extract staking positions from holdings
             staking_positions = []
@@ -958,7 +1113,7 @@ async def crypto_staking_positions(params: StakingPositionsInput) -> str:
                 # Filter by exchange if specified
                 if params.exchange != Exchange.ALL:
                     exchange_key = params.exchange.value.replace('.', '_')
-                    if ex_id != exchange_key:
+                    if ex_id != exchange_key and not ex_id.startswith(exchange_key + "_"):
                         continue
 
                 for h in ex_data.get('holdings', []):
@@ -1404,10 +1559,10 @@ async def crypto_arbitrage_opportunities(params: ArbitrageOpportunitiesInput) ->
 )
 async def crypto_transaction_history(params: TransactionHistoryInput) -> str:
     """Get transaction history with filtering and pagination.
-    
-    Retrieves transaction records including buys, sells, transfers, staking
-    operations, and rewards with optional filtering.
-    
+
+    Retrieves real transaction records imported from exchange CSV/XLSX exports
+    including buys, sells, transfers, staking operations, and rewards.
+
     Args:
         params (TransactionHistoryInput): Query parameters including:
             - exchange (str): Exchange filter
@@ -1416,63 +1571,199 @@ async def crypto_transaction_history(params: TransactionHistoryInput) -> str:
             - start_date/end_date (str): Date range
             - limit/offset (int): Pagination
             - response_format (str): 'markdown' or 'json'
-    
+
     Returns:
         str: Transaction history in requested format with pagination info
     """
     try:
-        # Mock transaction data
-        transactions = [
-            {"id": "tx001", "type": "buy", "asset": "BTC", "amount": 0.5, "price": 45000.00, "total_usd": 22500.00, "exchange": "coinbase", "timestamp": "2024-01-15T10:30:00Z"},
-            {"id": "tx002", "type": "stake", "asset": "ETH", "amount": 5.0, "exchange": "coinbase", "timestamp": "2024-01-20T14:00:00Z"},
-            {"id": "tx003", "type": "reward", "asset": "ETH", "amount": 0.05, "value_usd": 137.50, "exchange": "coinbase", "timestamp": "2024-02-01T00:00:00Z"},
-            {"id": "tx004", "type": "buy", "asset": "SOL", "amount": 50.0, "price": 98.00, "total_usd": 4900.00, "exchange": "kraken", "timestamp": "2024-02-10T09:15:00Z"},
-            {"id": "tx005", "type": "transfer", "asset": "USDC", "amount": 5000.00, "from": "coinbase", "to": "0x742d...f8e2", "timestamp": "2024-02-15T16:45:00Z"},
-        ]
-        
-        # Apply filters
-        if params.tx_type:
-            transactions = [tx for tx in transactions if tx['type'] == params.tx_type]
-        if params.asset:
-            transactions = [tx for tx in transactions if tx['asset'] == params.asset.upper()]
+        if _transaction_history is None or not _transaction_history.transactions:
+            return "No transaction history loaded. Use crypto_import_transactions to import exchange CSV/XLSX exports."
+
+        # Filter transactions
+        filtered = list(_transaction_history.transactions)
+
         if params.exchange != Exchange.ALL:
-            transactions = [tx for tx in transactions if tx.get('exchange') == params.exchange.value]
-        
-        total = len(transactions)
-        transactions = transactions[params.offset:params.offset + params.limit]
-        
+            exchange_name_map = {
+                "coinbase": "Coinbase",
+                "coinbase_gti": "Coinbase",
+                "kraken": "Kraken",
+                "crypto.com": "Crypto.com",
+                "gemini": "Gemini",
+            }
+            target = exchange_name_map.get(params.exchange.value, params.exchange.value)
+            filtered = [tx for tx in filtered if tx.exchange == target]
+
+        if params.asset:
+            asset_upper = params.asset.upper()
+            filtered = [tx for tx in filtered if tx.asset == asset_upper]
+
+        if params.tx_type:
+            # Map MCP filter values to internal types
+            type_aliases = {
+                "buy": ("buy",),
+                "sell": ("sell",),
+                "transfer": ("transfer_in", "transfer_out"),
+                "stake": ("stake",),
+                "unstake": ("transfer_in",),
+                "reward": ("staking_reward", "reward"),
+            }
+            allowed = type_aliases.get(params.tx_type, (params.tx_type,))
+            filtered = [tx for tx in filtered if tx.type in allowed]
+
+        if params.start_date:
+            start = datetime.strptime(params.start_date, "%Y-%m-%d")
+            filtered = [tx for tx in filtered if tx.timestamp >= start]
+
+        if params.end_date:
+            end = datetime.strptime(params.end_date, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59
+            )
+            filtered = [tx for tx in filtered if tx.timestamp <= end]
+
+        total = len(filtered)
+        page = filtered[params.offset:params.offset + params.limit]
+
+        transactions_out = []
+        for tx in page:
+            transactions_out.append({
+                "id": tx.id,
+                "type": tx.type,
+                "asset": tx.asset,
+                "amount": tx.amount,
+                "price_usd": tx.price_usd,
+                "total_usd": tx.total_usd,
+                "fee_usd": tx.fee_usd,
+                "exchange": tx.exchange,
+                "timestamp": tx.timestamp.isoformat() + "Z",
+            })
+
         data = {
             "total": total,
-            "count": len(transactions),
+            "count": len(transactions_out),
             "offset": params.offset,
             "limit": params.limit,
-            "has_more": total > params.offset + len(transactions),
-            "next_offset": params.offset + len(transactions) if total > params.offset + len(transactions) else None,
-            "transactions": transactions
+            "has_more": total > params.offset + len(transactions_out),
+            "next_offset": params.offset + len(transactions_out) if total > params.offset + len(transactions_out) else None,
+            "transactions": transactions_out
         }
-        
+
         if params.response_format == ResponseFormat.JSON:
             return json.dumps(data, indent=2)
-        
+
         md = f"""# Transaction History
 
 **Total:** {data['total']} transactions
 **Showing:** {data['count']} (offset: {data['offset']})
 
-| Date | Type | Asset | Amount | Exchange |
-|------|------|-------|--------|----------|
+| Date | Type | Asset | Amount | Price USD | Total USD | Exchange |
+|------|------|-------|--------|-----------|-----------|----------|
 """
-        for tx in transactions:
+        for tx in transactions_out:
             date = tx['timestamp'][:10]
-            md += f"| {date} | {tx['type']} | {tx['asset']} | {tx['amount']:.4f} | {tx.get('exchange', 'N/A')} |\n"
-        
+            price_str = f"${tx['price_usd']:,.2f}" if tx['price_usd'] else "N/A"
+            total_str = f"${tx['total_usd']:,.2f}" if tx['total_usd'] else "N/A"
+            md += f"| {date} | {tx['type']} | {tx['asset']} | {tx['amount']:.6f} | {price_str} | {total_str} | {tx['exchange']} |\n"
+
         if data['has_more']:
             md += f"\n*More transactions available. Use offset={data['next_offset']} to see next page.*\n"
-        
+
         return md
-        
+
     except Exception as e:
         return handle_api_error(e, "fetching transaction history")
+
+
+@mcp.tool(
+    name="crypto_import_transactions",
+    annotations={
+        "title": "Import Transaction History",
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+async def crypto_import_transactions(params: ImportTransactionsInput) -> str:
+    """Import transaction history from exchange CSV/XLSX export files.
+
+    Parses export files from Coinbase, Kraken, Gemini, and Crypto.com,
+    merges with existing data, deduplicates, and rebuilds tax lots.
+    Data is persisted to ~/.crypto_portfolio/transaction_history.json.
+
+    Args:
+        params (ImportTransactionsInput): Import parameters including:
+            - file_paths (list): Paths to CSV/XLSX files to import
+            - exchange (str): Force parser type (auto-detected if omitted)
+            - response_format (str): 'markdown' or 'json'
+
+    Returns:
+        str: Import summary with record counts per file and exchange
+    """
+    try:
+        global _transaction_history
+
+        if _transaction_history is None:
+            if not TRANSACTION_HISTORY_AVAILABLE:
+                return "Error: TransactionHistory module not available."
+            _transaction_history = TransactionHistory()
+            _transaction_history.load()
+
+        # Validate files exist
+        missing = [f for f in params.file_paths if not os.path.isfile(f)]
+        if missing:
+            return f"Error: Files not found: {', '.join(missing)}"
+
+        summary = _transaction_history.import_from_files(
+            params.file_paths,
+            exchange_override=params.exchange
+        )
+
+        # Save after import
+        _transaction_history.save()
+
+        if params.response_format == ResponseFormat.JSON:
+            return json.dumps(summary, indent=2)
+
+        md = "# Transaction Import Summary\n\n"
+        md += f"**Files processed:** {summary['files_processed']}\n"
+        md += f"**Total raw records:** {summary['total_raw']}\n"
+        md += f"**After dedup:** {summary['total_deduped']}\n"
+        md += f"**Newly added:** {summary.get('newly_added', 'N/A')}\n"
+        md += f"**Total in database:** {summary.get('total_after_merge', 'N/A')}\n\n"
+
+        if summary.get("date_range", {}).get("earliest"):
+            md += f"**Date range:** {summary['date_range']['earliest'][:10]} to {summary['date_range']['latest'][:10]}\n\n"
+
+        if summary.get("per_file"):
+            md += "## Per File\n\n"
+            md += "| File | Records |\n|------|--------|\n"
+            for fname, count in summary["per_file"].items():
+                md += f"| {fname} | {count:,} |\n"
+            md += "\n"
+
+        if summary.get("per_exchange"):
+            md += "## Per Exchange\n\n"
+            md += "| Exchange | Records |\n|----------|--------|\n"
+            for exchange, count in summary["per_exchange"].items():
+                md += f"| {exchange} | {count:,} |\n"
+            md += "\n"
+
+        if summary.get("per_type"):
+            md += "## Per Type\n\n"
+            md += "| Type | Records |\n|------|--------|\n"
+            for tx_type, count in sorted(summary["per_type"].items()):
+                md += f"| {tx_type} | {count:,} |\n"
+            md += "\n"
+
+        if summary.get("files_failed"):
+            md += "## Failed Files\n\n"
+            for fail in summary["files_failed"]:
+                md += f"- **{fail['file']}**: {fail['error']}\n"
+
+        return md
+
+    except Exception as e:
+        return handle_api_error(e, "importing transactions")
 
 
 @mcp.tool(
@@ -1775,6 +2066,262 @@ export OPENAI_API_KEY="your-api-key"
 
     except Exception as e:
         return handle_api_error(e, f"executing Cronos query on {params.chain.value}")
+
+
+# =============================================================================
+# SYSTEM STATUS TOOL
+# =============================================================================
+
+
+class SystemStatusInput(BaseModel):
+    """Input parameters for system status check."""
+    model_config = ConfigDict(extra="forbid")
+
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN,
+        description="Output format: 'markdown' for human-readable, 'json' for programmatic use"
+    )
+    include_tools: bool = Field(
+        default=False,
+        description="Include list of available MCP tools"
+    )
+
+
+@mcp.tool(
+    name="crypto_system_status",
+    annotations={
+        "title": "Get System Status",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+async def crypto_system_status(params: SystemStatusInput) -> str:
+    """Get comprehensive status of the crypto portfolio system.
+
+    Reports on:
+    - Available exchanges and their configuration status
+    - Feature availability (DeFi, staking, trading, etc.)
+    - Available MCP tools
+    - System warnings and errors
+    - Configuration recommendations
+
+    Use this tool to understand what capabilities are available and
+    diagnose configuration issues.
+
+    Args:
+        params (SystemStatusInput): Query parameters including:
+            - response_format (str): 'markdown' or 'json'
+            - include_tools (bool): Include tool availability list
+
+    Returns:
+        str: System status report in requested format
+    """
+    if not STARTUP_VALIDATION_AVAILABLE:
+        return "System validation module not available. Check startup_validation.py."
+
+    try:
+        if params.response_format == ResponseFormat.JSON:
+            status = get_system_status()
+            if not params.include_tools:
+                status.pop("tools", None)
+            return json.dumps(status, indent=2, default=str)
+        else:
+            return get_system_status_markdown()
+
+    except Exception as e:
+        return f"Error getting system status: {str(e)}"
+
+
+# =============================================================================
+# GTI VIRTUAL ETF TOOLS
+# =============================================================================
+
+
+class ETFStatusInput(BaseModel):
+    """Input for getting ETF status."""
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN,
+        description="Output format: 'markdown' or 'json'"
+    )
+
+
+class ETFRebalanceInput(BaseModel):
+    """Input for generating ETF rebalance orders."""
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    fear_greed_override: Optional[int] = Field(
+        default=None,
+        description="Override Fear & Greed index value (0-100). If not provided, fetches live.",
+        ge=0,
+        le=100
+    )
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN,
+        description="Output format: 'markdown' or 'json'"
+    )
+
+
+async def _get_fear_greed() -> int:
+    """Fetch current Fear & Greed index."""
+    import aiohttp
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                "https://api.alternative.me/fng/",
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                data = await resp.json()
+                return int(data['data'][0]['value'])
+    except Exception:
+        return 50
+
+
+async def _get_etf_portfolio_data():
+    """Get holdings and prices from the portfolio aggregator for ETF calculations."""
+    if not _aggregator or not _aggregator.exchanges:
+        return {}, {}
+
+    raw_data = await _aggregator.get_combined_portfolio()
+
+    # Build holdings_by_symbol and prices from aggregator data
+    holdings_by_symbol = {}
+    for asset_data in raw_data.get('assets_summary', []):
+        symbol = asset_data.get('currency', '')
+        total_bal = asset_data.get('total_balance', 0)
+        if total_bal > 0 and symbol:
+            from decimal import Decimal as D
+            holdings_by_symbol[symbol] = D(str(total_bal))
+
+    # Fetch prices for ETF assets
+    if PORTFOLIO_AGGREGATOR_AVAILABLE:
+        etf_symbols = list(ETF_ASSETS.keys()) if ETF_AVAILABLE else []
+        all_symbols = list(set(list(holdings_by_symbol.keys()) + etf_symbols))
+        prices = await _aggregator._fetch_prices(all_symbols)
+        from decimal import Decimal as D
+        prices_decimal = {k: D(str(v)) for k, v in prices.items()}
+        # Stablecoins
+        for stable in ('USDC', 'USDT', 'DAI'):
+            prices_decimal.setdefault(stable, D('1'))
+    else:
+        prices_decimal = {}
+
+    return holdings_by_symbol, prices_decimal
+
+
+@mcp.tool(
+    name="crypto_etf_status",
+    annotations={
+        "title": "Get GTI Virtual ETF Status",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True
+    }
+)
+async def crypto_etf_status(params: ETFStatusInput) -> str:
+    """Get the current status of the GTI Virtual ETF (50+1 assets).
+
+    Shows NAV, allocation drift per asset and category, war chest status,
+    and performance metrics. Use this to understand how the ETF portfolio
+    compares to target allocations.
+
+    Args:
+        params (ETFStatusInput): Query parameters including:
+            - response_format (str): 'markdown' or 'json'
+
+    Returns:
+        str: ETF status in requested format
+    """
+    if not ETF_AVAILABLE:
+        return "ETF module not available. Check etf_config.py and etf_manager.py."
+
+    try:
+        etf = GTIVirtualETF()
+
+        holdings, prices = await _get_etf_portfolio_data()
+        fear_greed = await _get_fear_greed()
+
+        if not holdings and not prices:
+            return "No portfolio data available. Check exchange connections."
+
+        status = etf.get_etf_status(holdings, prices, fear_greed)
+
+        if params.response_format == ResponseFormat.JSON:
+            return json.dumps(etf.format_status_json(status), indent=2, default=str)
+
+        return etf.format_status_markdown(status)
+
+    except Exception as e:
+        return handle_api_error(e, "fetching ETF status")
+
+
+@mcp.tool(
+    name="crypto_etf_rebalance",
+    annotations={
+        "title": "Generate ETF Rebalance Orders",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True
+    }
+)
+async def crypto_etf_rebalance(params: ETFRebalanceInput) -> str:
+    """Generate recommended DCA orders to rebalance the GTI Virtual ETF.
+
+    Analyzes current allocations vs targets and produces a list of buy orders
+    prioritizing underweight assets. In fear conditions, also generates war
+    chest deployment orders.
+
+    Args:
+        params (ETFRebalanceInput): Query parameters including:
+            - fear_greed_override (int): Optional F&G override (0-100)
+            - response_format (str): 'markdown' or 'json'
+
+    Returns:
+        str: Rebalance order list in requested format
+    """
+    if not ETF_AVAILABLE:
+        return "ETF module not available. Check etf_config.py and etf_manager.py."
+
+    try:
+        etf = GTIVirtualETF()
+
+        holdings, prices = await _get_etf_portfolio_data()
+        fear_greed = params.fear_greed_override if params.fear_greed_override is not None else await _get_fear_greed()
+
+        if not holdings and not prices:
+            return "No portfolio data available. Check exchange connections."
+
+        allocations = etf.calculate_allocations(holdings, prices)
+        orders = etf.generate_dca_orders(allocations, fear_greed)
+
+        if params.response_format == ResponseFormat.JSON:
+            return json.dumps({
+                "fear_greed": fear_greed,
+                "war_chest_rule": get_war_chest_rule(fear_greed).label,
+                "total_order_usd": str(sum(o.amount_usd for o in orders)),
+                "order_count": len(orders),
+                "orders": [
+                    {
+                        "symbol": o.symbol,
+                        "exchange": o.exchange.value,
+                        "amount_usd": str(o.amount_usd),
+                        "category": o.category.value,
+                        "reason": o.reason,
+                        "priority": o.priority,
+                    }
+                    for o in orders
+                ],
+            }, indent=2, default=str)
+
+        return etf.format_orders_markdown(orders)
+
+    except Exception as e:
+        return handle_api_error(e, "generating ETF rebalance orders")
 
 
 # =============================================================================
