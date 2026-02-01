@@ -39,18 +39,40 @@ STANDARD_TO_KRAKEN = {
 }
 
 
+STAKING_SUFFIXES = (".S", ".B", ".M", ".P")
+
+# Numbered staking assets: Kraken appends 2-digit numbers (e.g. GRT28, FLOW14, KAVA21)
+import re
+_NUMBERED_STAKING_RE = re.compile(r'^([A-Z]+)\d{2,3}$')
+
+
 def normalize_symbol(kraken_symbol: str) -> str:
     """Convert Kraken symbol to standard symbol."""
-    # Remove leading X or Z for major currencies
     if kraken_symbol in KRAKEN_SYMBOL_MAP:
         return KRAKEN_SYMBOL_MAP[kraken_symbol]
-    
-    # Handle .S suffix for staked assets
-    if kraken_symbol.endswith(".S"):
-        base = kraken_symbol[:-2]
-        return normalize_symbol(base)
-    
+
+    # Handle staking suffixes: .S, .B, .M, .P
+    for suffix in STAKING_SUFFIXES:
+        if kraken_symbol.endswith(suffix):
+            base = kraken_symbol[:-len(suffix)]
+            return normalize_symbol(base)
+
+    # Handle numbered staking assets (e.g. GRT28 -> GRT, FLOW14 -> FLOW)
+    m = _NUMBERED_STAKING_RE.match(kraken_symbol)
+    if m:
+        return normalize_symbol(m.group(1))
+
     return kraken_symbol
+
+
+def is_staked_symbol(kraken_symbol: str) -> bool:
+    """Check if a Kraken symbol represents a staked asset."""
+    for suffix in STAKING_SUFFIXES:
+        if kraken_symbol.endswith(suffix):
+            return True
+    if _NUMBERED_STAKING_RE.match(kraken_symbol):
+        return True
+    return False
 
 
 def to_kraken_symbol(standard_symbol: str) -> str:
@@ -149,11 +171,11 @@ class KrakenClient(ExchangeClient):
             amount = Decimal(str(amount))
             if amount <= 0:
                 continue
-            
-            # Check if this is a staked asset
-            if kraken_symbol.endswith(".S"):
+
+            # Check if this is a staked asset (.S, .B, .M, .P, or numbered like GRT28)
+            if is_staked_symbol(kraken_symbol):
                 base_symbol = normalize_symbol(kraken_symbol)
-                staked_balances[base_symbol] = amount
+                staked_balances[base_symbol] = staked_balances.get(base_symbol, Decimal("0")) + amount
             else:
                 symbol = normalize_symbol(kraken_symbol)
                 if symbol not in balances:
