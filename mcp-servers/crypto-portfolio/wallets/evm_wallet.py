@@ -460,6 +460,122 @@ class EVMWalletTracker:
         
         return summaries
     
+    async def discover_related_wallets(
+        self,
+        min_transfers: int = 1,
+        exclude_known: bool = True,
+    ) -> Dict[str, dict]:
+        """Trace outgoing transfers from known wallets to discover related addresses.
+
+        Uses Alchemy's getAssetTransfers to find destination addresses that are
+        likely other wallets owned by the same person.
+
+        Args:
+            min_transfers: Minimum transfers to an address to include it.
+            exclude_known: Whether to exclude already-tracked addresses.
+
+        Returns:
+            Dict of address -> {
+                'sent_from': list of source wallets,
+                'transfer_count': total transfers received,
+                'chains': chains where transfers were seen,
+                'has_balance': whether the address currently holds funds,
+                'native_balance': current native token balance,
+            }
+        """
+        if not self.alchemy_api_key:
+            raise ValueError("Alchemy API key required for transfer tracing")
+
+        candidates: Dict[str, dict] = {}
+        known_lower = set(a.lower() for a in self.addresses)
+
+        for source_addr in self.addresses:
+            for chain in self.chains:
+                config = CHAINS.get(chain)
+                if not config or not config.alchemy_network:
+                    continue
+
+                url = f"https://{config.alchemy_network}.g.alchemy.com/v2/{self.alchemy_api_key}"
+                session = await self._get_session()
+
+                # Fetch outgoing transfers (both ETH and ERC-20)
+                for category in [["external"], ["erc20"]]:
+                    payload = {
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "alchemy_getAssetTransfers",
+                        "params": [{
+                            "fromAddress": source_addr,
+                            "category": category,
+                            "order": "desc",
+                            "maxCount": "0x64",  # Last 100 transfers
+                            "withMetadata": True,
+                        }],
+                    }
+
+                    try:
+                        async with session.post(url, json=payload) as resp:
+                            data = await resp.json()
+
+                        transfers = data.get("result", {}).get("transfers", [])
+
+                        for tx in transfers:
+                            to_addr = tx.get("to", "").lower()
+                            if not to_addr or to_addr == "0x" + "0" * 40:
+                                continue
+
+                            # Skip known exchange hot wallets and common contracts
+                            if to_addr in known_lower and exclude_known:
+                                continue
+
+                            if to_addr not in candidates:
+                                candidates[to_addr] = {
+                                    'sent_from': [],
+                                    'transfer_count': 0,
+                                    'chains': set(),
+                                    'sample_txns': [],
+                                }
+
+                            candidates[to_addr]['transfer_count'] += 1
+                            candidates[to_addr]['chains'].add(chain)
+
+                            source_label = source_addr[:8]
+                            if source_label not in candidates[to_addr]['sent_from']:
+                                candidates[to_addr]['sent_from'].append(source_label)
+
+                            if len(candidates[to_addr]['sample_txns']) < 3:
+                                candidates[to_addr]['sample_txns'].append({
+                                    'from': source_addr[:10],
+                                    'chain': chain,
+                                    'asset': tx.get("asset", "?"),
+                                    'value': tx.get("value"),
+                                })
+
+                    except Exception as e:
+                        import logging
+                        logging.warning(f"Transfer trace failed for {source_addr[:10]} on {chain}: {e}")
+
+        # Filter by minimum transfers and check balances
+        filtered = {}
+        for addr, info in candidates.items():
+            if info['transfer_count'] < min_transfers:
+                continue
+
+            # Check if this address has any balance on ethereum
+            try:
+                balance = await self.get_native_balance(addr, "ethereum")
+                info['has_balance'] = balance > 0
+                info['native_balance'] = float(balance)
+            except Exception:
+                info['has_balance'] = False
+                info['native_balance'] = 0
+
+            info['chains'] = list(info['chains'])
+            filtered[addr] = info
+
+        # Sort by transfer count descending
+        return dict(sorted(filtered.items(), key=lambda x: -x[1]['transfer_count']))
+
     async def close(self):
         """Close the session."""
         if self._session:
