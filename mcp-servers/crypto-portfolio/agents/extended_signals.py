@@ -34,6 +34,7 @@ class SignalStrength(Enum):
     NEUTRAL = 0
     BUY = 1
     STRONG_BUY = 2
+    UNAVAILABLE = -99
 
 
 @dataclass
@@ -51,6 +52,72 @@ class Signal:
     @property
     def weighted_score(self) -> float:
         return self.signal.value * self.weight
+
+
+@dataclass
+class SignalResult:
+    """Individual signal result (unified interface for both analyzers)."""
+    name: str
+    category: str
+    value: Optional[float]
+    signal: SignalStrength
+    score: int  # -2 to +2
+    weight: float
+    description: str
+    details: Dict[str, Any] = field(default_factory=dict)
+    timestamp: datetime = field(default_factory=datetime.now)
+
+    @classmethod
+    def from_signal(cls, s: "Signal") -> "SignalResult":
+        """Convert a Signal to a SignalResult."""
+        return cls(
+            name=s.name,
+            category=s.category,
+            value=s.value,
+            signal=s.signal,
+            score=s.signal.value if s.signal != SignalStrength.UNAVAILABLE else 0,
+            weight=s.weight,
+            description=s.description,
+            details={"data_source": s.data_source},
+            timestamp=s.timestamp,
+        )
+
+
+@dataclass
+class BaseCategorySummary:
+    """Summary for a category of base signals."""
+    name: str
+    signals: List[SignalResult]
+    avg_score: float
+    weighted_score: float
+    bullish_count: int
+    bearish_count: int
+    neutral_count: int
+    unavailable_count: int
+
+
+@dataclass
+class ComprehensiveSignalAnalysis:
+    """Complete analysis from the base 60 signals."""
+    timestamp: datetime
+    asset: str
+
+    # Category summaries
+    technical: BaseCategorySummary
+    sentiment: BaseCategorySummary
+    onchain: BaseCategorySummary
+    derivatives: BaseCategorySummary
+    macro: BaseCategorySummary
+    institutional: BaseCategorySummary
+
+    # Scores
+    total_signals: int
+    available_signals: int
+    composite_score: float
+    signal_strength: SignalStrength
+
+    # All signals
+    all_signals: List[SignalResult] = field(default_factory=list)
 
 
 # =============================================================================
@@ -1262,6 +1329,75 @@ class ExtendedSignalsAnalyzer:
             signal = SignalStrength.NEUTRAL
 
         return composite_scaled, signal, all_signals
+
+    async def analyze(self, asset: str = "BTC") -> ComprehensiveSignalAnalysis:
+        """Run full analysis and return structured result."""
+        composite_scaled, signal_strength, all_signals = await self.get_composite_score([asset])
+
+        # Convert Signal objects to SignalResult
+        all_results = [SignalResult.from_signal(s) for s in all_signals]
+
+        # Group by category
+        CATEGORY_MAP = {
+            "derivatives": "derivatives",
+            "on-chain": "onchain",
+            "on_chain": "onchain",
+            "sentiment": "sentiment",
+            "macro": "macro",
+            "institutional": "institutional",
+            "technical": "technical",
+            "mining": "technical",
+        }
+
+        grouped: Dict[str, List[SignalResult]] = {
+            "technical": [],
+            "sentiment": [],
+            "onchain": [],
+            "derivatives": [],
+            "macro": [],
+            "institutional": [],
+        }
+
+        for sr in all_results:
+            cat = CATEGORY_MAP.get(sr.category, "technical")
+            grouped[cat].append(sr)
+
+        def _make_summary(name: str, signals: List[SignalResult]) -> BaseCategorySummary:
+            available = [s for s in signals if s.signal != SignalStrength.UNAVAILABLE]
+            bullish = sum(1 for s in available if s.score > 0)
+            bearish = sum(1 for s in available if s.score < 0)
+            neutral = sum(1 for s in available if s.score == 0)
+            unavailable = len(signals) - len(available)
+            if available:
+                avg = sum(s.score for s in available) / len(available)
+                tw = sum(s.weight for s in available)
+                ws = sum(s.score * s.weight for s in available) / tw if tw else 0
+            else:
+                avg = ws = 0
+            return BaseCategorySummary(
+                name=name, signals=signals, avg_score=avg,
+                weighted_score=ws, bullish_count=bullish,
+                bearish_count=bearish, neutral_count=neutral,
+                unavailable_count=unavailable,
+            )
+
+        available_count = sum(1 for s in all_results if s.signal != SignalStrength.UNAVAILABLE)
+
+        return ComprehensiveSignalAnalysis(
+            timestamp=datetime.now(),
+            asset=asset,
+            technical=_make_summary("Technical", grouped["technical"]),
+            sentiment=_make_summary("Sentiment", grouped["sentiment"]),
+            onchain=_make_summary("On-Chain", grouped["onchain"]),
+            derivatives=_make_summary("Derivatives", grouped["derivatives"]),
+            macro=_make_summary("Macro", grouped["macro"]),
+            institutional=_make_summary("Institutional", grouped["institutional"]),
+            total_signals=len(all_results),
+            available_signals=available_count,
+            composite_score=composite_scaled,
+            signal_strength=signal_strength,
+            all_signals=all_results,
+        )
 
     async def close(self):
         """Close the session."""
