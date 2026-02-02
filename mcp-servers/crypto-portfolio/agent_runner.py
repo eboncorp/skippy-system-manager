@@ -435,15 +435,17 @@ class AgentRunner:
         self.scheduler.start()
         self._running = True
 
-        # Run first cycle immediately
-        if self.run_business and self.business_agent:
-            await self._run_business_cycle()
+        # Only run immediately in paper mode — live mode waits for schedule
+        agent_mode = os.environ.get("AGENT_MODE", "paper")
+        if agent_mode == "paper":
+            if self.run_business and self.business_agent:
+                await self._run_business_cycle()
 
-        if self.run_personal and self.personal_agent:
-            await self._run_personal_cycle()
+            if self.run_personal and self.personal_agent:
+                await self._run_personal_cycle()
 
-        self._cycle_count += 1
-        self._check_cycle_limit()
+            self._cycle_count += 1
+            self._check_cycle_limit()
 
         logger.info("Agent runner started. Waiting for scheduled cycles...")
 

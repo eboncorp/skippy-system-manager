@@ -2922,7 +2922,10 @@ async def crypto_generate_tax_report(params: TaxReportInput) -> str:
 
         # Generate file if PDF requested
         if params.format == "pdf":
-            output_dir = os.path.expanduser("~/skippy/work/crypto/tax_reports")
+            output_dir = os.environ.get(
+                "TAX_REPORT_DIR",
+                os.path.expanduser("~/skippy/work/crypto/tax_reports")
+            )
             os.makedirs(output_dir, exist_ok=True)
             pdf_path = os.path.join(
                 output_dir,

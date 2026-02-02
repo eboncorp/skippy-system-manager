@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 DCA_LOG_PATH = Path(os.environ.get(
     "DCA_LOG_PATH",
-    os.path.expanduser("~/skippy/work/crypto/dca_paper_log.json")
+    "/app/data/dca_paper_log.json"
 ))
 
 

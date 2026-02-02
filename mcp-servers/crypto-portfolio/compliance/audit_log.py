@@ -20,8 +20,9 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_AUDIT_LOG_PATH = os.path.expanduser(
-    "~/skippy/work/crypto/audit_log.json"
+DEFAULT_AUDIT_LOG_PATH = os.environ.get(
+    "AUDIT_LOG_PATH",
+    os.path.expanduser("~/skippy/work/crypto/audit_log.json")
 )
 
 
