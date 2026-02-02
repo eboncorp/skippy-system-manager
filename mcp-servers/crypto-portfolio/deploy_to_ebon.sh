@@ -283,6 +283,66 @@ cmd_logs() {
 }
 
 # ---------------------------------------------------------------------------
+# backup — dump postgres + copy agent data
+# ---------------------------------------------------------------------------
+cmd_backup() {
+    header "Database & Data Backup"
+    check_ssh
+
+    local TIMESTAMP
+    TIMESTAMP=$(date -u +%Y%m%d_%H%M%S)
+    local BACKUP_DIR="$APP_DIR/backups/$TIMESTAMP"
+
+    info "Creating backup directory..."
+    run_ebon "mkdir -p '$BACKUP_DIR'"
+
+    # PostgreSQL dump
+    info "Dumping PostgreSQL..."
+    if run_ebon "cd '$APP_DIR' && docker compose exec -T postgres pg_dump -U crypto crypto_portfolio | gzip > '$BACKUP_DIR/postgres.sql.gz'" 2>/dev/null; then
+        info "PostgreSQL dump complete"
+    else
+        warn "PostgreSQL dump failed (empty database?)"
+    fi
+
+    # Agent data (DCA log, NAV history, trade logs)
+    info "Copying agent data..."
+    run_ebon "cd '$APP_DIR' && docker compose cp agent-runner:/app/data/. '$BACKUP_DIR/agent_data/' 2>/dev/null || true"
+
+    # Show backup size
+    run_ebon "du -sh '$BACKUP_DIR'"
+
+    # Prune old backups (keep last 10)
+    info "Pruning old backups (keeping last 10)..."
+    run_ebon "cd '$APP_DIR/backups' && ls -1t | tail -n +11 | xargs -r rm -rf"
+
+    echo ""
+    info "Backup saved to $BACKUP_DIR"
+}
+
+# ---------------------------------------------------------------------------
+# init-db — create database tables
+# ---------------------------------------------------------------------------
+cmd_initdb() {
+    header "Initialize Database Tables"
+    check_ssh
+
+    info "Creating tables via SQLAlchemy..."
+    run_ebon "cd '$APP_DIR' && docker compose exec -T mcp-server python -c '
+from models import create_tables
+from sqlalchemy import create_engine
+import os
+url = os.environ.get(\"DATABASE_URL\", \"postgresql://crypto:cryptopass@postgres:5432/crypto_portfolio\")
+engine = create_engine(url)
+create_tables(engine)
+print(\"Tables created successfully\")
+'"
+
+    # Show created tables
+    info "Tables in database:"
+    run_ebon "cd '$APP_DIR' && docker compose exec -T postgres psql -U crypto -d crypto_portfolio -c '\dt'"
+}
+
+# ---------------------------------------------------------------------------
 # help
 # ---------------------------------------------------------------------------
 cmd_help() {
@@ -302,6 +362,8 @@ Commands:
   status     Show service status and health checks
   logs       Tail all logs (Ctrl+C to exit)
   logs <svc> Tail specific service (mcp-server, agent-runner, worker, postgres, redis)
+  backup     Backup database and agent data
+  init-db    Create database tables
   help       Show this message
 
 Prerequisites:
@@ -328,5 +390,7 @@ case "${1:-help}" in
     restart)  cmd_restart ;;
     status)   cmd_status ;;
     logs)     cmd_logs "${2:-}" ;;
+    backup)   cmd_backup ;;
+    init-db)  cmd_initdb ;;
     help|*)   cmd_help ;;
 esac
