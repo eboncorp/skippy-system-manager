@@ -160,8 +160,9 @@ services:
       - app-data:/app/data
       - app-logs:/app/logs
       # Mount credential files (read-only) for live mode
-      - ${HOME}/.config/coinbase:/root/.config/coinbase:ro
-      - ${HOME}/.config/kraken:/root/.config/kraken:ro
+      # Dockerfile runs as appuser, so ~ resolves to /home/appuser
+      - ${HOME}/.config/coinbase:/home/appuser/.config/coinbase:ro
+      - ${HOME}/.config/kraken:/home/appuser/.config/kraken:ro
     depends_on:
       - redis
     networks:
