@@ -60,18 +60,23 @@ class PaperDCAAgent:
         self,
         initial_cash: Decimal = Decimal("5000"),
         initial_holdings: Optional[Dict[str, Decimal]] = None,
+        exchange=None,
     ):
         self.etf = GTIVirtualETF()
 
-        # Build initial balances for paper exchange
-        balances = {"USD": initial_cash}
-        for symbol in ETF_ASSETS:
-            balances[symbol] = Decimal("0")
-        if initial_holdings:
-            for symbol, qty in initial_holdings.items():
-                balances[symbol] = qty
+        if exchange is not None:
+            # Use injected exchange (live adapter or external paper exchange)
+            self.exchange = exchange
+        else:
+            # Default: create PaperExchange (standalone mode)
+            balances = {"USD": initial_cash}
+            for symbol in ETF_ASSETS:
+                balances[symbol] = Decimal("0")
+            if initial_holdings:
+                for symbol, qty in initial_holdings.items():
+                    balances[symbol] = qty
+            self.exchange = PaperExchange(initial_balances=balances)
 
-        self.exchange = PaperExchange(initial_balances=balances)
         self.trades: List[Trade] = []
         self.dca_log: List[dict] = []
         self._load_log()

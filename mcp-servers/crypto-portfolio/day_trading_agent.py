@@ -56,6 +56,7 @@ class PaperDayTrader:
         self,
         assets: Optional[List[str]] = None,
         initial_cash: Decimal = Decimal("1000"),
+        exchange=None,
     ):
         self.assets = assets or DEFAULT_DAY_TRADE_ASSETS
 
@@ -76,11 +77,15 @@ class PaperDayTrader:
             ),
         )
 
-        # Paper exchange with initial cash
-        balances = {"USD": initial_cash}
-        for asset in self.assets:
-            balances[asset] = Decimal("0")
-        self.exchange = PaperExchange(initial_balances=balances)
+        if exchange is not None:
+            # Use injected exchange (live adapter or external paper exchange)
+            self.exchange = exchange
+        else:
+            # Default: create PaperExchange (standalone mode)
+            balances = {"USD": initial_cash}
+            for asset in self.assets:
+                balances[asset] = Decimal("0")
+            self.exchange = PaperExchange(initial_balances=balances)
 
         # Strategy
         self.strategy = AdaptiveDayTradeStrategy(self.config)
