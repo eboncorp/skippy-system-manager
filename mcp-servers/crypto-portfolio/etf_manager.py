@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 NAV_HISTORY_PATH = Path(os.environ.get(
     "NAV_HISTORY_PATH",
-    os.path.expanduser("~/skippy/work/crypto/etf_nav_history.json")
+    "/app/data/etf_nav_history.json"
 ))
 
 

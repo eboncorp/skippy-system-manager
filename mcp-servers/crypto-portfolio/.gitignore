@@ -22,3 +22,30 @@ package-lock.json
 # OS
 .DS_Store
 data/*.db
+
+# Logs
+*.log
+logs/
+
+# Backups
+backups/
+
+# Agent data (persistent volume, not in repo)
+data/dca_*.json
+data/etf_*.json
+data/agent_logs/
+
+# Tax reports
+tax_reports/
+
+# Credentials
+*_api_key.json
+*.pem
+*.key
+
+# Docker overrides
+docker-compose.override.yml
+
+# Build artifacts
+dist/
+build/
