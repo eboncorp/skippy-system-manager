@@ -281,8 +281,6 @@ class AgentRunner:
         except Exception as e:
             logger.error(f"Business DCA cycle failed: {e}", exc_info=True)
 
-        self._check_cycle_limit()
-
     async def _run_personal_cycle(self):
         """Execute one day-trading cycle."""
         if not self.personal_agent:
@@ -294,7 +292,9 @@ class AgentRunner:
 
         try:
             # Refresh prices in paper mode
-            if self.mode == "paper":
+            if self.mode == "paper" and hasattr(
+                self.personal_agent.exchange, '_prices'
+            ):
                 prices = await self._fetch_prices()
                 if prices:
                     for sym, price in prices.items():
@@ -326,8 +326,6 @@ class AgentRunner:
 
         except Exception as e:
             logger.error(f"Personal trade cycle failed: {e}", exc_info=True)
-
-        self._check_cycle_limit()
 
     def _check_cycle_limit(self):
         """Stop after max_cycles if set."""
@@ -429,6 +427,8 @@ class AgentRunner:
             if self.run_personal and self.personal_agent:
                 await self._run_personal_cycle()
 
+            self._cycle_count += 1
+
     async def start(self):
         """Start the scheduler and run until stopped."""
         logger.info("Starting agent runner...")
@@ -441,6 +441,9 @@ class AgentRunner:
 
         if self.run_personal and self.personal_agent:
             await self._run_personal_cycle()
+
+        self._cycle_count += 1
+        self._check_cycle_limit()
 
         logger.info("Agent runner started. Waiting for scheduled cycles...")
 
@@ -577,6 +580,10 @@ async def main():
     )
     args = parser.parse_args()
 
+    # Ensure log directory exists before creating FileHandler
+    log_dir_path = Path(args.log_dir)
+    log_dir_path.mkdir(parents=True, exist_ok=True)
+
     level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
         level=level,
@@ -584,10 +591,28 @@ async def main():
         handlers=[
             logging.StreamHandler(),
             logging.FileHandler(
-                Path(args.log_dir) / "agent_runner.log", mode="a"
+                log_dir_path / "agent_runner.log", mode="a"
             ),
         ],
     )
+
+    # Safety confirmation for live mode
+    if args.mode == "live":
+        print("\n" + "=" * 60)
+        print("WARNING: LIVE TRADING MODE")
+        print("=" * 60)
+        print("This will place REAL orders with REAL money on:")
+        if not args.personal_only:
+            print("  - Coinbase GTI (Business)")
+            print("  - Kraken Business")
+        if not args.business_only:
+            print("  - Coinbase Personal")
+            print("  - Kraken Personal")
+        print("=" * 60)
+        confirm = input("Type 'yes' to confirm live trading: ").strip().lower()
+        if confirm != "yes":
+            print("Aborted. Use --mode paper for paper trading.")
+            return
 
     run_business = not args.personal_only
     run_personal = not args.business_only

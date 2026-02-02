@@ -46,10 +46,11 @@ DEFAULT_DAY_TRADE_ASSETS = [
 
 
 class PaperDayTrader:
-    """Paper day-trading orchestrator.
+    """Day-trading orchestrator for paper and live modes.
 
-    Creates a TradingAgent with AdaptiveDayTradeStrategy on a PaperExchange,
-    runs hourly cycles, and tracks all trades + P&L.
+    Creates a TradingAgent with AdaptiveDayTradeStrategy, runs hourly cycles,
+    and tracks all trades + P&L. Pass exchange=None for paper mode with internal
+    PaperExchange, or inject a live adapter for real trading.
     """
 
     def __init__(
@@ -104,8 +105,8 @@ class PaperDayTrader:
         self.start_time: Optional[datetime] = None
 
     async def initialize(self, prices: Optional[Dict[str, Decimal]] = None):
-        """Initialize the agent. Optionally seed prices for testing."""
-        if prices:
+        """Initialize the agent. Optionally seed prices for paper exchange."""
+        if prices and hasattr(self.exchange, '_prices'):
             for symbol, price in prices.items():
                 self.exchange._prices[symbol] = price
 
