@@ -83,6 +83,7 @@ class AgentRunner:
         # Trade log
         self.trade_log: List[dict] = []
         self._exchange_clients = []  # for cleanup
+        self._last_prices: Dict[str, Decimal] = {}  # shared between cycles
 
     async def initialize(self, max_cycles: Optional[int] = None):
         """Initialize agents and scheduler."""
@@ -254,6 +255,7 @@ class AgentRunner:
             if self.mode == "paper":
                 prices = await self._fetch_prices()
                 if prices:
+                    self._last_prices = prices
                     await self.business_agent.seed_prices(prices)
 
             result = await self.business_agent.run_daily_dca(dry_run=False)
@@ -291,11 +293,13 @@ class AgentRunner:
         logger.info("-" * 50)
 
         try:
-            # Refresh prices in paper mode
+            # Refresh prices in paper mode — reuse business cycle prices if
+            # available (avoid duplicate CoinGecko calls / rate limits)
             if self.mode == "paper" and hasattr(
                 self.personal_agent.exchange, '_prices'
             ):
-                prices = await self._fetch_prices()
+                prices = self._last_prices or await self._fetch_prices()
+                self._last_prices = {}  # clear so hourly runs fetch fresh
                 if prices:
                     for sym, price in prices.items():
                         self.personal_agent.exchange._prices[sym] = price
