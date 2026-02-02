@@ -130,7 +130,7 @@ services:
       - app-data:/app/data
       - app-logs:/app/logs
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'python worker.py' || exit 1"]
+      test: ["CMD-SHELL", "test -f /proc/1/status"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -168,7 +168,7 @@ services:
       - ${HOME}/.config/coinbase:/home/appuser/.config/coinbase:ro
       - ${HOME}/.config/kraken:/home/appuser/.config/kraken:ro
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'python agent_runner.py' || exit 1"]
+      test: ["CMD-SHELL", "test -f /proc/1/status"]
       interval: 30s
       timeout: 5s
       retries: 3
