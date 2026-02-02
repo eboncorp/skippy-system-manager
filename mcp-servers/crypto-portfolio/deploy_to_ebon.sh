@@ -21,7 +21,8 @@ EBON_HOST="ebon"
 REPO_URL="https://github.com/eboncorp/skippy-system-manager.git"
 REPO_DIR="/home/ebon/skippy-system-manager"
 APP_DIR="$REPO_DIR/mcp-servers/crypto-portfolio"
-SSH_OPTS="-o ConnectTimeout=10"
+CTRL_SOCK="/tmp/ebon-deploy-ctrl"
+SSH_OPTS="-o ConnectTimeout=10 -o ControlPath=$CTRL_SOCK -o ControlMaster=auto -o ControlPersist=30m"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
