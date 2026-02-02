@@ -139,6 +139,35 @@ services:
       - crypto-net
 
   # ---------------------------------------------------------------------------
+  # Agent Runner (Business DCA + Personal Day Trading)
+  # ---------------------------------------------------------------------------
+  agent-runner:
+    build:
+      context: .
+      target: production
+    container_name: crypto-portfolio-agents
+    restart: unless-stopped
+    command: python agent_runner.py
+    environment:
+      - AGENT_MODE=paper
+      - AGENT_LOG_DIR=/app/data/agent_logs
+      - REDIS_URL=redis://redis:6379/0
+      - COINBASE_API_KEY=${COINBASE_API_KEY:-}
+      - COINBASE_API_SECRET=${COINBASE_API_SECRET:-}
+      - KRAKEN_API_KEY=${KRAKEN_API_KEY:-}
+      - KRAKEN_API_SECRET=${KRAKEN_API_SECRET:-}
+    volumes:
+      - app-data:/app/data
+      - app-logs:/app/logs
+      # Mount credential files (read-only) for live mode
+      - ${HOME}/.config/coinbase:/root/.config/coinbase:ro
+      - ${HOME}/.config/kraken:/root/.config/kraken:ro
+    depends_on:
+      - redis
+    networks:
+      - crypto-net
+
+  # ---------------------------------------------------------------------------
   # Prometheus Metrics (Optional)
   # ---------------------------------------------------------------------------
   prometheus:
