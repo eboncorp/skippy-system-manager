@@ -232,7 +232,7 @@ cmd_status() {
     header "Health Checks"
 
     # MCP Server
-    if run_ebon "curl -sf http://localhost:8080/health" >/dev/null 2>&1; then
+    if run_ebon "curl -so /dev/null http://localhost:8080/mcp" 2>/dev/null; then
         info "MCP Server .... healthy"
     else
         err  "MCP Server .... not responding"
