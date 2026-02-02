@@ -12,7 +12,7 @@ Features:
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 import asyncio
@@ -283,7 +283,7 @@ class HistoricalDataProvider:
                         dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
                     else:
                         dt = datetime.strptime(date_str, '%Y-%m-%d')
-                except:
+                except (ValueError, TypeError, AttributeError):
                     continue
 
                 candles.append(OHLCV(
@@ -315,7 +315,7 @@ class HistoricalDataProvider:
 
         candles = []
         price = float(start_price)
-        start_date = datetime.utcnow() - timedelta(days=days)
+        start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
         for day in range(days):
             dt = start_date + timedelta(days=day)

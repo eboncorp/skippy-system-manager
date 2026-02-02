@@ -60,7 +60,7 @@ class ArbitrageDetector:
             try:
                 with open(self._history_file, 'r') as f:
                     self.history = json.load(f)
-            except:
+            except (OSError, json.JSONDecodeError, ValueError):
                 self.history = []
 
     def _save_history(self):

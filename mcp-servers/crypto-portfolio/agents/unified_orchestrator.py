@@ -38,7 +38,7 @@ RECOMMENDATIONS:
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Any
 from enum import Enum
 import asyncio
@@ -275,7 +275,7 @@ class UnifiedSignalOrchestrator:
         )
 
         return UnifiedAnalysis(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             asset=asset,
             categories=categories,
             total_signals=total_signals,

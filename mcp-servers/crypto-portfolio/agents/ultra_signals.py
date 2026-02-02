@@ -112,7 +112,7 @@ MACHINE LEARNING DERIVED (216-225)
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Any
 import asyncio
@@ -149,7 +149,7 @@ class UltraSignalResult:
     confidence: float  # 0-1 for this specific signal
     data_freshness: str  # "real-time", "hourly", "daily"
     details: Dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -1356,7 +1356,7 @@ class UltraSignalsAnalyzer:
         Historical performance by day of week.
         """
         try:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             day = now.weekday()
 
             # Historical BTC performance by day (example data)
@@ -1410,7 +1410,7 @@ class UltraSignalsAnalyzer:
         Historical performance by month.
         """
         try:
-            month = datetime.utcnow().month
+            month = datetime.now(timezone.utc).month
 
             # Historical BTC monthly returns (example data)
             month_performance = {
@@ -1476,7 +1476,7 @@ class UltraSignalsAnalyzer:
             last_halving = datetime(2024, 4, 20)
             halving_cycle_days = 4 * 365  # ~4 years
 
-            days_since_halving = (datetime.utcnow() - last_halving).days
+            days_since_halving = (datetime.now(timezone.utc) - last_halving).days
             cycle_position = days_since_halving / halving_cycle_days
 
             # Historical pattern:
@@ -1602,7 +1602,7 @@ class UltraSignalsAnalyzer:
         available = [s for s in all_signals if s.signal != SignalStrength.UNAVAILABLE]
 
         return UltraAnalysis(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             asset=asset,
             behavioral_signals=behavioral_signals,
             advanced_technical=tech_signals,

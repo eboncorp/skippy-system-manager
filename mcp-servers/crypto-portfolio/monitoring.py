@@ -31,7 +31,7 @@ import sys
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional
@@ -81,7 +81,7 @@ class JSONFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -230,7 +230,7 @@ class Metric:
     type: MetricType
     value: float
     labels: Dict[str, str] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     help_text: str = ""
 
 
@@ -535,7 +535,7 @@ class MetricsCollector:
                 name: {json.loads(k): v for k, v in values.items()}
                 for name, values in self.histograms.items()
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
 
@@ -643,7 +643,7 @@ class HealthChecker:
 
         return {
             "status": "healthy" if overall_healthy else "unhealthy",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "checks": {
                 name: {
                     "healthy": r.healthy,

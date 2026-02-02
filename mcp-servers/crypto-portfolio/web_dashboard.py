@@ -1272,13 +1272,14 @@ DASHBOARD_HTML = """
                     const pnl = parseFloat(data.unrealized_pnl);
                     const pnlPct = data.unrealized_pnl_pct;
                     const pnlClass = pnl >= 0 ? 'positive' : 'negative';
+                    const safeAsset = this.escapeHtml(asset);
 
                     return `
                         <tr>
                             <td>
                                 <div class="asset-info">
-                                    <div class="asset-icon">${asset.substring(0, 2)}</div>
-                                    <div>${asset}</div>
+                                    <div class="asset-icon">${safeAsset.substring(0, 2)}</div>
+                                    <div>${safeAsset}</div>
                                 </div>
                             </td>
                             <td>${parseFloat(data.amount).toFixed(6)}</td>
@@ -1296,13 +1297,14 @@ DASHBOARD_HTML = """
                     const pnlPct = data.unrealized_pnl_pct;
                     const pnlClass = pnl >= 0 ? 'positive' : 'negative';
                     const avgCost = parseFloat(data.cost_basis) / parseFloat(data.amount);
+                    const safeAsset = this.escapeHtml(asset);
 
                     return `
                         <tr>
                             <td>
                                 <div class="asset-info">
-                                    <div class="asset-icon">${asset.substring(0, 2)}</div>
-                                    <div>${asset}</div>
+                                    <div class="asset-icon">${safeAsset.substring(0, 2)}</div>
+                                    <div>${safeAsset}</div>
                                 </div>
                             </td>
                             <td>${parseFloat(data.amount).toFixed(6)}</td>
@@ -1392,7 +1394,7 @@ DASHBOARD_HTML = """
                 }
                 if (data.recommendations) {
                     document.getElementById('ai-recommendations').innerHTML =
-                        data.recommendations.map(r => `<p style="margin-bottom: 0.5rem;">• ${r}</p>`).join('');
+                        data.recommendations.map(r => `<p style="margin-bottom: 0.5rem;">&bull; ${this.escapeHtml(r)}</p>`).join('');
                 }
             },
 
@@ -1875,8 +1877,14 @@ DASHBOARD_HTML = """
                     ];
                     stats.forEach(([label, value]) => {
                         const div = document.createElement('div');
-                        div.innerHTML = '<div style="color:var(--text-secondary);font-size:0.8rem">' + label +
-                            '</div><div style="color:var(--text-primary);font-size:1.2rem;font-weight:600">' + value + '</div>';
+                        const labelDiv = document.createElement('div');
+                        labelDiv.style.cssText = 'color:var(--text-secondary);font-size:0.8rem';
+                        labelDiv.textContent = label;
+                        const valueDiv = document.createElement('div');
+                        valueDiv.style.cssText = 'color:var(--text-primary);font-size:1.2rem;font-weight:600';
+                        valueDiv.textContent = value;
+                        div.appendChild(labelDiv);
+                        div.appendChild(valueDiv);
                         details.appendChild(div);
                     });
                 }
@@ -1978,6 +1986,13 @@ DASHBOARD_HTML = """
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 }).format(num);
+            },
+
+            escapeHtml(str) {
+                if (typeof str !== 'string') return String(str);
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
             }
         };
 

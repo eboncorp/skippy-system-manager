@@ -14,11 +14,14 @@ Supported formats:
 """
 
 import csv
+import logging
 import os
 import re
 from collections import defaultdict
 from datetime import datetime
 from typing import List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 from transaction_history import Transaction
 
@@ -412,8 +415,8 @@ def _add_kraken_standalone(row: dict, transactions: List[Transaction]):
         )
         transactions.append(txn)
 
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Skipping unparseable Kraken row: %s", e)
 
 
 # =============================================================================
@@ -975,8 +978,8 @@ def detect_format(filepath: str) -> Optional[str]:
                     return "gemini_staking"
                 if "Account History" in title or any("Trading Fee Rate" in h for h in header):
                     return "gemini"
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Could not parse XLSX headers: %s", e)
         return "gemini"  # Default for .xlsx
 
     if filepath.endswith(".csv"):
@@ -991,8 +994,8 @@ def detect_format(filepath: str) -> Optional[str]:
                 return "kraken"
             if "Transaction Kind" in combined or "Native Amount (in USD)" in combined:
                 return "crypto_com"
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Could not detect CSV exchange format: %s", e)
 
     return None
 

@@ -30,7 +30,7 @@ import os
 import smtplib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from enum import Enum
@@ -61,7 +61,7 @@ class Notification:
     channels: List[str]
     priority: NotificationPriority = NotificationPriority.NORMAL
     data: Dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Tracking
     id: Optional[str] = None
@@ -76,7 +76,7 @@ class NotificationResult:
     success: bool
     message_id: Optional[str] = None
     error: Optional[str] = None
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # =============================================================================
@@ -723,7 +723,7 @@ async def example_usage():
         title="Test Alert",
         message="This is a test notification from the crypto portfolio analyzer.",
         priority="normal",
-        data={"test": True, "timestamp": datetime.utcnow().isoformat()}
+        data={"test": True, "timestamp": datetime.now(timezone.utc).isoformat()}
     )
 
     for result in results:

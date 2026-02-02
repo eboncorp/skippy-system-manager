@@ -10,7 +10,7 @@ intelligent DCA/buffer deployment recommendations.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Optional
 import asyncio
@@ -249,7 +249,7 @@ class UnifiedSignalAnalyzer:
         data_quality = available / total if total > 0 else 0
 
         return UnifiedSignalAnalysis(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             asset=asset,
             base_analysis=base_result,
             expanded_analysis=expanded_result,

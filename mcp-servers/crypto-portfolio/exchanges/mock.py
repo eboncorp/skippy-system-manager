@@ -26,7 +26,7 @@ import asyncio
 import random
 from abc import ABC
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
@@ -74,8 +74,8 @@ class Order:
     filled_amount: Decimal = Decimal("0")
     average_fill_price: Optional[Decimal] = None
     status: OrderStatus = OrderStatus.PENDING
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     client_order_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -107,7 +107,7 @@ class Trade:
     price: Decimal
     fee: Decimal
     fee_currency: str
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -136,7 +136,7 @@ class OrderBook:
     symbol: str
     bids: List[OrderBookEntry] = field(default_factory=list)  # Buy orders (descending by price)
     asks: List[OrderBookEntry] = field(default_factory=list)  # Sell orders (ascending by price)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def best_bid(self) -> Optional[Decimal]:
@@ -162,7 +162,7 @@ class StakingPosition:
     apy: Decimal
     rewards_earned: Decimal = Decimal("0")
     status: str = "active"
-    staked_at: datetime = field(default_factory=datetime.utcnow)
+    staked_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     unbonding_at: Optional[datetime] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -576,7 +576,7 @@ class BaseMockExchange(ABC):
         order.filled_amount = order.amount
         order.average_fill_price = exec_price
         order.status = OrderStatus.FILLED
-        order.updated_at = datetime.utcnow()
+        order.updated_at = datetime.now(timezone.utc)
 
         # Record trade
         trade = Trade(
@@ -605,7 +605,7 @@ class BaseMockExchange(ABC):
             raise InvalidOrderError(f"Order {order_id} cannot be cancelled (status: {order.status})")
 
         order.status = OrderStatus.CANCELLED
-        order.updated_at = datetime.utcnow()
+        order.updated_at = datetime.now(timezone.utc)
 
         return order
 
@@ -737,7 +737,7 @@ class BaseMockExchange(ABC):
 
         position = self.staking_positions[position_id]
         position.status = "unbonding"
-        position.unbonding_at = datetime.utcnow() + timedelta(days=21)
+        position.unbonding_at = datetime.now(timezone.utc) + timedelta(days=21)
 
         return position
 

@@ -279,7 +279,7 @@ async def run_monte_carlo(
 
             if (i + 1) % 10 == 0:
                 print(f"  Completed {i + 1}/{simulations} simulations...")
-        except:
+        except Exception:
             pass
         finally:
             await engine.close()

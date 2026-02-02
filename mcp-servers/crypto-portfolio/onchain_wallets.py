@@ -152,7 +152,7 @@ class EthereumWalletTracker:
             # Try to get decimals from contract
             try:
                 decimals = contract.functions.decimals().call()
-            except:
+            except Exception:
                 pass
 
             return float(balance) / (10 ** decimals)

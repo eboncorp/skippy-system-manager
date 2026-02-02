@@ -26,7 +26,7 @@ Usage:
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum as PyEnum
 from typing import Optional
 from contextlib import asynccontextmanager
@@ -119,7 +119,7 @@ class Portfolio(Base):
     __tablename__ = "portfolios"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    timestamp = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
 
     # Totals
     total_value_usd = Column(Numeric(20, 8), nullable=False)
@@ -167,7 +167,7 @@ class Transaction(Base):
 
     # Timestamps
     timestamp = Column(DateTime, nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Additional data
     notes = Column(Text, nullable=True)
@@ -250,8 +250,8 @@ class StakingPosition(Base):
     lock_period_days = Column(Integer, nullable=True)
     unlock_at = Column(DateTime, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         Index("ix_staking_exchange_asset", "exchange", "asset"),
@@ -290,8 +290,8 @@ class DCABot(Base):
     next_execution_at = Column(DateTime, nullable=True, index=True)
     last_execution_at = Column(DateTime, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     executions = relationship("DCAExecution", back_populates="bot")
@@ -318,7 +318,7 @@ class DCAExecution(Base):
     # Order reference
     order_id = Column(String(100), nullable=True)
 
-    executed_at = Column(DateTime, default=datetime.utcnow, index=True)
+    executed_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
     # Relationships
     bot = relationship("DCABot", back_populates="executions")
@@ -352,8 +352,8 @@ class Alert(Base):
     # Metadata
     note = Column(String(200), nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     triggers = relationship("AlertTrigger", back_populates="alert")
@@ -374,7 +374,7 @@ class AlertTrigger(Base):
     # Notification status
     notifications_sent = Column(JSON, nullable=True)  # {"email": true, "sms": false}
 
-    triggered_at = Column(DateTime, default=datetime.utcnow, index=True)
+    triggered_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
     # Relationships
     alert = relationship("Alert", back_populates="triggers")
@@ -401,7 +401,7 @@ class Wallet(Base):
     last_synced_at = Column(DateTime, nullable=True)
     last_block_synced = Column(Integer, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         Index("ix_wallets_chain_address", "chain", "address"),
@@ -450,7 +450,7 @@ class DeFiPosition(Base):
 
     # Timestamps
     opened_at = Column(DateTime, nullable=True)
-    last_updated_at = Column(DateTime, default=datetime.utcnow)
+    last_updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         Index("ix_defi_protocol_wallet", "protocol", "wallet_address"),
@@ -481,7 +481,7 @@ class PriceCache(Base):
     # Source
     source = Column(String(30), nullable=True)  # coingecko, coinbase, etc.
 
-    updated_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
     __table_args__ = (
         UniqueConstraint("asset", name="uq_price_cache_asset"),
@@ -497,7 +497,7 @@ class Setting(Base):
     key = Column(String(100), nullable=False, unique=True)
     value = Column(JSON, nullable=True)
     description = Column(String(500), nullable=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
 class AuditLogEntry(Base):
@@ -506,7 +506,7 @@ class AuditLogEntry(Base):
     __tablename__ = "audit_log"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    timestamp = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
 
     # What changed
     table_name = Column(String(50), nullable=False, index=True)
@@ -543,7 +543,7 @@ class TaxReport(Base):
     cost_basis_method = Column(String(10), nullable=False, default="fifo")
 
     # Generation metadata
-    generated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    generated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     transaction_count = Column(Integer, default=0)
 
     # Summary figures
@@ -691,7 +691,7 @@ async def example_usage():
             price_usd=Decimal("45000"),
             total_usd=Decimal("22500"),
             exchange="coinbase",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
         session.add(transaction)
 
