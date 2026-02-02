@@ -19,6 +19,7 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -41,7 +42,10 @@ from etf_manager import GTIVirtualETF
 
 logger = logging.getLogger(__name__)
 
-DCA_LOG_PATH = Path("/home/dave/skippy/work/crypto/dca_paper_log.json")
+DCA_LOG_PATH = Path(os.environ.get(
+    "DCA_LOG_PATH",
+    os.path.expanduser("~/skippy/work/crypto/dca_paper_log.json")
+))
 
 
 class PaperDCAAgent:
