@@ -15,8 +15,6 @@
 #   docker-compose down
 # =============================================================================
 
-version: '3.8'
-
 services:
   # ---------------------------------------------------------------------------
   # MCP Server - Main Application
@@ -131,6 +129,12 @@ services:
     volumes:
       - app-data:/app/data
       - app-logs:/app/logs
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'python worker.py' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       - mcp-server
       - postgres
@@ -163,6 +167,12 @@ services:
       # Dockerfile runs as appuser, so ~ resolves to /home/appuser
       - ${HOME}/.config/coinbase:/home/appuser/.config/coinbase:ro
       - ${HOME}/.config/kraken:/home/appuser/.config/kraken:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'python agent_runner.py' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       - redis
     networks:
