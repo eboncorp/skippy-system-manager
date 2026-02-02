@@ -3169,6 +3169,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.http:
-        mcp.run(transport="streamable_http", port=args.port)
+        mcp.run(transport="streamable-http", host="0.0.0.0", port=args.port)
     else:
         mcp.run()  # Default: stdio transport for Claude Code

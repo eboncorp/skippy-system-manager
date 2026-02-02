@@ -12,6 +12,7 @@ Core class that manages the 50+1 asset virtual ETF:
 
 import json
 import logging
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
@@ -32,7 +33,10 @@ from etf_config import (
 
 logger = logging.getLogger(__name__)
 
-NAV_HISTORY_PATH = Path("/home/dave/skippy/work/crypto/etf_nav_history.json")
+NAV_HISTORY_PATH = Path(os.environ.get(
+    "NAV_HISTORY_PATH",
+    os.path.expanduser("~/skippy/work/crypto/etf_nav_history.json")
+))
 
 
 @dataclass
