@@ -246,7 +246,7 @@ cmd_status() {
     fi
 
     # Redis
-    if run_ebon "cd '$APP_DIR' && docker compose exec -T redis redis-cli ping" 2>/dev/null | grep -q PONG; then
+    if run_ebon "cd '$APP_DIR' && source .env && docker compose exec -T redis redis-cli -a \"\$REDIS_PASSWORD\" ping" 2>/dev/null | grep -q PONG; then
         info "Redis ......... connected"
     else
         err  "Redis ......... not responding"
