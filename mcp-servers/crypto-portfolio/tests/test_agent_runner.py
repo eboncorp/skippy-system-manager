@@ -24,7 +24,7 @@ class TestAgentRunner:
     async def _init_runner(self, runner):
         """Helper to initialize runner with mocked CoinGecko prices."""
         with patch.object(
-            runner, "_fetch_prices", new_callable=AsyncMock,
+            runner, "_fetch_prices_from_coingecko", new_callable=AsyncMock,
             return_value=dict(MOCK_PRICES),
         ):
             await runner.initialize(max_cycles=1)
@@ -36,7 +36,7 @@ class TestAgentRunner:
         await self._init_runner(agent_runner)
 
         with patch.object(
-            agent_runner, "_fetch_prices", new_callable=AsyncMock,
+            agent_runner, "_fetch_prices_from_coingecko", new_callable=AsyncMock,
             return_value=dict(MOCK_PRICES),
         ):
             await agent_runner.start()
@@ -71,7 +71,7 @@ class TestAgentRunner:
         agent_runner._run_personal_cycle = track_pers
 
         with patch.object(
-            agent_runner, "_fetch_prices", new_callable=AsyncMock,
+            agent_runner, "_fetch_prices_from_coingecko", new_callable=AsyncMock,
             return_value=dict(MOCK_PRICES),
         ):
             await agent_runner.start()
@@ -85,7 +85,7 @@ class TestAgentRunner:
         monkeypatch.setenv("AGENT_MODE", "paper")
 
         with patch.object(
-            agent_runner, "_fetch_prices", new_callable=AsyncMock,
+            agent_runner, "_fetch_prices_from_coingecko", new_callable=AsyncMock,
             return_value=dict(MOCK_PRICES),
         ):
             await agent_runner.initialize(max_cycles=2)
@@ -117,7 +117,7 @@ class TestAgentRunner:
         agent_runner._run_personal_cycle = track_personal
 
         with patch.object(
-            agent_runner, "_fetch_prices", new_callable=AsyncMock,
+            agent_runner, "_fetch_prices_from_coingecko", new_callable=AsyncMock,
             return_value=dict(MOCK_PRICES),
         ):
             # This should not raise even though business agent fails
@@ -149,7 +149,7 @@ class TestAgentRunner:
         agent_runner._run_business_cycle = track_business
 
         with patch.object(
-            agent_runner, "_fetch_prices", new_callable=AsyncMock,
+            agent_runner, "_fetch_prices_from_coingecko", new_callable=AsyncMock,
             return_value=dict(MOCK_PRICES),
         ):
             await agent_runner.run_immediate(cycles=1)
@@ -167,7 +167,7 @@ class TestAgentRunner:
         agent_runner.log_dir = Path("/proc/nonexistent/impossible")
 
         with patch.object(
-            agent_runner, "_fetch_prices", new_callable=AsyncMock,
+            agent_runner, "_fetch_prices_from_coingecko", new_callable=AsyncMock,
             return_value=dict(MOCK_PRICES),
         ):
             # Should not raise — _save_trade_log catches exceptions
@@ -183,14 +183,14 @@ class TestAgentRunner:
 
         # First init with good prices
         with patch.object(
-            agent_runner, "_fetch_prices", new_callable=AsyncMock,
+            agent_runner, "_fetch_prices_from_coingecko", new_callable=AsyncMock,
             return_value=dict(MOCK_PRICES),
         ):
             await agent_runner.initialize(max_cycles=1)
 
         # Now make price fetch return empty (simulating timeout)
         with patch.object(
-            agent_runner, "_fetch_prices", new_callable=AsyncMock,
+            agent_runner, "_fetch_prices_from_coingecko", new_callable=AsyncMock,
             return_value={},
         ):
             # Should not crash — agents work with whatever prices

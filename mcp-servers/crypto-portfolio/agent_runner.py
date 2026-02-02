@@ -83,7 +83,11 @@ class AgentRunner:
         # Trade log
         self.trade_log: List[dict] = []
         self._exchange_clients = []  # for cleanup
-        self._last_prices: Dict[str, Decimal] = {}  # shared between cycles
+
+        # Shared price cache with TTL (avoids duplicate CoinGecko calls)
+        self._price_cache: Dict[str, Decimal] = {}
+        self._price_cache_time: Optional[datetime] = None
+        self._price_cache_ttl = 300  # 5 minutes
 
     async def initialize(self, max_cycles: Optional[int] = None):
         """Initialize agents and scheduler."""
@@ -106,7 +110,7 @@ class AgentRunner:
     async def _init_paper_agents(self):
         """Initialize agents with PaperExchange and live prices."""
         # Fetch live prices for paper exchange seeding
-        prices = await self._fetch_prices()
+        prices = await self._get_prices()
 
         if self.run_business:
             self.business_agent = PaperDCAAgent(initial_cash=Decimal("5000"))
@@ -207,7 +211,7 @@ class AgentRunner:
                 self.personal_agent = PaperDayTrader(exchange=personal_exchange)
 
                 # Fetch prices for initialization
-                prices = await self._fetch_prices()
+                prices = await self._get_prices()
                 await self.personal_agent.initialize(prices=prices if prices else None)
 
                 logger.info(
@@ -253,9 +257,8 @@ class AgentRunner:
         try:
             # Refresh prices in paper mode
             if self.mode == "paper":
-                prices = await self._fetch_prices()
+                prices = await self._get_prices()
                 if prices:
-                    self._last_prices = prices
                     await self.business_agent.seed_prices(prices)
 
             result = await self.business_agent.run_daily_dca(dry_run=False)
@@ -293,13 +296,11 @@ class AgentRunner:
         logger.info("-" * 50)
 
         try:
-            # Refresh prices in paper mode — reuse business cycle prices if
-            # available (avoid duplicate CoinGecko calls / rate limits)
+            # Refresh prices in paper mode (TTL-cached, no duplicate fetches)
             if self.mode == "paper" and hasattr(
                 self.personal_agent.exchange, '_prices'
             ):
-                prices = self._last_prices or await self._fetch_prices()
-                self._last_prices = {}  # clear so hourly runs fetch fresh
+                prices = await self._get_prices()
                 if prices:
                     for sym, price in prices.items():
                         self.personal_agent.exchange._prices[sym] = price
@@ -338,8 +339,34 @@ class AgentRunner:
             logger.info(f"Reached cycle limit ({self._max_cycles}), shutting down")
             self._running = False
 
-    async def _fetch_prices(self) -> Dict[str, Decimal]:
-        """Fetch live prices from CoinGecko for all relevant assets."""
+    async def _get_prices(self) -> Dict[str, Decimal]:
+        """Get prices with a 5-minute TTL cache.
+
+        Both business and personal cycles call this. Only one actual
+        CoinGecko request happens per TTL window, avoiding rate limits.
+        """
+        now = datetime.now(timezone.utc)
+        if (
+            self._price_cache
+            and self._price_cache_time
+            and (now - self._price_cache_time).total_seconds() < self._price_cache_ttl
+        ):
+            logger.debug(f"Using cached prices ({len(self._price_cache)} assets)")
+            return self._price_cache
+
+        prices = await self._fetch_prices_from_coingecko()
+        if prices:
+            self._price_cache = prices
+            self._price_cache_time = now
+            logger.info(f"Fetched fresh prices for {len(prices)} assets")
+        elif self._price_cache:
+            logger.warning("CoinGecko fetch failed, using cached prices")
+            return self._price_cache
+
+        return prices
+
+    async def _fetch_prices_from_coingecko(self) -> Dict[str, Decimal]:
+        """Raw CoinGecko price fetch (no caching)."""
         from etf_config import get_coingecko_ids
 
         cg_ids = get_coingecko_ids()
