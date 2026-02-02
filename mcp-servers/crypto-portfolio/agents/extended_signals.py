@@ -20,11 +20,14 @@ Additional signals beyond basic technicals:
 """
 
 import asyncio
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Any
 import aiohttp
+
+logger = logging.getLogger(__name__)
 
 
 class SignalStrength(Enum):
@@ -617,6 +620,9 @@ class ExtendedSignalsAnalyzer:
             async with session.get(url, params=params) as resp:
                 data = await resp.json()
 
+                if not isinstance(data, list):
+                    raise ValueError(f"Expected list from CoinGecko, got {type(data).__name__}")
+
                 total_supply = sum(c.get("market_cap", 0) for c in data)
 
                 usdt = next((c for c in data if c["id"] == "tether"), {})
@@ -639,7 +645,7 @@ class ExtendedSignalsAnalyzer:
             usdt_dominance = usdt_supply / total_supply * 100 if total_supply > 0 else 0
 
         except Exception as e:
-            print(f"Stablecoin fetch failed: {e}")
+            logger.warning(f"Stablecoin metrics fetch failed: {e}")
             total_supply = 150_000_000_000
             usdt_supply = 100_000_000_000
             usdc_supply = 35_000_000_000
