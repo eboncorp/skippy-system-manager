@@ -126,6 +126,10 @@ services:
       - COINBASE_API_SECRET=${COINBASE_API_SECRET:-}
       - KRAKEN_API_KEY=${KRAKEN_API_KEY:-}
       - KRAKEN_API_SECRET=${KRAKEN_API_SECRET:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - NOTIFICATION_EMAIL=${NOTIFICATION_EMAIL:-}
     volumes:
       - app-data:/app/data
       - app-logs:/app/logs
@@ -155,11 +159,17 @@ services:
     environment:
       - AGENT_MODE=paper
       - AGENT_LOG_DIR=/app/data/agent_logs
+      - DCA_LOG_PATH=/app/data/dca_paper_log.json
+      - NAV_HISTORY_PATH=/app/data/etf_nav_history.json
       - REDIS_URL=redis://redis:6379/0
       - COINBASE_API_KEY=${COINBASE_API_KEY:-}
       - COINBASE_API_SECRET=${COINBASE_API_SECRET:-}
       - KRAKEN_API_KEY=${KRAKEN_API_KEY:-}
       - KRAKEN_API_SECRET=${KRAKEN_API_SECRET:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - NOTIFICATION_EMAIL=${NOTIFICATION_EMAIL:-}
     volumes:
       - app-data:/app/data
       - app-logs:/app/logs
