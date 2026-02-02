@@ -45,6 +45,7 @@ from etf_config import (
     ETF_DAILY_BUDGET,
     PERSONAL_DAILY_BUDGET,
 )
+from notifications import NotificationManager
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,9 @@ class AgentRunner:
         self._price_cache: Dict[str, Decimal] = {}
         self._price_cache_time: Optional[datetime] = None
         self._price_cache_ttl = 300  # 5 minutes
+
+        # Notifications
+        self._notifier = NotificationManager()
 
     async def initialize(self, max_cycles: Optional[int] = None):
         """Initialize agents and scheduler."""
@@ -245,6 +249,18 @@ class AgentRunner:
             )
             logger.info("Scheduled: Personal day trading every hour")
 
+        # Daily summary email at 22:00 UTC (after all daily activity)
+        if self._notifier.notifiers.get("email", None) and \
+                self._notifier.notifiers["email"].is_configured():
+            self.scheduler.add_job(
+                self._send_daily_summary,
+                CronTrigger(hour=22, minute=0),
+                id="daily_summary",
+                name="Daily Summary Email",
+                replace_existing=True,
+            )
+            logger.info("Scheduled: Daily summary email at 22:00 UTC")
+
     async def _run_business_cycle(self):
         """Execute one ETF DCA cycle."""
         if not self.business_agent:
@@ -331,6 +347,80 @@ class AgentRunner:
 
         except Exception as e:
             logger.error(f"Personal trade cycle failed: {e}", exc_info=True)
+
+    async def _send_daily_summary(self):
+        """Send daily portfolio summary email."""
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+        # Collect today's trades from log
+        todays_entries = [
+            t for t in self.trade_log
+            if t.get("timestamp", "").startswith(today)
+        ]
+
+        biz_entries = [t for t in todays_entries if t.get("agent") == "business"]
+        pers_entries = [t for t in todays_entries if t.get("agent") == "personal"]
+
+        # Business summary
+        biz_orders = sum(t.get("orders", t.get("trades", 0)) for t in biz_entries)
+        biz_total_usd = sum(float(t.get("total_usd", 0)) for t in biz_entries)
+        biz_fg = biz_entries[-1].get("fear_greed", "N/A") if biz_entries else "N/A"
+
+        # Personal summary
+        pers_trades = sum(t.get("trades", 0) for t in pers_entries)
+        pers_buys = sum(t.get("buys", 0) for t in pers_entries)
+        pers_sells = sum(t.get("sells", 0) for t in pers_entries)
+        pers_pnl = pers_entries[-1].get("pnl", "0") if pers_entries else "0"
+        pers_portfolio = pers_entries[-1].get("portfolio_value", "N/A") if pers_entries else "N/A"
+
+        # Top prices from cache
+        top_assets = ["BTC", "ETH", "SOL", "LINK", "AVAX"]
+        price_lines = []
+        for asset in top_assets:
+            if asset in self._price_cache:
+                price_lines.append(f"{asset}: ${self._price_cache[asset]:,.2f}")
+
+        title = f"Daily Portfolio Summary — {today}"
+        message = (
+            f"Mode: {self.mode.upper()}\n"
+            f"Fear & Greed Index: {biz_fg}\n\n"
+            f"BUSINESS DCA:\n"
+            f"  Orders: {biz_orders}\n"
+            f"  Total spent: ${biz_total_usd:.2f}\n\n"
+            f"PERSONAL DAY TRADING:\n"
+            f"  Trades: {pers_trades} ({pers_buys} buys, {pers_sells} sells)\n"
+            f"  Portfolio: ${pers_portfolio}\n"
+            f"  P&L: {pers_pnl}\n\n"
+            f"PRICES:\n"
+            f"  {chr(10).join('  ' + p for p in price_lines) if price_lines else '  (no cached prices)'}"
+        )
+
+        data = {
+            "mode": self.mode,
+            "fear_greed": str(biz_fg),
+            "dca_orders": biz_orders,
+            "dca_total_usd": f"${biz_total_usd:.2f}",
+            "day_trades": pers_trades,
+            "day_trade_pnl": str(pers_pnl),
+            "portfolio_value": f"${pers_portfolio}",
+            "cycles_today": len(todays_entries),
+        }
+
+        try:
+            results = await self._notifier.send(
+                channels=["email"],
+                title=title,
+                message=message,
+                priority="normal",
+                data=data,
+            )
+            for r in results:
+                if r.success:
+                    logger.info(f"Daily summary email sent via {r.channel}")
+                else:
+                    logger.warning(f"Daily summary email failed: {r.error}")
+        except Exception as e:
+            logger.warning(f"Failed to send daily summary: {e}")
 
     def _check_cycle_limit(self):
         """Stop after max_cycles if set."""
