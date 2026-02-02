@@ -326,14 +326,15 @@ cmd_initdb() {
     header "Initialize Database Tables"
     check_ssh
 
-    info "Creating tables via SQLAlchemy..."
+    info "Creating tables via SQLAlchemy (async)..."
     run_ebon "cd '$APP_DIR' && docker compose exec -T mcp-server python -c '
-from models import create_tables
-from sqlalchemy import create_engine
+import asyncio
+from models import create_tables_async
+from sqlalchemy.ext.asyncio import create_async_engine
 import os
-url = os.environ.get(\"DATABASE_URL\", \"postgresql://crypto:cryptopass@postgres:5432/crypto_portfolio\")
-engine = create_engine(url)
-create_tables(engine)
+url = os.environ.get(\"DATABASE_URL\", \"\").replace(\"postgresql://\", \"postgresql+asyncpg://\", 1)
+engine = create_async_engine(url)
+asyncio.run(create_tables_async(engine))
 print(\"Tables created successfully\")
 '"
 
