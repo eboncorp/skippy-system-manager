@@ -45,14 +45,18 @@ DCA_LOG_PATH = Path("/home/dave/skippy/work/crypto/dca_paper_log.json")
 
 
 class PaperDCAAgent:
-    """Paper DCA agent that uses the GTI Virtual ETF manager.
+    """DCA agent that uses the GTI Virtual ETF manager.
+
+    Works in both paper mode (PaperExchange) and live mode (LiveExchangeAdapter
+    or MultiExchangeAdapter). Pass exchange=None for paper mode with internal
+    PaperExchange, or inject a live adapter for real trading.
 
     Workflow:
     1. Fetch current holdings and prices (or use paper state)
     2. Calculate ETF allocations vs targets
     3. Generate DCA orders (prioritizing underweight assets)
     4. Apply Fear & Greed war chest logic
-    5. Execute orders on PaperExchange
+    5. Execute orders on exchange
     6. Record NAV and log results
     """
 
@@ -113,9 +117,13 @@ class PaperDCAAgent:
         return holdings, prices
 
     async def seed_prices(self, prices: Dict[str, Decimal]):
-        """Seed the paper exchange with prices."""
-        for symbol, price in prices.items():
-            self.exchange._prices[symbol] = price
+        """Seed exchange with prices. Only applies to PaperExchange;
+        live adapters fetch prices from exchange APIs directly."""
+        if hasattr(self.exchange, '_prices'):
+            for symbol, price in prices.items():
+                self.exchange._prices[symbol] = price
+        else:
+            logger.debug("Live exchange adapter; skipping price seeding")
 
     async def fetch_live_prices(self) -> Dict[str, Decimal]:
         """Fetch live prices from CoinGecko for all ETF assets."""
@@ -160,8 +168,12 @@ class PaperDCAAgent:
                 ) as resp:
                     data = await resp.json()
                     return int(data["data"][0]["value"])
-        except Exception:
-            return 50  # default neutral
+        except Exception as e:
+            logger.warning(
+                f"Failed to fetch Fear & Greed index: {e}. "
+                f"Falling back to 50 (neutral) — DCA multiplier will be 1.0x"
+            )
+            return 50
 
     async def run_daily_dca(
         self,

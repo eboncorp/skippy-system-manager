@@ -29,6 +29,9 @@ import time
 from decimal import Decimal
 from typing import Dict, List, Optional
 
+# Max age (seconds) for stale cached balances before refusing to trade
+MAX_STALE_BALANCE_AGE = 300  # 5 minutes
+
 from exchanges.base import ExchangeClient, Balance
 from agents.trading_agent import (
     ExchangeInterface,
@@ -67,9 +70,19 @@ class LiveExchangeAdapter(ExchangeInterface):
                 self._balances_cache_time = now
             except Exception as e:
                 logger.warning(f"[{self.name}] Balance fetch failed: {e}")
-                # Return cached if available
-                if self._balances_cache:
-                    pass
+                stale_age = now - self._balances_cache_time
+                if self._balances_cache and stale_age < MAX_STALE_BALANCE_AGE:
+                    logger.warning(
+                        f"[{self.name}] Using stale cached balances "
+                        f"({stale_age:.0f}s old)"
+                    )
+                elif self._balances_cache:
+                    logger.error(
+                        f"[{self.name}] Cached balances too stale "
+                        f"({stale_age:.0f}s > {MAX_STALE_BALANCE_AGE}s), "
+                        f"returning 0"
+                    )
+                    return Decimal("0")
                 else:
                     return Decimal("0")
 
@@ -110,6 +123,15 @@ class LiveExchangeAdapter(ExchangeInterface):
                     # Try to get current price
                     price = await self.get_price(order.symbol)
                     quote_amount = order.quantity * price
+
+                if quote_amount <= 0:
+                    order.status = OrderStatus.REJECTED
+                    logger.error(
+                        f"[{self.name}] Refusing to place $0 order for "
+                        f"{order.symbol} (qty={order.quantity}, "
+                        f"price={order.price})"
+                    )
+                    return order
 
                 result = await self.client.place_market_order(
                     asset=order.symbol,
@@ -231,6 +253,7 @@ class MultiExchangeAdapter(ExchangeInterface):
             if price > 0:
                 return price
 
+        logger.warning(f"No exchange returned a valid price for {symbol}")
         return Decimal("0")
 
     async def place_order(self, order: Order) -> Order:
