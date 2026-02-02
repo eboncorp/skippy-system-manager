@@ -19,7 +19,7 @@ import argparse
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -188,7 +188,7 @@ class PaperDCAAgent:
         dca_orders = self.etf.generate_dca_orders(allocations, fg)
 
         result = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "fear_greed": fg,
             "war_chest_rule": wc_rule.label,
             "dca_multiplier": str(wc_rule.dca_multiplier),
@@ -251,7 +251,7 @@ class PaperDCAAgent:
                         quantity=executed.filled_quantity,
                         price=executed.filled_price,
                         fees=executed.fees,
-                        timestamp=datetime.utcnow(),
+                        timestamp=datetime.now(timezone.utc),
                         order_id=executed.id,
                         strategy=f"ETF DCA: {dca_order.reason}",
                     )

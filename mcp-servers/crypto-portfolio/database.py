@@ -114,8 +114,8 @@ class Portfolio(Base):
         Enum(CostBasisMethod),
         default=CostBasisMethod.FIFO
     )
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     holdings = relationship("Holding", back_populates="portfolio", cascade="all, delete-orphan")
@@ -137,8 +137,8 @@ class ExchangeConnection(Base):
     is_active = Column(Boolean, default=True)
     last_sync_at = Column(DateTime, nullable=True)
     sync_error = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     portfolio = relationship("Portfolio", back_populates="exchange_connections")
@@ -162,8 +162,8 @@ class Holding(Base):
     cost_basis_usd = Column(Numeric(18, 2), nullable=True)
     last_price_usd = Column(Numeric(18, 8), nullable=True)
     last_price_updated_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     portfolio = relationship("Portfolio", back_populates="holdings")
@@ -208,7 +208,7 @@ class Transaction(Base):
     tx_hash = Column(String(100), nullable=True)  # On-chain tx hash
     notes = Column(Text, nullable=True)
     timestamp = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # For tax lot tracking
     tax_lots = relationship("TaxLot", back_populates="transaction", cascade="all, delete-orphan")
@@ -237,8 +237,8 @@ class TaxLot(Base):
     cost_per_unit_usd = Column(Numeric(18, 8), nullable=False)
     acquired_at = Column(DateTime, nullable=False)
     is_long_term = Column(Boolean, default=False)  # Held > 1 year
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     transaction = relationship("Transaction", back_populates="tax_lots")
@@ -265,7 +265,7 @@ class TaxLotDisposal(Base):
     gain_loss_usd = Column(Numeric(18, 2), nullable=False)
     is_long_term = Column(Boolean, nullable=False)
     disposed_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     tax_lot = relationship("TaxLot", back_populates="disposals")
@@ -295,7 +295,7 @@ class StakingPosition(Base):
     lock_period_days = Column(Integer, nullable=True)
     unlock_date = Column(DateTime, nullable=True)
     started_at = Column(DateTime, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     rewards = relationship("StakingReward", back_populates="position", cascade="all, delete-orphan")
@@ -320,7 +320,7 @@ class StakingReward(Base):
     value_usd = Column(Numeric(18, 2), nullable=True)
     reward_type = Column(String(50), nullable=True)  # e.g., "staking", "inflation"
     timestamp = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     position = relationship("StakingPosition", back_populates="rewards")
@@ -357,7 +357,7 @@ class DeFiPosition(Base):
 
     is_active = Column(Boolean, default=True)
     last_updated_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         Index("ix_defi_positions_protocol", "protocol"),
@@ -398,8 +398,8 @@ class DCABot(Base):
     end_date = Column(DateTime, nullable=True)
 
     status = Column(Enum(DCAStatus), default=DCAStatus.ACTIVE)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     executions = relationship("DCAExecution", back_populates="bot", cascade="all, delete-orphan")
@@ -426,7 +426,7 @@ class DCAExecution(Base):
     status = Column(String(20), nullable=False)  # success, failed, skipped
     error_message = Column(Text, nullable=True)
     executed_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     bot = relationship("DCABot", back_populates="executions")
@@ -457,8 +457,8 @@ class Alert(Base):
     is_recurring = Column(Boolean, default=False)
     cooldown_minutes = Column(Integer, nullable=True)  # Min time between triggers
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     triggers = relationship("AlertTrigger", back_populates="alert", cascade="all, delete-orphan")
@@ -481,7 +481,7 @@ class AlertTrigger(Base):
     notification_sent = Column(Boolean, default=False)
     notification_channels = Column(String(200), nullable=True)
     triggered_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     alert = relationship("Alert", back_populates="triggers")
@@ -512,7 +512,7 @@ class PortfolioSnapshot(Base):
     nft_value_usd = Column(Numeric(18, 2), nullable=True)
 
     snapshot_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     portfolio = relationship("Portfolio", back_populates="snapshots")
@@ -536,7 +536,7 @@ class HoldingSnapshot(Base):
     price_usd = Column(Numeric(18, 8), nullable=False)
     value_usd = Column(Numeric(18, 2), nullable=False)
     allocation_percent = Column(Numeric(8, 4), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     portfolio_snapshot = relationship("PortfolioSnapshot", back_populates="holdings")
@@ -560,7 +560,7 @@ class PriceSnapshot(Base):
     change_24h_percent = Column(Numeric(8, 4), nullable=True)
     source = Column(String(50), nullable=True)  # coingecko, exchange, etc.
     snapshot_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         Index("ix_price_snapshots_asset_at", "asset", "snapshot_at"),

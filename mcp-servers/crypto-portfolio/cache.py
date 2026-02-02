@@ -33,7 +33,7 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, asdict, is_dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from enum import Enum
 from functools import wraps
@@ -261,7 +261,7 @@ class InMemoryCacheBackend(BaseCacheBackend):
                 return None
 
             entry = self.cache[key]
-            if entry["expires_at"] and datetime.utcnow() > entry["expires_at"]:
+            if entry["expires_at"] and datetime.now(timezone.utc) > entry["expires_at"]:
                 del self.cache[key]
                 return None
 
@@ -271,12 +271,12 @@ class InMemoryCacheBackend(BaseCacheBackend):
         async with self._lock:
             expires_at = None
             if ttl:
-                expires_at = datetime.utcnow() + timedelta(seconds=ttl)
+                expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl)
 
             self.cache[key] = {
                 "value": value,
                 "expires_at": expires_at,
-                "created_at": datetime.utcnow()
+                "created_at": datetime.now(timezone.utc)
             }
 
             # Evict old entries if over limit
@@ -298,7 +298,7 @@ class InMemoryCacheBackend(BaseCacheBackend):
     async def expire(self, key: str, ttl: int) -> bool:
         async with self._lock:
             if key in self.cache:
-                self.cache[key]["expires_at"] = datetime.utcnow() + timedelta(seconds=ttl)
+                self.cache[key]["expires_at"] = datetime.now(timezone.utc) + timedelta(seconds=ttl)
                 return True
             return False
 
@@ -311,7 +311,7 @@ class InMemoryCacheBackend(BaseCacheBackend):
             if not entry["expires_at"]:
                 return -1
 
-            remaining = (entry["expires_at"] - datetime.utcnow()).total_seconds()
+            remaining = (entry["expires_at"] - datetime.now(timezone.utc)).total_seconds()
             return max(0, int(remaining))
 
     async def keys(self, pattern: str) -> List[str]:
@@ -679,9 +679,9 @@ class CacheManager:
             return count <= limit
         else:
             # Fallback for in-memory
-            data = await self.backend.get(key) or {"count": 0, "reset": datetime.utcnow()}
-            if datetime.utcnow() > data["reset"] + timedelta(seconds=window_seconds):
-                data = {"count": 0, "reset": datetime.utcnow()}
+            data = await self.backend.get(key) or {"count": 0, "reset": datetime.now(timezone.utc)}
+            if datetime.now(timezone.utc) > data["reset"] + timedelta(seconds=window_seconds):
+                data = {"count": 0, "reset": datetime.now(timezone.utc)}
             data["count"] += 1
             await self.backend.set(key, data, window_seconds)
             return data["count"] <= limit
@@ -704,7 +704,7 @@ class CacheManager:
 
         if isinstance(self.backend, RedisCacheBackend) and self.backend.redis:
             # Use Redis SETNX
-            result = await self.backend.redis.setnx(key, datetime.utcnow().isoformat())
+            result = await self.backend.redis.setnx(key, datetime.now(timezone.utc).isoformat())
             if result:
                 await self.backend.expire(key, timeout)
             return result
@@ -712,7 +712,7 @@ class CacheManager:
             # Fallback - not truly distributed
             if await self.backend.exists(key):
                 return False
-            await self.backend.set(key, datetime.utcnow().isoformat(), timeout)
+            await self.backend.set(key, datetime.now(timezone.utc).isoformat(), timeout)
             return True
 
     async def release_lock(self, resource: str) -> bool:

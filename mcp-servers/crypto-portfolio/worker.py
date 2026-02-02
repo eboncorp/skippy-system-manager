@@ -26,7 +26,7 @@ import os
 import signal
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -86,7 +86,7 @@ class JobResult:
 
     def __post_init__(self):
         if self.completed_at is None:
-            self.completed_at = datetime.utcnow()
+            self.completed_at = datetime.now(timezone.utc)
         if self.duration_ms == 0:
             self.duration_ms = (self.completed_at - self.started_at).total_seconds() * 1000
 
@@ -148,11 +148,11 @@ class BaseJob(ABC):
             return JobResult(
                 job_name=self.name,
                 status=JobStatus.SKIPPED,
-                started_at=datetime.utcnow(),
+                started_at=datetime.now(timezone.utc),
                 message="Job disabled",
             )
 
-        started_at = datetime.utcnow()
+        started_at = datetime.now(timezone.utc)
         last_error = None
 
         for attempt in range(self.max_retries):
@@ -194,7 +194,7 @@ class BaseJob(ABC):
         elif result.status == JobStatus.SKIPPED:
             self.stats.skipped_runs += 1
 
-        self._last_run = datetime.utcnow()
+        self._last_run = datetime.now(timezone.utc)
 
     def should_run(self) -> bool:
         """Check if job should run based on frequency."""
@@ -202,7 +202,7 @@ class BaseJob(ABC):
             return True
 
         next_run = self._last_run + timedelta(seconds=self.frequency.to_seconds())
-        return datetime.utcnow() >= next_run
+        return datetime.now(timezone.utc) >= next_run
 
 
 # =============================================================================
@@ -221,7 +221,7 @@ class PriceCacheJob(BaseJob):
         self.assets = ["BTC", "ETH", "SOL", "AVAX", "MATIC", "LINK", "UNI", "AAVE"]
 
     async def execute(self) -> JobResult:
-        started_at = datetime.utcnow()
+        started_at = datetime.now(timezone.utc)
 
         try:
             # Import here to avoid circular imports
@@ -267,7 +267,7 @@ class AlertCheckJob(BaseJob):
         )
 
     async def execute(self) -> JobResult:
-        started_at = datetime.utcnow()
+        started_at = datetime.now(timezone.utc)
 
         try:
             # Import dependencies
@@ -312,7 +312,7 @@ class DCAExecutionJob(BaseJob):
         )
 
     async def execute(self) -> JobResult:
-        started_at = datetime.utcnow()
+        started_at = datetime.now(timezone.utc)
 
         try:
             executed = 0
@@ -355,7 +355,7 @@ class PortfolioSnapshotJob(BaseJob):
         )
 
     async def execute(self) -> JobResult:
-        started_at = datetime.utcnow()
+        started_at = datetime.now(timezone.utc)
 
         try:
             # Mock snapshot - replace with real implementation
@@ -392,7 +392,7 @@ class StakingRewardsJob(BaseJob):
         self.auto_claim = os.getenv("AUTO_CLAIM_REWARDS", "false").lower() == "true"
 
     async def execute(self) -> JobResult:
-        started_at = datetime.utcnow()
+        started_at = datetime.now(timezone.utc)
 
         try:
             # Mock rewards check - replace with real implementation
@@ -431,7 +431,7 @@ class BalanceSyncJob(BaseJob):
         )
 
     async def execute(self) -> JobResult:
-        started_at = datetime.utcnow()
+        started_at = datetime.now(timezone.utc)
 
         try:
             synced = 0
@@ -471,13 +471,13 @@ class DataCleanupJob(BaseJob):
         self.retention_days = int(os.getenv("DATA_RETENTION_DAYS", "90"))
 
     async def execute(self) -> JobResult:
-        started_at = datetime.utcnow()
+        started_at = datetime.now(timezone.utc)
 
         try:
             deleted = 0
 
             # Mock cleanup - replace with real implementation
-            # cutoff = datetime.utcnow() - timedelta(days=self.retention_days)
+            # cutoff = datetime.now(timezone.utc) - timedelta(days=self.retention_days)
             # deleted += await delete_old_price_history(cutoff)
             # deleted += await delete_old_snapshots(cutoff)
 

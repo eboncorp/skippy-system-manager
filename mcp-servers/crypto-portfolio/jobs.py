@@ -29,7 +29,7 @@ import logging
 import signal
 import traceback
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 import uuid
@@ -159,7 +159,7 @@ class SimpleCronParser:
     def next_run(expression: str, from_time: Optional[datetime] = None) -> datetime:
         """Calculate next run time for cron expression."""
         parsed = SimpleCronParser.parse(expression)
-        now = from_time or datetime.utcnow()
+        now = from_time or datetime.now(timezone.utc)
 
         # Start from next minute
         candidate = now.replace(second=0, microsecond=0) + timedelta(minutes=1)
@@ -273,7 +273,7 @@ class JobScheduler:
         """Register a job with configuration."""
         # Calculate initial next run
         if config.interval:
-            next_run = datetime.utcnow() + timedelta(seconds=config.interval)
+            next_run = datetime.now(timezone.utc) + timedelta(seconds=config.interval)
         else:
             next_run = SimpleCronParser.next_run(config.cron)
 
@@ -327,7 +327,7 @@ class JobScheduler:
     async def _execute_job(self, job: ScheduledJob, retry_count: int = 0) -> JobResult:
         """Execute a job with retry handling."""
         job_id = str(uuid.uuid4())
-        started_at = datetime.utcnow()
+        started_at = datetime.now(timezone.utc)
         job.is_running = True
 
         result = JobResult(
@@ -384,7 +384,7 @@ class JobScheduler:
             self.metrics["jobs_failed"] += 1
 
         finally:
-            result.completed_at = datetime.utcnow()
+            result.completed_at = datetime.now(timezone.utc)
             result.duration_seconds = (result.completed_at - started_at).total_seconds()
             job.is_running = False
             job.last_run = started_at
@@ -395,7 +395,7 @@ class JobScheduler:
 
             # Update next run
             if job.config.interval:
-                job.next_run = datetime.utcnow() + timedelta(seconds=job.config.interval)
+                job.next_run = datetime.now(timezone.utc) + timedelta(seconds=job.config.interval)
             else:
                 job.next_run = SimpleCronParser.next_run(job.config.cron)
 
@@ -411,7 +411,7 @@ class JobScheduler:
         logger.info("Scheduler loop started")
 
         while self.running:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
 
             # Find jobs that need to run
             pending_jobs = [
@@ -578,7 +578,7 @@ class CryptoJobs:
                     logger.error(f"Failed to get balances from {name}: {e}")
 
             return {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "holdings_count": len(holdings),
                 "total_value_usd": total_value
             }
@@ -715,7 +715,7 @@ async def example_usage():
     @scheduler.job("heartbeat", interval=5)
     async def heartbeat():
         logger.info("Heartbeat!")
-        return {"time": datetime.utcnow().isoformat()}
+        return {"time": datetime.now(timezone.utc).isoformat()}
 
     # Register a cron job
     @scheduler.job("hourly_task", cron="0 * * * *", enabled=False)

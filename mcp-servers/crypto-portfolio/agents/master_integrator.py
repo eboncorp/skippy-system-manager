@@ -36,7 +36,7 @@ This provides the most comprehensive cryptocurrency market analysis available.
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple, Any
 import asyncio
 import logging
@@ -246,7 +246,7 @@ class MasterSignalIntegrator:
             self._generate_recommendations(master_score, confidence, current_regime)
 
         return MasterAnalysis(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             asset=asset,
             extended_analysis=extended_analysis,
             onchain_analysis=onchain_analysis,

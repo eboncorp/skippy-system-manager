@@ -38,7 +38,7 @@ def decimal_decoder(dct: dict) -> dict:
                 # Try to parse as Decimal if it looks like a number
                 if value.replace(".", "").replace("-", "").isdigit():
                     dct[key] = Decimal(value)
-            except:
+            except (ValueError, ArithmeticError):
                 pass
     return dct
 

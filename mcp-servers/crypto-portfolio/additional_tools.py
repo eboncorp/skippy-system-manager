@@ -26,7 +26,7 @@ Usage:
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Optional
 
@@ -515,7 +515,7 @@ def register_trading_tools(mcp: FastMCP):
                 "status": "success",
                 "mode": "paper_trading",
                 "order": {
-                    "id": f"paper_{datetime.utcnow().timestamp()}",
+                    "id": f"paper_{datetime.now(timezone.utc).timestamp()}",
                     "exchange": params.exchange.value,
                     "symbol": params.symbol,
                     "side": params.side.value,
@@ -523,7 +523,7 @@ def register_trading_tools(mcp: FastMCP):
                     "amount": params.amount,
                     "price": params.price,
                     "status": "filled",
-                    "created_at": datetime.utcnow().isoformat()
+                    "created_at": datetime.now(timezone.utc).isoformat()
                 },
                 "message": "Paper trade executed successfully"
             }, indent=2)
@@ -847,7 +847,7 @@ def register_dca_management_tools(mcp: FastMCP):
                 "amount_usd": params.amount_usd,
                 "frequency": params.frequency.value,
                 "status": "active" if params.start_immediately else "paused",
-                "next_execution": datetime.utcnow().isoformat() if params.start_immediately else None,
+                "next_execution": datetime.now(timezone.utc).isoformat() if params.start_immediately else None,
                 "max_total_usd": params.max_total_usd
             },
             "message": f"DCA bot created for {params.asset}"
@@ -902,7 +902,7 @@ def register_alert_management_tools(mcp: FastMCP):
         Returns:
             Alert creation confirmation
         """
-        alert_id = f"alert_{datetime.utcnow().timestamp()}"
+        alert_id = f"alert_{datetime.now(timezone.utc).timestamp()}"
         return json.dumps({
             "status": "success",
             "alert": {
@@ -912,7 +912,7 @@ def register_alert_management_tools(mcp: FastMCP):
                 "threshold": params.threshold,
                 "channels": params.notification_channels,
                 "note": params.note,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat()
             },
             "message": "Alert created successfully"
         }, indent=2)
@@ -976,7 +976,7 @@ def register_market_data_tools(mcp: FastMCP):
             mock_prices = {k: v for k, v in mock_prices.items() if k in params.assets}
 
         if params.response_format == ResponseFormat.JSON:
-            return json.dumps({"prices": mock_prices, "timestamp": datetime.utcnow().isoformat()}, indent=2)
+            return json.dumps({"prices": mock_prices, "timestamp": datetime.now(timezone.utc).isoformat()}, indent=2)
 
         md = "# Current Prices\n\n"
         md += "| Asset | Price | 24h Change |\n"
@@ -1007,7 +1007,7 @@ def register_market_data_tools(mcp: FastMCP):
             Market sentiment data
         """
         data = {
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         if params.include_fear_greed:

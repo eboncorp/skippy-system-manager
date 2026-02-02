@@ -83,7 +83,7 @@ class StakingTracker:
                         balance = float(acc.available_balance.value)
                     else:
                         balance = float(acc.available_balance) if acc.available_balance else 0
-                except:
+                except (ValueError, TypeError, AttributeError):
                     balance = 0
 
                 if balance > 0:
@@ -91,12 +91,12 @@ class StakingTracker:
                     try:
                         product = self.client.get_product(f"{currency}-USD")
                         price = float(product.price) if product.price else 0
-                    except:
+                    except Exception:
                         # Try base asset price as fallback
                         try:
                             product = self.client.get_product(f"{token_info['base_asset']}-USD")
                             price = float(product.price) if product.price else 0
-                        except:
+                        except Exception:
                             price = 0
 
                     usd_value = balance * price

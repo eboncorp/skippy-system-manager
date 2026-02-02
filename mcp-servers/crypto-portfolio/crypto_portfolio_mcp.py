@@ -21,7 +21,7 @@ License: MIT
 import json
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -724,7 +724,7 @@ def get_mock_portfolio_data() -> Dict[str, Any]:
         },
         "staking_value_usd": 18234.56,
         "defi_value_usd": 12500.00,
-        "last_updated": datetime.utcnow().isoformat()
+        "last_updated": datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -816,7 +816,7 @@ def get_mock_ai_analysis() -> Dict[str, Any]:
     """Generate mock AI analysis results."""
     return {
         "analysis_type": "comprehensive",
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "portfolio_health_score": 78,
         "risk_level": "moderate",
         "key_findings": [
@@ -1145,7 +1145,7 @@ async def crypto_portfolio_summary(params: PortfolioSummaryInput) -> str:
 
             md = f"""# Portfolio Summary (LIVE DATA)
 
-**Last Updated:** {raw_data.get('timestamp', datetime.utcnow().isoformat())}
+**Last Updated:** {raw_data.get('timestamp', datetime.now(timezone.utc).isoformat())}
 **Data Source:** Live from {source_desc}
 
 ## Total Value
@@ -1788,7 +1788,7 @@ async def crypto_arbitrage_opportunities(params: ArbitrageOpportunitiesInput) ->
     try:
         # Mock arbitrage data
         data = {
-            "scan_time": datetime.utcnow().isoformat(),
+            "scan_time": datetime.now(timezone.utc).isoformat(),
             "opportunities": [
                 {
                     "asset": "BTC",
@@ -2341,7 +2341,7 @@ export OPENAI_API_KEY="your-api-key"
         data = {
             "query": params.query,
             "chain": params.chain.value,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "result": result
         }
 

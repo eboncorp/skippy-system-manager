@@ -10,7 +10,7 @@ Always start with paper trading and small positions.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal, ROUND_DOWN
 from enum import Enum
 from typing import Dict, List, Optional, Any, Callable
@@ -91,8 +91,8 @@ class Order:
     status: OrderStatus = OrderStatus.PENDING
     filled_quantity: Decimal = Decimal("0")
     filled_price: Optional[Decimal] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     exchange_order_id: Optional[str] = None
     fees: Decimal = Decimal("0")
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -110,7 +110,7 @@ class Position:
     realized_pnl: Decimal = Decimal("0")
     stop_loss: Optional[Decimal] = None
     take_profit: Optional[Decimal] = None
-    opened_at: datetime = field(default_factory=datetime.utcnow)
+    opened_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def value(self) -> Decimal:
@@ -326,7 +326,7 @@ class PaperExchange(ExchangeInterface):
         order.filled_quantity = order.quantity
         order.filled_price = price
         order.fees = fee
-        order.updated_at = datetime.utcnow()
+        order.updated_at = datetime.now(timezone.utc)
 
         # Record trade
         trade = Trade(
@@ -336,7 +336,7 @@ class PaperExchange(ExchangeInterface):
             quantity=order.quantity,
             price=price,
             fees=fee,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             order_id=order.id,
         )
         self.trades.append(trade)
@@ -575,7 +575,7 @@ class DCASignalStrategy(TradingStrategy):
         for asset in self.config.supported_assets:
             # Check if it's time for DCA
             last_time = self.last_dca_time.get(asset, datetime.min)
-            hours_since = (datetime.utcnow() - last_time).total_seconds() / 3600
+            hours_since = (datetime.now(timezone.utc) - last_time).total_seconds() / 3600
 
             if hours_since < self.config.dca_frequency_hours:
                 continue
@@ -911,11 +911,11 @@ class AdaptiveDayTradeStrategy(TradingStrategy):
         self.stop_loss_pct = Decimal("3")
         self.take_profit_pct = Decimal("5")
         self._spent_today = Decimal("0")
-        self._last_reset_date = datetime.utcnow().date()
+        self._last_reset_date = datetime.now(timezone.utc).date()
         self._position_entries: Dict[str, datetime] = {}  # symbol -> entry time
 
     def _reset_daily_budget(self):
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         if today > self._last_reset_date:
             self._spent_today = Decimal("0")
             self._last_reset_date = today
@@ -954,7 +954,7 @@ class AdaptiveDayTradeStrategy(TradingStrategy):
 
         market_type = self._classify_market(signal_score)
         vol_adj = self._get_volatility_adjustment(signal_score)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         for asset in self.config.supported_assets:
             symbol = f"{asset}/USD"
@@ -1223,12 +1223,12 @@ class RiskManager:
         self.limits = limits
         self.daily_pnl = Decimal("0")
         self.daily_orders = 0
-        self.last_reset = datetime.utcnow().date()
+        self.last_reset = datetime.now(timezone.utc).date()
         self.peak_value = Decimal("0")
 
     def reset_daily(self):
         """Reset daily counters."""
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         if today > self.last_reset:
             self.daily_pnl = Decimal("0")
             self.daily_orders = 0
@@ -1500,7 +1500,7 @@ class TradingAgent:
                         quantity=executed_order.filled_quantity,
                         price=executed_order.filled_price,
                         fees=executed_order.fees,
-                        timestamp=datetime.utcnow(),
+                        timestamp=datetime.now(timezone.utc),
                         order_id=executed_order.id,
                         strategy=action.reasoning,
                     )
@@ -1577,7 +1577,7 @@ class TradingAgent:
                 "daily_orders": self.risk_manager.daily_orders,
                 "peak_value": str(self.risk_manager.peak_value),
             },
-            "trades_today": len([t for t in self.trades if t.timestamp.date() == datetime.utcnow().date()]),
+            "trades_today": len([t for t in self.trades if t.timestamp.date() == datetime.now(timezone.utc).date()]),
             "total_trades": len(self.trades),
             "strategies": [s.name for s in self.strategies],
         }

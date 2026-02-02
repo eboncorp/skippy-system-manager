@@ -300,7 +300,7 @@ class MarketSignalsAnalyzer:
                 data = await resp.json()
                 prices = [p[1] for p in data.get("prices", [])]
                 volumes = [v[1] for v in data.get("total_volumes", [])]
-        except:
+        except Exception:
             prices = []
             volumes = []
 
@@ -403,7 +403,7 @@ class MarketSignalsAnalyzer:
                         signal = SignalStrength.NEUTRAL
 
                     return value, label, signal
-        except:
+        except Exception:
             pass
 
         return 50, "Neutral", SignalStrength.NEUTRAL
@@ -433,7 +433,7 @@ class MarketSignalsAnalyzer:
                 macro.btc_dominance = global_data.get(
                     "market_cap_percentage", {}
                 ).get("btc", 0)
-        except:
+        except Exception:
             pass
 
         # BTC dominance signal

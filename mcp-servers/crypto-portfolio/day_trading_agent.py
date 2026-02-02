@@ -17,7 +17,7 @@ Usage:
 import argparse
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Dict, List, Optional
 
@@ -122,7 +122,7 @@ class PaperDayTrader:
 
         Returns a session summary dict.
         """
-        self.start_time = datetime.utcnow()
+        self.start_time = datetime.now(timezone.utc)
         self.session_trades = []
         self.cycle_log = []
 
@@ -139,7 +139,7 @@ class PaperDayTrader:
 
         try:
             for cycle in range(hours):
-                cycle_start = datetime.utcnow()
+                cycle_start = datetime.now(timezone.utc)
 
                 # Get signal data
                 signal_score = 0.0
@@ -215,7 +215,7 @@ class PaperDayTrader:
                                 quantity=executed.filled_quantity,
                                 price=executed.filled_price,
                                 fees=executed.fees,
-                                timestamp=datetime.utcnow(),
+                                timestamp=datetime.now(timezone.utc),
                                 order_id=executed.id,
                                 strategy=action.reasoning,
                             )
@@ -261,7 +261,7 @@ class PaperDayTrader:
 
         return {
             "session_start": self.start_time.isoformat() if self.start_time else None,
-            "session_end": datetime.utcnow().isoformat(),
+            "session_end": datetime.now(timezone.utc).isoformat(),
             "cycles_completed": len(self.cycle_log),
             "total_trades": total_trades,
             "buys": len(buys),

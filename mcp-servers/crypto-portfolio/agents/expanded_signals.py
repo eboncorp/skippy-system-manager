@@ -91,7 +91,7 @@ CATEGORY 16: SENTIMENT ADVANCED (125-130)
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Any
 import asyncio
@@ -122,7 +122,7 @@ class SignalResult:
     weight: float  # How much this signal counts
     description: str
     details: Dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -207,12 +207,12 @@ class ExpandedSignalsAnalyzer:
     def _get_cached(self, key: str) -> Optional[Any]:
         if key in self._cache:
             data, ts = self._cache[key]
-            if datetime.utcnow() - ts < self._cache_ttl:
+            if datetime.now(timezone.utc) - ts < self._cache_ttl:
                 return data
         return None
 
     def _set_cached(self, key: str, data: Any):
-        self._cache[key] = (data, datetime.utcnow())
+        self._cache[key] = (data, datetime.now(timezone.utc))
 
     def _unavailable_signal(self, name: str, category: str) -> SignalResult:
         return SignalResult(
@@ -2772,7 +2772,7 @@ class ExpandedSignalsAnalyzer:
                 "usdt_dominance": usdt / total if total > 0 else 0,
                 "change_30d_percent": 0,  # Would need historical data
             }
-        except:
+        except Exception:
             return None
 
     async def _fetch_defi_llama_yields(self) -> Optional[Dict]:
@@ -3055,7 +3055,7 @@ class ExpandedSignalsAnalyzer:
         composite_score = max(-100, min(100, composite_score))
 
         return ExpandedSignalAnalysis(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             asset=asset,
             smart_money=summaries["smart_money"],
             defi_altcoin=summaries["defi_altcoin"],

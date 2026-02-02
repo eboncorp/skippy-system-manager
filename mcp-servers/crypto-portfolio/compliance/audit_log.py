@@ -15,7 +15,7 @@ import json
 import logging
 import os
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -120,7 +120,7 @@ class AuditLog:
         prev_checksum = self._entries[-1].checksum if self._entries else ""
 
         entry = AuditEntry(
-            timestamp=datetime.utcnow().isoformat() + "Z",
+            timestamp=datetime.now(timezone.utc).isoformat() + "Z",
             table_name=table_name,
             record_id=str(record_id),
             action=action.upper(),

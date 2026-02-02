@@ -276,7 +276,7 @@ class DipBuyingAgent:
             fg_data = await self._market_intel.get_fear_greed_index()
             fear_greed = fg_data.get("value", 50)
             fg_label = fg_data.get("label", "Neutral")
-        except:
+        except Exception:
             fear_greed = 50
             fg_label = "Neutral"
 

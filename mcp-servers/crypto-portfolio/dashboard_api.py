@@ -10,7 +10,9 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+import re
+
+from fastapi import APIRouter, HTTPException, Query, Request
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +75,11 @@ def _get_24h_change() -> tuple:
     change = current_value - old_value
     change_pct = (change / old_value * 100) if old_value > 0 else 0
     return change, change_pct
+
+
+VALID_EXCHANGES = {"coinbase", "coinbase_gti", "kraken", "crypto.com", "gemini", "all"}
+VALID_ASSET_PATTERN = re.compile(r'^[A-Za-z0-9]{1,10}$')
+VALID_TX_TYPES = {"buy", "sell", "send", "receive", "trade", "staking_reward", "interest", "fee", "transfer"}
 
 
 def create_api_router(
@@ -180,6 +187,8 @@ def create_api_router(
     @router.get("/holdings/{exchange}")
     async def get_exchange_holdings(exchange: str):
         """Get holdings for a specific exchange."""
+        if exchange.lower() not in VALID_EXCHANGES:
+            raise HTTPException(status_code=400, detail="Invalid exchange name.")
         if portfolio_manager is None:
             raise HTTPException(status_code=503, detail="Portfolio manager not available.")
 
@@ -201,6 +210,8 @@ def create_api_router(
     @router.get("/signals/{asset}")
     async def get_signals(asset: str = "BTC"):
         """Get signal analysis for an asset."""
+        if not VALID_ASSET_PATTERN.match(asset):
+            raise HTTPException(status_code=400, detail="Invalid asset symbol.")
         if not SIGNAL_ANALYZER_AVAILABLE:
             return {"error": "Signal analyzer not available", "available": False}
 
@@ -252,6 +263,8 @@ def create_api_router(
         """Get tax summary for a year."""
         if year is None:
             year = datetime.now().year
+        elif year < 2010 or year > 2040:
+            raise HTTPException(status_code=400, detail="Year must be between 2010 and 2040.")
 
         if transaction_history is None:
             return _mock_tax_summary(year)
@@ -278,8 +291,8 @@ def create_api_router(
                         bal = data.get('total_balance', 0)
                         if bal > 0:
                             prices[asset] = data.get('total_value_usd', 0) / bal
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Could not fetch prices for tax lots: %s", e)
 
             unrealized = cbt.get_unrealized_gains(prices)
             lots = []
@@ -623,8 +636,11 @@ def create_api_router(
         }
 
     @router.post("/notifications/test")
-    async def send_test_notification():
+    async def send_test_notification(request: Request):
         """Send a test notification to the 'app' channel."""
+        origin = request.headers.get("origin", "")
+        if origin and not origin.startswith(("http://localhost", "http://127.0.0.1")):
+            raise HTTPException(status_code=403, detail="Forbidden: invalid origin.")
         if notification_manager is None:
             raise HTTPException(status_code=503, detail="Notifications not initialized")
 

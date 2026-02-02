@@ -24,7 +24,7 @@ PAID/PREMIUM APIs (optional):
 
 import aiohttp
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
 import logging
 import os
@@ -96,12 +96,12 @@ class DataProviders:
     def _get_cached(self, key: str) -> Optional[Any]:
         if key in self._cache:
             data, timestamp = self._cache[key]
-            if datetime.utcnow() - timestamp < self._cache_ttl:
+            if datetime.now(timezone.utc) - timestamp < self._cache_ttl:
                 return data
         return None
 
     def _set_cache(self, key: str, data: Any):
-        self._cache[key] = (data, datetime.utcnow())
+        self._cache[key] = (data, datetime.now(timezone.utc))
 
     # =========================================================================
     # PRICE & MARKET DATA (CoinGecko)

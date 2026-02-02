@@ -6,7 +6,7 @@ Repository pattern implementation for clean data access.
 Each repository handles CRUD operations for related models.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 
@@ -214,7 +214,7 @@ class HoldingRepository(BaseRepository):
 
         query.update({
             "last_price_usd": price_usd,
-            "last_price_updated_at": datetime.utcnow()
+            "last_price_updated_at": datetime.now(timezone.utc)
         })
         self.commit()
 
@@ -470,7 +470,7 @@ class StakingRepository(BaseRepository):
                 asset=asset,
                 amount=amount,
                 apy=apy,
-                started_at=datetime.utcnow(),
+                started_at=datetime.now(timezone.utc),
                 **kwargs
             )
             self.session.add(position)
@@ -517,7 +517,7 @@ class StakingRepository(BaseRepository):
             amount=amount,
             value_usd=value_usd,
             reward_type=reward_type,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
         self.session.add(reward)
         self.commit()
@@ -560,7 +560,7 @@ class DCABotRepository(BaseRepository):
 
     def _calculate_next_execution(self, frequency: str, from_time: Optional[datetime] = None) -> datetime:
         """Calculate next execution time based on frequency."""
-        base = from_time or datetime.utcnow()
+        base = from_time or datetime.now(timezone.utc)
 
         intervals = {
             "hourly": timedelta(hours=1),
@@ -590,7 +590,7 @@ class DCABotRepository(BaseRepository):
         return self.session.query(DCABot).filter(
             and_(
                 DCABot.status == DCAStatus.ACTIVE,
-                DCABot.next_execution_at <= datetime.utcnow()
+                DCABot.next_execution_at <= datetime.now(timezone.utc)
             )
         ).all()
 
@@ -612,7 +612,7 @@ class DCABotRepository(BaseRepository):
             amount_acquired=amount_acquired,
             price=price,
             status=status,
-            executed_at=datetime.utcnow(),
+            executed_at=datetime.now(timezone.utc),
             **kwargs
         )
         self.session.add(execution)
@@ -623,7 +623,7 @@ class DCABotRepository(BaseRepository):
             bot.total_invested += amount_invested
             bot.total_acquired += amount_acquired
             bot.execution_count += 1
-            bot.last_execution_at = datetime.utcnow()
+            bot.last_execution_at = datetime.now(timezone.utc)
             bot.next_execution_at = self._calculate_next_execution(bot.frequency)
 
             # Check if max reached
@@ -692,12 +692,12 @@ class AlertRepository(BaseRepository):
             alert_id=alert_id,
             triggered_value=triggered_value,
             notification_channels=alert.notification_channels if alert else "app",
-            triggered_at=datetime.utcnow()
+            triggered_at=datetime.now(timezone.utc)
         )
         self.session.add(trigger)
 
         if alert:
-            alert.triggered_at = datetime.utcnow()
+            alert.triggered_at = datetime.now(timezone.utc)
             alert.triggered_value = triggered_value
             if not alert.is_recurring:
                 alert.status = AlertStatus.TRIGGERED
@@ -730,7 +730,7 @@ class SnapshotRepository(BaseRepository):
         snapshot = PortfolioSnapshot(
             portfolio_id=portfolio_id,
             total_value_usd=total_value_usd,
-            snapshot_at=datetime.utcnow(),
+            snapshot_at=datetime.now(timezone.utc),
             **kwargs
         )
         self.session.add(snapshot)
@@ -782,7 +782,7 @@ class SnapshotRepository(BaseRepository):
             asset=asset,
             price_usd=price_usd,
             source=source,
-            snapshot_at=datetime.utcnow(),
+            snapshot_at=datetime.now(timezone.utc),
             **kwargs
         )
         self.session.add(snapshot)
