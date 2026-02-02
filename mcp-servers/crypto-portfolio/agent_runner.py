@@ -93,10 +93,18 @@ class AgentRunner:
         # Notifications
         self._notifier = NotificationManager()
 
+        # Idempotency: track last DCA date to prevent duplicates on restart
+        self._last_dca_date: Optional[str] = None
+        self._state_file = self.log_dir / "agent_state.json"
+
     async def initialize(self, max_cycles: Optional[int] = None):
         """Initialize agents and scheduler."""
         self._max_cycles = max_cycles
         self.log_dir.mkdir(parents=True, exist_ok=True)
+
+        # Load persisted state (last DCA date, trade log)
+        self._load_state()
+        self._load_trade_log()
 
         logger.info(f"Initializing agent runner: mode={self.mode}, "
                      f"business={self.run_business}, personal={self.run_personal}")
@@ -235,6 +243,8 @@ class AgentRunner:
                 id="business_dca",
                 name="Business ETF DCA",
                 replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=300,
             )
             logger.info("Scheduled: Business ETF DCA daily at 10:00 UTC")
 
@@ -246,6 +256,8 @@ class AgentRunner:
                 id="personal_trade",
                 name="Personal Day Trade",
                 replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=300,
             )
             logger.info("Scheduled: Personal day trading every hour")
 
@@ -258,12 +270,42 @@ class AgentRunner:
                 id="daily_summary",
                 name="Daily Summary Email",
                 replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=300,
             )
             logger.info("Scheduled: Daily summary email at 22:00 UTC")
+
+    def _load_state(self):
+        """Load persisted agent state (last DCA date, etc.)."""
+        if self._state_file.exists():
+            try:
+                with open(self._state_file) as f:
+                    state = json.load(f)
+                self._last_dca_date = state.get("last_dca_date")
+                if self._last_dca_date:
+                    logger.info(f"Loaded state: last DCA date = {self._last_dca_date}")
+            except Exception as e:
+                logger.warning(f"Failed to load agent state: {e}")
+
+    def _save_state(self):
+        """Persist agent state to survive container restarts."""
+        try:
+            self._state_file.parent.mkdir(parents=True, exist_ok=True)
+            state = {"last_dca_date": self._last_dca_date}
+            with open(self._state_file, "w") as f:
+                json.dump(state, f)
+        except Exception as e:
+            logger.warning(f"Failed to save agent state: {e}")
 
     async def _run_business_cycle(self):
         """Execute one ETF DCA cycle."""
         if not self.business_agent:
+            return
+
+        # Idempotency: skip if DCA already ran today
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if self._last_dca_date == today:
+            logger.info(f"Business DCA already ran today ({today}), skipping duplicate")
             return
 
         logger.info("=" * 50)
@@ -292,6 +334,9 @@ class AgentRunner:
             }
             self.trade_log.append(log_entry)
             self._save_trade_log()
+
+            self._last_dca_date = today
+            self._save_state()
 
             logger.info(
                 f"Business DCA complete: {result.get('orders_generated', 0)} orders, "
@@ -455,13 +500,13 @@ class AgentRunner:
 
         return prices
 
-    async def _fetch_prices_from_coingecko(self) -> Dict[str, Decimal]:
-        """Raw CoinGecko price fetch (no caching)."""
+    async def _fetch_prices_from_coingecko(self, retries: int = 3) -> Dict[str, Decimal]:
+        """Raw CoinGecko price fetch with retry + backoff."""
         from etf_config import get_coingecko_ids
 
         cg_ids = get_coingecko_ids()
         if not cg_ids:
-            return {}
+            return {"USDC": Decimal("1")}
 
         # Add personal trading assets
         personal_cg_map = {
@@ -476,30 +521,65 @@ class AgentRunner:
         id_to_symbol = {v: k for k, v in cg_ids.items()}
         ids_param = ",".join(set(cg_ids.values()))
 
-        prices = {}
-        try:
-            import aiohttp
+        prices: Dict[str, Decimal] = {}
+        for attempt in range(retries):
+            try:
+                import aiohttp
 
-            async with aiohttp.ClientSession() as session:
-                url = (
-                    f"https://api.coingecko.com/api/v3/simple/price"
-                    f"?ids={ids_param}&vs_currencies=usd"
-                )
-                async with session.get(
-                    url, timeout=aiohttp.ClientTimeout(total=20)
-                ) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        for cg_id, price_data in data.items():
-                            symbol = id_to_symbol.get(cg_id)
-                            if symbol and "usd" in price_data:
-                                prices[symbol] = Decimal(str(price_data["usd"]))
+                async with aiohttp.ClientSession() as session:
+                    url = (
+                        f"https://api.coingecko.com/api/v3/simple/price"
+                        f"?ids={ids_param}&vs_currencies=usd"
+                    )
+                    async with session.get(
+                        url, timeout=aiohttp.ClientTimeout(total=20)
+                    ) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            for cg_id, price_data in data.items():
+                                symbol = id_to_symbol.get(cg_id)
+                                if symbol and "usd" in price_data:
+                                    prices[symbol] = Decimal(str(price_data["usd"]))
 
-        except Exception as e:
-            logger.warning(f"CoinGecko price fetch failed: {e}")
+                if len(prices) > 1:
+                    prices.setdefault("USDC", Decimal("1"))
+                    return prices
+
+                # Got empty or only partial — retry
+                if attempt < retries - 1:
+                    wait = 2 ** attempt
+                    logger.info(
+                        f"CoinGecko returned {len(prices)} prices, "
+                        f"retrying in {wait}s ({attempt + 1}/{retries})"
+                    )
+                    await asyncio.sleep(wait)
+
+            except Exception as e:
+                if attempt < retries - 1:
+                    wait = 2 ** attempt
+                    logger.warning(
+                        f"CoinGecko fetch failed: {e}, "
+                        f"retrying in {wait}s ({attempt + 1}/{retries})"
+                    )
+                    await asyncio.sleep(wait)
+                else:
+                    logger.warning(
+                        f"CoinGecko price fetch failed after {retries} attempts: {e}"
+                    )
 
         prices.setdefault("USDC", Decimal("1"))
         return prices
+
+    def _load_trade_log(self):
+        """Load trade log from disk to survive container restarts."""
+        log_file = self.log_dir / "trade_log.json"
+        if log_file.exists():
+            try:
+                with open(log_file) as f:
+                    self.trade_log = json.load(f)
+                logger.info(f"Loaded {len(self.trade_log)} trade log entries from disk")
+            except Exception as e:
+                logger.warning(f"Failed to load trade log: {e}")
 
     def _save_trade_log(self):
         """Save trade log to disk."""
