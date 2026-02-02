@@ -648,7 +648,7 @@ class ExtendedSignalsAnalyzer:
             usdt_dominance = usdt_supply / total_supply * 100 if total_supply > 0 else 0
 
         except Exception as e:
-            logger.warning(f"Stablecoin metrics fetch failed: {e}")
+            logger.debug(f"Stablecoin metrics fetch failed (using defaults): {e}")
             total_supply = 150_000_000_000
             usdt_supply = 100_000_000_000
             usdc_supply = 35_000_000_000

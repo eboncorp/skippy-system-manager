@@ -1019,7 +1019,10 @@ class ExpandedSignalsAnalyzer:
                 details={"altcoin_index": index}
             )
         except Exception as e:
-            logger.error(f"Error fetching Altcoin Season Index: {e}")
+            # api.blockchaincenter.net has been returning SSL/DNS errors since
+            # early 2026 (301 → www.api.blockchaincenter.net which doesn't resolve).
+            # Downgrade to debug since it's a known third-party issue.
+            logger.debug(f"Altcoin Season Index unavailable: {e}")
             return self._unavailable_signal("Altcoin Season", "defi_altcoin")
 
     async def _get_btc_dominance(self) -> SignalResult:

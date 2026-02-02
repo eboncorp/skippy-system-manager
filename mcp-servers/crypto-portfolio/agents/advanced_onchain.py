@@ -1300,7 +1300,7 @@ class AdvancedOnChainAnalyzer:
                 details={"altseason_index": index}
             )
         except Exception as e:
-            logger.error(f"Altseason error: {e}")
+            logger.debug(f"Altseason unavailable: {e}")
             return self._unavailable("Altcoin Season Index", "market_structure", "rotation")
 
     async def get_btc_dominance(self) -> AdvancedSignalResult:
