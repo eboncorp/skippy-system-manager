@@ -620,8 +620,11 @@ class ExtendedSignalsAnalyzer:
             async with session.get(url, params=params) as resp:
                 data = await resp.json()
 
-                if not isinstance(data, list):
-                    raise ValueError(f"Expected list from CoinGecko, got {type(data).__name__}")
+                # CoinGecko returns a dict on rate-limit (e.g. {"status": {...}})
+                if isinstance(data, dict):
+                    if "status" in data and data["status"].get("error_code") == 429:
+                        raise ValueError("CoinGecko rate limited (429)")
+                    raise ValueError(f"Expected list from CoinGecko, got dict: {list(data.keys())[:3]}")
 
                 total_supply = sum(c.get("market_cap", 0) for c in data)
 

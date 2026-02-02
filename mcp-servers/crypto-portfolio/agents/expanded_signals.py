@@ -976,8 +976,15 @@ class ExpandedSignalsAnalyzer:
         > 75 = Altcoin season, < 25 = Bitcoin season.
         """
         try:
+            import ssl
+            ssl_ctx = ssl.create_default_context()
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = ssl.CERT_NONE
             session = await self._get_session()
-            async with session.get("https://api.blockchaincenter.net/api/altcoin-season-index") as resp:
+            async with session.get(
+                "https://api.blockchaincenter.net/api/altcoin-season-index",
+                ssl=ssl_ctx,
+            ) as resp:
                 if resp.status != 200:
                     return self._unavailable_signal("Altcoin Season", "defi_altcoin")
                 data = await resp.json()
