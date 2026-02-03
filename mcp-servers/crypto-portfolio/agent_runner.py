@@ -49,6 +49,31 @@ from notifications import NotificationManager
 
 logger = logging.getLogger(__name__)
 
+# Personal day-trade assets: non-staked, freely tradeable (BTC/staked/stakeable excluded)
+PERSONAL_DAY_TRADE_ASSETS = [
+    "LTC", "XRP", "LINK", "ALGO", "HBAR", "DOGE", "NEAR", "MANA",
+    "SAND", "SUI", "ONDO", "RENDER", "FET", "XTZ", "ARB", "TON",
+]
+
+# Real exchange holdings snapshot (2026-02-02) for paper agent seeding
+BUSINESS_HOLDINGS_SNAPSHOT: Dict[str, Decimal] = {
+    "USDC": Decimal("100.009"),
+}
+
+PERSONAL_HOLDINGS_SNAPSHOT: Dict[str, Decimal] = {
+    "LTC": Decimal("13.160504"),    "XRP": Decimal("141.31725"),
+    "LINK": Decimal("18.31802"),    "ALGO": Decimal("1376.9995"),
+    "HBAR": Decimal("1415.3177"),   "DOGE": Decimal("794.82837"),
+    "NEAR": Decimal("51.229828"),   "MANA": Decimal("526.18036"),
+    "SAND": Decimal("513.5984"),    "SUI": Decimal("43.4342"),
+    "ONDO": Decimal("120.99177"),   "RENDER": Decimal("6.0505915"),
+    "FET": Decimal("33.644413"),    "XTZ": Decimal("2.125376"),
+    "ARB": Decimal("11.46085"),     "TON": Decimal("41.7837"),
+}
+
+BUSINESS_SEED_CASH = Decimal("2520")   # $28/day × 30d × 3.0x extreme fear
+PERSONAL_SEED_CASH = Decimal("360")    # $12/day × 30d
+
 # Default log directory
 DEFAULT_LOG_DIR = Path("./data/agent_logs")
 
@@ -120,23 +145,36 @@ class AgentRunner:
         logger.info("Agent runner initialized")
 
     async def _init_paper_agents(self):
-        """Initialize agents with PaperExchange and live prices."""
-        # Fetch live prices for paper exchange seeding
+        """Initialize agents with PaperExchange, real holdings snapshot, and live prices."""
         prices = await self._get_prices()
 
         if self.run_business:
-            self.business_agent = PaperDCAAgent(initial_cash=Decimal("5000"))
+            self.business_agent = PaperDCAAgent(
+                initial_cash=BUSINESS_SEED_CASH,
+                initial_holdings=BUSINESS_HOLDINGS_SNAPSHOT,
+            )
             if prices:
                 await self.business_agent.seed_prices(prices)
-            logger.info("Business agent (ETF DCA) initialized in paper mode")
+            logger.info(
+                f"Business agent initialized: ${BUSINESS_SEED_CASH} cash + "
+                f"{len(BUSINESS_HOLDINGS_SNAPSHOT)} holdings"
+            )
 
         if self.run_personal:
-            self.personal_agent = PaperDayTrader(initial_cash=Decimal("1000"))
+            self.personal_agent = PaperDayTrader(
+                assets=PERSONAL_DAY_TRADE_ASSETS,
+                initial_cash=PERSONAL_SEED_CASH,
+                initial_holdings=PERSONAL_HOLDINGS_SNAPSHOT,
+            )
             if prices:
                 await self.personal_agent.initialize(prices=prices)
             else:
                 await self.personal_agent.initialize()
-            logger.info("Personal agent (Day Trading) initialized in paper mode")
+            logger.info(
+                f"Personal agent initialized: ${PERSONAL_SEED_CASH} cash + "
+                f"{len(PERSONAL_HOLDINGS_SNAPSHOT)} holdings across "
+                f"{len(PERSONAL_DAY_TRADE_ASSETS)} tradeable assets"
+            )
 
     async def _init_live_agents(self):
         """Initialize agents with real exchange adapters."""
@@ -508,12 +546,16 @@ class AgentRunner:
         if not cg_ids:
             return {"USDC": Decimal("1")}
 
-        # Add personal trading assets
+        # Add personal trading assets (most already in ETF; TON is new)
         personal_cg_map = {
             "BTC": "bitcoin", "ETH": "ethereum", "SOL": "solana",
             "AVAX": "avalanche-2", "LINK": "chainlink", "NEAR": "near",
             "SUI": "sui", "RENDER": "render-token", "FET": "fetch-ai",
-            "DOGE": "dogecoin",
+            "DOGE": "dogecoin", "LTC": "litecoin", "XRP": "ripple",
+            "ALGO": "algorand", "HBAR": "hedera-hashgraph",
+            "MANA": "decentraland", "SAND": "the-sandbox",
+            "ONDO": "ondo-finance", "XTZ": "tezos", "ARB": "arbitrum",
+            "TON": "the-open-network",
         }
         for sym, cg_id in personal_cg_map.items():
             cg_ids.setdefault(sym, cg_id)

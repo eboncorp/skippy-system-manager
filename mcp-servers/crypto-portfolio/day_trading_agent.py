@@ -57,6 +57,7 @@ class PaperDayTrader:
         self,
         assets: Optional[List[str]] = None,
         initial_cash: Decimal = Decimal("1000"),
+        initial_holdings: Optional[Dict[str, Decimal]] = None,
         exchange=None,
     ):
         self.assets = assets or DEFAULT_DAY_TRADE_ASSETS
@@ -86,6 +87,10 @@ class PaperDayTrader:
             balances = {"USD": initial_cash}
             for asset in self.assets:
                 balances[asset] = Decimal("0")
+            if initial_holdings:
+                for symbol, qty in initial_holdings.items():
+                    if symbol in balances:
+                        balances[symbol] = qty
             self.exchange = PaperExchange(initial_balances=balances)
 
         # Strategy
@@ -110,14 +115,17 @@ class PaperDayTrader:
             for symbol, price in prices.items():
                 self.exchange._prices[symbol] = price
 
-        # Set portfolio state directly instead of full initialize
-        # (avoids needing the signal analyzer for portfolio setup)
         self.agent.portfolio = Portfolio(
             cash_balance=await self.exchange.get_balance("USD"),
             positions={},
-            initial_value=await self.exchange.get_balance("USD"),
+            initial_value=Decimal("0"),  # computed after _update_portfolio
         )
-        self.agent.portfolio.total_value = self.agent.portfolio.initial_value
+
+        # Scan exchange balances -> create Position objects -> compute total_value
+        await self.agent._update_portfolio()
+
+        # Set initial_value from full portfolio (cash + holdings at current prices)
+        self.agent.portfolio.initial_value = self.agent.portfolio.total_value
         self.agent.risk_manager.peak_value = self.agent.portfolio.total_value
 
     async def run_paper_session(self, hours: int = 8) -> dict:

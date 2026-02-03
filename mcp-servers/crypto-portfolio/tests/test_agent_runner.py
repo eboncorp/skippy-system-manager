@@ -10,6 +10,7 @@ Validates AgentRunner scheduler, lifecycle, and isolation:
 - Price fetch timeout handling
 """
 
+from decimal import Decimal
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -198,3 +199,20 @@ class TestAgentRunner:
             await agent_runner.run_immediate(cycles=1)
 
         assert agent_runner._cycle_count >= 1
+
+    async def test_paper_agents_have_seeded_holdings(self, agent_runner):
+        """Paper agents start with real exchange holdings snapshot."""
+        await self._init_runner(agent_runner)
+
+        # Business: USDC from GTI snapshot + seed cash
+        biz_usdc = await agent_runner.business_agent.exchange.get_balance("USDC")
+        assert biz_usdc == Decimal("100.009")
+        biz_cash = await agent_runner.business_agent.exchange.get_balance("USD")
+        assert biz_cash == Decimal("2520")
+
+        # Personal: LTC from Coinbase snapshot + seed cash, 16 tradeable assets
+        pers_ltc = await agent_runner.personal_agent.exchange.get_balance("LTC")
+        assert pers_ltc == Decimal("13.160504")
+        pers_cash = await agent_runner.personal_agent.exchange.get_balance("USD")
+        assert pers_cash == Decimal("360")
+        assert len(agent_runner.personal_agent.assets) == 16
