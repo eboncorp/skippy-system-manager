@@ -274,12 +274,14 @@ class PortfolioAggregator:
                 }
                 logging.info(f"CCXT client initialized for {exchange_id}")
 
-    async def get_wallet_summary(self, address: str, label: str) -> Dict[str, Any]:
+    async def get_wallet_summary(self, address: str, label: str,
+                                 prices: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
         """Get portfolio summary for a single on-chain wallet via direct RPC.
 
         Args:
             address: Wallet address (0x...)
             label: Human-readable wallet label
+            prices: Pre-fetched price map (skips CoinGecko call if provided)
 
         Returns:
             Dict with source, label, total_value_usd, and holdings list
@@ -290,9 +292,10 @@ class PortfolioAggregator:
         try:
             wallet_summary = await self._evm_tracker.get_wallet_summary(address)
 
-            # Get prices for the tokens we found
-            symbols = list(wallet_summary.total_by_symbol.keys())
-            prices = await self._fetch_coingecko_prices(symbols) if symbols else {}
+            # Get prices for the tokens we found (skip if pre-fetched)
+            if prices is None:
+                symbols = list(wallet_summary.total_by_symbol.keys())
+                prices = await self._fetch_coingecko_prices(symbols) if symbols else {}
 
             holdings = []
             total_value = 0.0
@@ -323,15 +326,17 @@ class PortfolioAggregator:
             return {'source': 'wallet', 'label': label, 'address': address,
                     'error': str(e), 'total_value_usd': 0, 'holdings': []}
 
-    async def _get_solana_wallet_summary(self, address: str, label: str) -> Dict[str, Any]:
+    async def _get_solana_wallet_summary(self, address: str, label: str,
+                                         prices: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
         """Get portfolio summary for a Solana wallet."""
         if not self._solana_tracker:
             return {'source': 'wallet-solana', 'label': label, 'error': 'Solana tracker not initialized',
                     'total_value_usd': 0, 'holdings': []}
         try:
             summary = await self._solana_tracker.get_wallet_summary(address)
-            symbols = list(summary.total_by_symbol.keys())
-            prices = await self._fetch_coingecko_prices(symbols) if symbols else {}
+            if prices is None:
+                symbols = list(summary.total_by_symbol.keys())
+                prices = await self._fetch_coingecko_prices(symbols) if symbols else {}
 
             holdings = []
             total_value = 0.0
@@ -360,19 +365,21 @@ class PortfolioAggregator:
             return {'source': 'wallet-solana', 'label': label, 'address': address,
                     'error': str(e), 'total_value_usd': 0, 'holdings': []}
 
-    async def _get_cosmos_wallet_summary(self, address: str, chain: str, label: str) -> Dict[str, Any]:
+    async def _get_cosmos_wallet_summary(self, address: str, chain: str, label: str,
+                                         prices: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
         """Get portfolio summary for a Cosmos wallet."""
         if not self._cosmos_tracker:
             return {'source': 'wallet-cosmos', 'label': label, 'error': 'Cosmos tracker not initialized',
                     'total_value_usd': 0, 'holdings': []}
         try:
             summary = await self._cosmos_tracker.get_wallet_summary(address, chain)
-            # Collect base symbols (strip -staked/-rewards suffixes for pricing)
-            base_symbols = set()
-            for sym in summary.total_by_symbol:
-                base = sym.split("-")[0]
-                base_symbols.add(base)
-            prices = await self._fetch_coingecko_prices(list(base_symbols)) if base_symbols else {}
+            if prices is None:
+                # Collect base symbols (strip -staked/-rewards suffixes for pricing)
+                base_symbols = set()
+                for sym in summary.total_by_symbol:
+                    base = sym.split("-")[0]
+                    base_symbols.add(base)
+                prices = await self._fetch_coingecko_prices(list(base_symbols)) if base_symbols else {}
 
             holdings = []
             total_value = 0.0
@@ -405,28 +412,146 @@ class PortfolioAggregator:
     async def get_all_wallet_summaries(self) -> Dict[str, Dict[str, Any]]:
         """Get summaries for all configured on-chain wallets (EVM, Solana, Cosmos).
 
+        Fetches all wallet balances first, then makes a single batched price
+        call to avoid CoinGecko rate limiting.
+
         Returns:
             Dict of label -> wallet summary
         """
-        results = {}
+        # Phase 1: Collect all raw balances (no price fetches)
+        all_symbols: set = set()
+        raw_wallets: list = []
 
         # EVM wallets
         for address, info in self.wallets.items():
             label = info.get('label', address[:10])
-            results[label] = await self.get_wallet_summary(address, label)
+            if self._evm_tracker:
+                try:
+                    summary = await self._evm_tracker.get_wallet_summary(address)
+                    symbols = list(summary.total_by_symbol.keys())
+                    all_symbols.update(symbols)
+                    raw_wallets.append(('evm', address, label, summary))
+                except Exception as e:
+                    logging.warning(f"Failed to fetch wallet {label} ({address[:10]}...): {e}")
+                    raw_wallets.append(('evm', address, label, e))
 
         # Solana wallets
         for address, info in self._solana_wallets.items():
             label = info.get('label', address[:10])
-            results[label] = await self._get_solana_wallet_summary(address, label)
+            if self._solana_tracker:
+                try:
+                    summary = await self._solana_tracker.get_wallet_summary(address)
+                    symbols = list(summary.total_by_symbol.keys())
+                    all_symbols.update(symbols)
+                    raw_wallets.append(('solana', address, label, summary))
+                except Exception as e:
+                    logging.warning(f"Failed to fetch Solana wallet {label} ({address[:10]}...): {e}")
+                    raw_wallets.append(('solana', address, label, e))
 
         # Cosmos wallets
         for address, info in self._cosmos_wallets.items():
             label = info.get('label', address[:12])
             chain = info.get('chain', '')
-            results[label] = await self._get_cosmos_wallet_summary(address, chain, label)
+            if self._cosmos_tracker:
+                try:
+                    summary = await self._cosmos_tracker.get_wallet_summary(address, chain)
+                    for sym in summary.total_by_symbol:
+                        all_symbols.add(sym.split("-")[0])
+                    raw_wallets.append(('cosmos', address, label, summary, chain))
+                except Exception as e:
+                    logging.warning(f"Failed to fetch Cosmos wallet {label} ({address[:12]}...): {e}")
+                    raw_wallets.append(('cosmos', address, label, e, chain))
+
+        # Phase 2: Single batched price fetch for all symbols
+        prices = await self._fetch_coingecko_prices(list(all_symbols)) if all_symbols else {}
+
+        # Phase 3: Apply prices to all wallets
+        results = {}
+        for entry in raw_wallets:
+            wallet_type = entry[0]
+            address = entry[1]
+            label = entry[2]
+            data = entry[3]
+
+            if isinstance(data, Exception):
+                source = 'wallet' if wallet_type == 'evm' else f'wallet-{wallet_type}'
+                results[label] = {'source': source, 'label': label, 'address': address,
+                                  'error': str(data), 'total_value_usd': 0, 'holdings': []}
+                continue
+
+            if wallet_type == 'cosmos':
+                chain = entry[4]
+                results[label] = self._apply_prices_cosmos(data, prices, address, label, chain)
+            elif wallet_type == 'solana':
+                results[label] = self._apply_prices_solana(data, prices, address, label)
+            else:
+                results[label] = self._apply_prices_evm(data, prices, address, label)
 
         return results
+
+    @staticmethod
+    def _apply_prices_evm(summary, prices: Dict[str, float],
+                          address: str, label: str) -> Dict[str, Any]:
+        holdings = []
+        total_value = 0.0
+        for bal in summary.balances:
+            if bal.amount <= 0:
+                continue
+            price = prices.get(bal.symbol, 0)
+            value = float(bal.amount) * price
+            holdings.append({
+                'currency': bal.symbol, 'balance': float(bal.amount),
+                'value_usd': value, 'chain': bal.chain,
+            })
+            total_value += value
+        return {
+            'source': 'wallet', 'label': label, 'address': address,
+            'total_value_usd': total_value,
+            'holdings': sorted(holdings, key=lambda x: x['value_usd'], reverse=True),
+        }
+
+    @staticmethod
+    def _apply_prices_solana(summary, prices: Dict[str, float],
+                             address: str, label: str) -> Dict[str, Any]:
+        holdings = []
+        total_value = 0.0
+        for bal in summary.balances:
+            if bal.amount <= 0:
+                continue
+            price = prices.get(bal.symbol, 0)
+            value = float(bal.amount) * price
+            holdings.append({
+                'currency': bal.symbol, 'balance': float(bal.amount),
+                'value_usd': value, 'chain': 'solana',
+            })
+            total_value += value
+        return {
+            'source': 'wallet-solana', 'label': label, 'address': address,
+            'total_value_usd': total_value,
+            'holdings': sorted(holdings, key=lambda x: x['value_usd'], reverse=True),
+        }
+
+    @staticmethod
+    def _apply_prices_cosmos(summary, prices: Dict[str, float],
+                             address: str, label: str, chain: str) -> Dict[str, Any]:
+        holdings = []
+        total_value = 0.0
+        for bal in summary.balances:
+            if bal.amount <= 0:
+                continue
+            base_sym = bal.symbol.split("-")[0]
+            price = prices.get(base_sym, 0)
+            value = float(bal.amount) * price
+            holdings.append({
+                'currency': bal.symbol, 'balance': float(bal.amount),
+                'value_usd': value, 'chain': chain,
+            })
+            total_value += value
+        return {
+            'source': 'wallet-cosmos', 'label': label, 'address': address,
+            'total_value_usd': total_value,
+            'holdings': sorted(holdings, key=lambda x: x['value_usd'], reverse=True),
+        }
 
     async def _fetch_coingecko_prices(self, symbols: List[str]) -> Dict[str, float]:
         """Fetch current USD prices from CoinGecko for a list of symbols.
