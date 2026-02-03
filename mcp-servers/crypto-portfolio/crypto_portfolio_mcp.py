@@ -2547,7 +2547,7 @@ async def _get_etf_portfolio_data():
     if PORTFOLIO_AGGREGATOR_AVAILABLE:
         etf_symbols = list(ETF_ASSETS.keys()) if ETF_AVAILABLE else []
         all_symbols = list(set(list(holdings_by_symbol.keys()) + etf_symbols))
-        prices = await _aggregator._fetch_prices(all_symbols)
+        prices = await _aggregator._fetch_coingecko_prices(all_symbols)
         from decimal import Decimal as D
         prices_decimal = {k: D(str(v)) for k, v in prices.items()}
         # Stablecoins
