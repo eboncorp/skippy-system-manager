@@ -42,6 +42,7 @@ MOCK_PRICES = {
     "DOGE": Decimal("0.34"),
     "ARB": Decimal("1.10"),
     "USDC": Decimal("1"),
+    "TON": Decimal("5.40"),
 }
 
 
