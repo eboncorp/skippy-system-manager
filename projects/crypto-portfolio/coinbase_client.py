@@ -11,8 +11,11 @@ Install: pip install coinbase-advanced-py
 
 import os
 import json
+import logging
 from typing import Optional, List, Dict, Any
 from coinbase.rest import RESTClient
+
+logger = logging.getLogger(__name__)
 
 
 def create_coinbase_client(
@@ -88,7 +91,8 @@ class CoinbaseClientWrapper:
                     balance = float(ab.value)
                 else:
                     balance = float(ab) if ab else 0
-            except:
+            except (ValueError, TypeError, AttributeError) as e:
+                logger.warning(f"Failed to parse balance for account: {e}")
                 balance = 0
 
             # Handle both dict and object for currency/name
@@ -129,8 +133,8 @@ class CoinbaseClientWrapper:
             product = self.client.get_product(f"{currency}-{quote_currency}")
             if product and product.price:
                 return float(product.price)
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"No {currency}-{quote_currency} pair: {e}")
 
         # Try USDC pair as fallback
         if quote_currency == "USD":
@@ -138,8 +142,8 @@ class CoinbaseClientWrapper:
                 product = self.client.get_product(f"{currency}-USDC")
                 if product and product.price:
                     return float(product.price)
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"No {currency}-USDC pair: {e}")
 
         return None
 
@@ -148,7 +152,8 @@ class CoinbaseClientWrapper:
         try:
             result = self.client.get_products()
             return [{"product_id": p.product_id} for p in result.products]
-        except:
+        except Exception as e:
+            logger.error(f"Failed to list products: {e}")
             return []
 
     def get_fills(self, limit: int = 100) -> List[Dict[str, Any]]:
@@ -156,7 +161,8 @@ class CoinbaseClientWrapper:
         try:
             result = self.client.get_fills(limit=limit)
             return [vars(f) for f in result.fills] if result.fills else []
-        except:
+        except Exception as e:
+            logger.error(f"Failed to get fills: {e}")
             return []
 
     def get_orders(self, status: str = "OPEN", product_id: str = None, limit: int = 100) -> List[Dict[str, Any]]:
@@ -164,7 +170,8 @@ class CoinbaseClientWrapper:
         try:
             result = self.client.list_orders(order_status=[status], limit=limit, product_id=product_id)
             return [vars(o) for o in result.orders] if result.orders else []
-        except:
+        except Exception as e:
+            logger.error(f"Failed to get orders (status={status}): {e}")
             return []
 
     def place_market_order(self, product_id: str, side: str, amount: float,
@@ -305,7 +312,8 @@ class CoinbaseClientWrapper:
                 }
                 for p in result.products
             ] if result.products else []
-        except:
+        except Exception as e:
+            logger.error(f"Failed to get products: {e}")
             return []
 
     def get_portfolio_summary(self) -> Dict[str, Any]:

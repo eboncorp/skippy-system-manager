@@ -32,7 +32,6 @@ import hashlib
 import json
 import logging
 import os
-import pickle
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -103,13 +102,14 @@ class CacheSerializer:
         elif isinstance(value, datetime):
             return json.dumps({"_type": "datetime", "_value": value.isoformat()}).encode()
         elif isinstance(value, dict):
-            # Try JSON first, fall back to pickle
             try:
                 return json.dumps({"_type": "json", "_value": value}).encode()
             except (TypeError, ValueError):
-                return pickle.dumps({"_type": "pickle", "_value": value})
+                # Convert non-serializable values to strings
+                safe_value = {k: str(v) for k, v in value.items()}
+                return json.dumps({"_type": "json", "_value": safe_value}).encode()
         else:
-            return pickle.dumps({"_type": "pickle", "_value": value})
+            return json.dumps({"_type": "json", "_value": str(value)}).encode()
     
     @staticmethod
     def deserialize(data: bytes) -> Any:
@@ -125,10 +125,8 @@ class CacheSerializer:
                     return datetime.fromisoformat(obj["_value"])
             return obj
         except (json.JSONDecodeError, UnicodeDecodeError):
-            obj = pickle.loads(data)
-            if isinstance(obj, dict) and "_type" in obj:
-                return obj["_value"]
-            return obj
+            logger.warning("Cache contained non-JSON data, discarding stale entry")
+            return None
 
 
 # =============================================================================
