@@ -246,7 +246,7 @@ class CostBasisTracker:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             sale_id, asset.upper(), quantity, sale_price_per_unit, total_proceeds,
-            sale_date.isoformat(), exchange, json.dumps(selected_lots),
+            sale_date.isoformat(), exchange, json.dumps(selected_lots, default=str),
             total_cost_basis, gain_loss, 1 if is_long_term else 0, transaction_id
         ))
         self.conn.commit()
