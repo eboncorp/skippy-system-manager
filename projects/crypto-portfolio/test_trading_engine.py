@@ -9,16 +9,6 @@ Covers:
 - Fee estimation
 """
 
-import importlib.util
-import sys
-from pathlib import Path
-
-# Fix config/ package shadowing config.py — must happen before any imports
-_spec = importlib.util.spec_from_file_location("config", Path(__file__).parent / "config.py")
-_mod = importlib.util.module_from_spec(_spec)
-sys.modules["config"] = _mod
-_spec.loader.exec_module(_mod)
-
 import pytest
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
