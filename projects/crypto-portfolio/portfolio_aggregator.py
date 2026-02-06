@@ -3,10 +3,13 @@ Multi-Exchange Portfolio Aggregator
 Combines holdings from multiple exchanges into a unified view.
 """
 
+import logging
 import os
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -40,7 +43,7 @@ class PortfolioAggregator:
                     'enabled': True,
                 }
             except Exception as e:
-                print(f"Failed to init Coinbase: {e}")
+                logger.warning("Failed to init Coinbase: %s", e)
 
         # Coinbase GTI (Business)
         gti_key = os.path.expanduser("~/.config/coinbase/gti_cdp_api_key.json")
@@ -53,7 +56,7 @@ class PortfolioAggregator:
                     'enabled': True,
                 }
             except Exception as e:
-                print(f"Failed to init Coinbase GTI: {e}")
+                logger.warning("Failed to init Coinbase GTI: %s", e)
 
         # Crypto.com Exchange
         crypto_com_key = os.path.expanduser("~/.config/crypto_com/api_key.json")
@@ -66,7 +69,7 @@ class PortfolioAggregator:
                     'enabled': True,
                 }
             except Exception as e:
-                print(f"Failed to init Crypto.com: {e}")
+                logger.warning("Failed to init Crypto.com: %s", e)
 
         # Kraken
         kraken_key = os.path.expanduser("~/.config/kraken/api_key.json")
@@ -79,7 +82,7 @@ class PortfolioAggregator:
                     'enabled': True,
                 }
             except Exception as e:
-                print(f"Failed to init Kraken: {e}")
+                logger.warning("Failed to init Kraken: %s", e)
 
     def get_exchange_summary(self, exchange_id: str) -> Optional[Dict[str, Any]]:
         """Get portfolio summary for a single exchange."""

@@ -11,6 +11,7 @@ Supports:
 Uses public APIs (no private keys required - read-only).
 """
 
+import logging
 import os
 import time
 import json
@@ -18,6 +19,8 @@ import requests
 from datetime import datetime
 from typing import Optional, List, Dict
 from dataclasses import dataclass, asdict
+
+logger = logging.getLogger(__name__)
 from dotenv import load_dotenv
 
 
@@ -120,7 +123,7 @@ class EthereumTracker:
     def _make_request(self, chain: str, params: dict) -> Optional[dict]:
         """Make request to block explorer API."""
         if chain not in self.CHAINS:
-            print(f"Unsupported chain: {chain}")
+            logger.warning("Unsupported chain: %s", chain)
             return None
         
         config = self.CHAINS[chain]
@@ -138,12 +141,12 @@ class EthereumTracker:
                 return data.get("result")
             else:
                 if "rate limit" in str(data.get("message", "")).lower():
-                    print(f"  Rate limited on {chain}, waiting...")
+                    logger.warning("Rate limited on %s, waiting...", chain)
                     time.sleep(1)
                 return None
                 
         except Exception as e:
-            print(f"Error querying {chain}: {e}")
+            logger.warning("Error querying %s: %s", chain, e)
             return None
     
     def get_native_balance(self, address: str, chain: str = "ethereum") -> Optional[WalletBalance]:
@@ -283,7 +286,7 @@ class EthereumTracker:
                         raw_data=tx
                     ))
                 except Exception as e:
-                    print(f"Error parsing transaction: {e}")
+                    logger.warning("Error parsing transaction: %s", e)
         
         return transactions
     
@@ -338,11 +341,11 @@ class SolanaTracker:
             if "result" in data:
                 return data["result"]
             if "error" in data:
-                print(f"Solana RPC error: {data['error']}")
+                logger.warning("Solana RPC error: %s", data['error'])
             return None
             
         except Exception as e:
-            print(f"Solana request error: {e}")
+            logger.warning("Solana request error: %s", e)
             return None
     
     def get_balance(self, address: str) -> Optional[WalletBalance]:
@@ -398,7 +401,7 @@ class SolanaTracker:
                             chain="solana"
                         ))
                 except Exception as e:
-                    print(f"Error parsing SPL token: {e}")
+                    logger.warning("Error parsing SPL token: %s", e)
         
         return balances
     
@@ -443,7 +446,7 @@ class SolanaTracker:
                     time.sleep(0.1)  # Rate limiting
                     
                 except Exception as e:
-                    print(f"Error fetching Solana transaction: {e}")
+                    logger.warning("Error fetching Solana transaction: %s", e)
         
         return transactions
     
@@ -508,7 +511,7 @@ class BitcoinTracker:
             )
             
         except Exception as e:
-            print(f"Error getting BTC balance: {e}")
+            logger.warning("Error getting BTC balance: %s", e)
             return None
     
     def get_transactions(self, address: str, limit: int = 100) -> List[WalletTransaction]:
@@ -557,10 +560,10 @@ class BitcoinTracker:
                     ))
                     
                 except Exception as e:
-                    print(f"Error parsing BTC transaction: {e}")
+                    logger.warning("Error parsing BTC transaction: %s", e)
             
         except Exception as e:
-            print(f"Error fetching BTC transactions: {e}")
+            logger.warning("Error fetching BTC transactions: %s", e)
         
         return transactions
     
@@ -629,7 +632,7 @@ class OnChainWalletManager:
                         balances.append(btc)
                 
             except Exception as e:
-                print(f"    Error: {e}")
+                logger.warning("Error fetching wallet balances: %s", e)
             
             all_balances[address] = balances
         
@@ -688,7 +691,7 @@ class OnChainWalletManager:
                 self.wallets = json.load(f)
             return True
         except Exception as e:
-            print(f"Error loading wallets: {e}")
+            logger.warning("Error loading wallets: %s", e)
             return False
 
 

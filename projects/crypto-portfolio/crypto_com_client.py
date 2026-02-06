@@ -6,6 +6,7 @@ Uses HMAC-SHA256 digital signatures for authentication.
 Docs: https://exchange-docs.crypto.com/exchange/v1/rest-ws/index.html
 """
 
+import logging
 import os
 import json
 import time
@@ -13,6 +14,8 @@ import hmac
 import hashlib
 from typing import Optional, List, Dict, Any
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 def load_crypto_com_credentials(filepath: str = None) -> Dict[str, str]:
@@ -137,14 +140,14 @@ class CryptoComClient:
             if result.get("code") == 0:
                 return result.get("result", {})
             else:
-                print(f"API Error: {result.get('code')} - {result.get('message')}")
+                logger.warning("API Error: %s - %s", result.get('code'), result.get('message'))
                 return None
 
         except requests.exceptions.HTTPError as e:
-            print(f"HTTP Error: {e}")
+            logger.warning("HTTP Error: %s", e)
             return None
         except requests.exceptions.RequestException as e:
-            print(f"Request Error: {e}")
+            logger.warning("Request Error: %s", e)
             return None
 
     def get_user_balance(self) -> Optional[Dict[str, Any]]:
@@ -175,7 +178,7 @@ class CryptoComClient:
             if result.get("code") == 0:
                 return result.get("result", {}).get("data", [])
         except Exception as e:
-            print(f"Error getting instruments: {e}")
+            logger.warning("Error getting instruments: %s", e)
         return []
 
     def get_ticker(self, instrument_name: str = None) -> Optional[Dict[str, Any]]:
@@ -190,7 +193,7 @@ class CryptoComClient:
             if result.get("code") == 0:
                 return result.get("result", {}).get("data", [])
         except Exception as e:
-            print(f"Error getting ticker: {e}")
+            logger.warning("Error getting ticker: %s", e)
         return []
 
     def get_portfolio_summary(self) -> Dict[str, Any]:

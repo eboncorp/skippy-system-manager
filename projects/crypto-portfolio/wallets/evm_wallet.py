@@ -6,12 +6,15 @@ Uses Alchemy or direct RPC for balance queries.
 """
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Dict, List, Optional, Any
 import aiohttp
 
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -281,7 +284,7 @@ class EVMWalletTracker:
                 decimals=config.native_decimals,
             )
         except Exception as e:
-            print(f"Warning: Failed to get {chain} native balance: {e}")
+            logger.warning("Failed to get %s native balance: %s", chain, e)
             return TokenBalance(
                 symbol=config.native_symbol,
                 chain=chain,
@@ -308,7 +311,7 @@ class EVMWalletTracker:
                 contract_address=token_address,
             )
         except Exception as e:
-            print(f"Warning: Failed to get {symbol} on {chain}: {e}")
+            logger.warning("Failed to get %s on %s: %s", symbol, chain, e)
             return TokenBalance(
                 symbol=symbol,
                 chain=chain,

@@ -6,6 +6,7 @@ Tracks SOL balance and SPL tokens on Solana mainnet.
 
 import asyncio
 import base64
+import logging
 import struct
 from dataclasses import dataclass
 from decimal import Decimal
@@ -13,6 +14,8 @@ from typing import Dict, List, Optional, Any
 import aiohttp
 
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 
 # Common SPL tokens to track (mint address -> (symbol, decimals))
@@ -127,7 +130,7 @@ class SolanaWalletTracker:
                     decimals=9,
                 ))
         except Exception as e:
-            print(f"Warning: Failed to get SOL balance: {e}")
+            logger.warning("Failed to get SOL balance: %s", e)
         
         # Get SPL tokens
         try:
@@ -162,11 +165,11 @@ class SolanaWalletTracker:
                     ))
                     
                 except Exception as e:
-                    print(f"Warning: Failed to parse token account: {e}")
+                    logger.warning("Failed to parse token account: %s", e)
                     continue
                     
         except Exception as e:
-            print(f"Warning: Failed to get token accounts: {e}")
+            logger.warning("Failed to get token accounts: %s", e)
         
         return balances
     
@@ -201,7 +204,7 @@ class SolanaWalletTracker:
             try:
                 summaries[address] = await self.get_wallet_summary(address)
             except Exception as e:
-                print(f"Warning: Failed to get summary for {address}: {e}")
+                logger.warning("Failed to get summary for %s: %s", address, e)
         
         return summaries
     
@@ -244,7 +247,7 @@ class SolanaWalletTracker:
             return stakes
             
         except Exception as e:
-            print(f"Warning: Failed to get staking info: {e}")
+            logger.warning("Failed to get staking info: %s", e)
             return []
     
     async def close(self):

@@ -9,6 +9,7 @@ Compares portfolio performance against:
 """
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -17,6 +18,8 @@ import aiohttp
 import statistics
 
 from data.storage import db
+
+logger = logging.getLogger(__name__)
 from data.prices import PriceService
 
 
@@ -100,7 +103,7 @@ class PerformanceAnalyzer:
                 
                 return prices
         except Exception as e:
-            print(f"Failed to get historical prices for {asset_id}: {e}")
+            logger.warning("Failed to get historical prices for %s: %s", asset_id, e)
             return []
     
     def calculate_metrics(
@@ -286,7 +289,7 @@ class PerformanceAnalyzer:
                 )
                 comparisons.append(comparison)
             except Exception as e:
-                print(f"Failed to compare to {benchmark_name}: {e}")
+                logger.warning("Failed to compare to %s: %s", benchmark_name, e)
         
         return FullBenchmarkReport(
             period_start=start_date,

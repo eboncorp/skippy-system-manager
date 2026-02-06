@@ -5,6 +5,7 @@ Handles authentication and API requests to Kraken.
 API Documentation: https://docs.kraken.com/rest/
 """
 
+import logging
 import os
 import json
 import hashlib
@@ -15,6 +16,8 @@ import urllib.parse
 import requests
 from typing import Optional, Dict, Any
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 def load_kraken_credentials(filepath: str = None) -> Dict[str, str]:
@@ -127,13 +130,13 @@ class KrakenClient:
             data = response.json()
             
             if data.get("error") and len(data["error"]) > 0:
-                print(f"Kraken API Error: {data['error']}")
+                logger.warning("Kraken API Error: %s", data['error'])
                 return None
             
             return data.get("result", {})
             
         except requests.exceptions.RequestException as e:
-            print(f"Kraken Request Error: {e}")
+            logger.warning("Kraken Request Error: %s", e)
             return None
     
     def _private_request(self, endpoint: str, data: dict = None) -> Optional[dict]:
@@ -158,13 +161,13 @@ class KrakenClient:
             result = response.json()
             
             if result.get("error") and len(result["error"]) > 0:
-                print(f"Kraken API Error: {result['error']}")
+                logger.warning("Kraken API Error: %s", result['error'])
                 return None
             
             return result.get("result", {})
             
         except requests.exceptions.RequestException as e:
-            print(f"Kraken Request Error: {e}")
+            logger.warning("Kraken Request Error: %s", e)
             return None
     
     def get_spot_price(self, currency: str, quote_currency: str = "USD") -> Optional[float]:
@@ -245,7 +248,7 @@ class KrakenClient:
             return changes
             
         except Exception as e:
-            print(f"Error getting price changes for {currency}: {e}")
+            logger.warning("Error getting price changes for %s: %s", currency, e)
             return None
     
     def get_trade_history(self, limit: int = 50) -> list:

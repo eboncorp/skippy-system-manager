@@ -12,6 +12,7 @@ Supports:
 Uses public APIs and on-chain data (no private keys required).
 """
 
+import logging
 import os
 import time
 import json
@@ -20,6 +21,8 @@ from datetime import datetime
 from typing import Optional, List, Dict
 from dataclasses import dataclass, asdict
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -70,7 +73,7 @@ class DefiLlamaClient:
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            print(f"DefiLlama error: {e}")
+            logger.warning("DefiLlama error: %s", e)
             return None
     
     def get_yields(self, pool_id: str = None) -> List[dict]:
@@ -85,7 +88,7 @@ class DefiLlamaClient:
             return data
             
         except Exception as e:
-            print(f"DefiLlama yields error: {e}")
+            logger.warning("DefiLlama yields error: %s", e)
             return []
     
     def get_stablecoin_yields(self) -> List[dict]:
@@ -195,7 +198,7 @@ class AaveTracker:
                     ))
                     
         except Exception as e:
-            print(f"Aave query error: {e}")
+            logger.warning("Aave query error: %s", e)
         
         return positions
 
@@ -272,7 +275,7 @@ class UniswapTracker:
                 ))
                 
         except Exception as e:
-            print(f"Uniswap query error: {e}")
+            logger.warning("Uniswap query error: %s", e)
         
         return positions
 
@@ -326,7 +329,7 @@ class LidoTracker:
                     )
                     
         except Exception as e:
-            print(f"Lido query error: {e}")
+            logger.warning("Lido query error: %s", e)
         
         return None
     
@@ -338,16 +341,18 @@ class LidoTracker:
                 params={"ids": "ethereum", "vs_currencies": "usd"}
             )
             return response.json().get("ethereum", {}).get("usd", 0)
-        except:
-            return 3500  # Fallback
+        except Exception as e:
+            logger.warning("Failed to fetch ETH price: %s", e)
+            return None
     
     def _get_lido_apy(self) -> float:
         """Get current Lido staking APY."""
         try:
             response = self.session.get("https://stake.lido.fi/api/apr")
             return response.json().get("apr", 4.0)
-        except:
-            return 4.0  # Approximate
+        except Exception as e:
+            logger.warning("Failed to fetch Lido APY: %s", e)
+            return None
 
 
 class YearnTracker:
@@ -365,7 +370,7 @@ class YearnTracker:
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            print(f"Yearn API error: {e}")
+            logger.warning("Yearn API error: %s", e)
             return []
     
     def get_best_yields(self, min_tvl: float = 1000000) -> List[dict]:

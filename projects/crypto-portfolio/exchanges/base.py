@@ -3,11 +3,14 @@ Base exchange client interface.
 All exchange implementations should inherit from this class.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional
 from decimal import Decimal
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -170,8 +173,8 @@ class ExchangeClient(ABC):
         for asset in assets:
             try:
                 prices[asset] = await self.get_ticker_price(asset)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to get price for %s: %s", asset, e)
         return prices
     
     @abstractmethod

@@ -10,6 +10,7 @@ Gathers and analyzes market data including:
 """
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -17,6 +18,8 @@ from typing import Dict, List, Optional, Any
 import aiohttp
 
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -89,7 +92,7 @@ class MarketIntelAgent:
                         "timestamp": datetime.fromtimestamp(int(latest["timestamp"])),
                     }
         except Exception as e:
-            print(f"Failed to get Fear & Greed Index: {e}")
+            logger.warning("Failed to get Fear & Greed Index: %s", e)
         
         return {"value": 50, "label": "Neutral", "timestamp": datetime.now()}
     
@@ -118,7 +121,7 @@ class MarketIntelAgent:
                     "active_cryptocurrencies": global_data.get("active_cryptocurrencies", 0),
                 }
         except Exception as e:
-            print(f"Failed to get global metrics: {e}")
+            logger.warning("Failed to get global metrics: %s", e)
         
         return {}
     
@@ -148,7 +151,7 @@ class MarketIntelAgent:
                 
                 return coins
         except Exception as e:
-            print(f"Failed to get trending coins: {e}")
+            logger.warning("Failed to get trending coins: %s", e)
         
         return []
     
@@ -201,7 +204,7 @@ class MarketIntelAgent:
                     "max_supply": market_data.get("max_supply"),
                 }
         except Exception as e:
-            print(f"Failed to get metrics for {asset}: {e}")
+            logger.warning("Failed to get metrics for %s: %s", asset, e)
         
         return {}
     

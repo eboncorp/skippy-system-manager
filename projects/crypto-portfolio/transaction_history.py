@@ -10,6 +10,7 @@ Supports:
 - Tax lot tracking
 """
 
+import logging
 import os
 import json
 import time
@@ -18,6 +19,8 @@ from typing import Optional, List, Dict
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 # Import exchange clients
 from exchanges import CoinbaseClient, KrakenClient, CryptoComClient, GeminiClient
@@ -167,7 +170,7 @@ class TransactionHistory:
                 print(f"    Found {len(txns)} transactions")
                 
             except Exception as e:
-                print(f"    Error fetching from {name}: {e}")
+                logger.warning("Error fetching from %s: %s", name, e)
         
         # Sort by timestamp
         all_transactions.sort(key=lambda x: x.timestamp)
@@ -217,7 +220,7 @@ class TransactionHistory:
                 transactions.append(txn)
                 
             except Exception as e:
-                print(f"    Error parsing Coinbase fill: {e}")
+                logger.warning("Error parsing Coinbase fill: %s", e)
         
         return transactions
     
@@ -263,7 +266,7 @@ class TransactionHistory:
                 transactions.append(txn)
                 
             except Exception as e:
-                print(f"    Error parsing Kraken trade: {e}")
+                logger.warning("Error parsing Kraken trade: %s", e)
         
         return transactions
     
@@ -309,7 +312,7 @@ class TransactionHistory:
                 transactions.append(txn)
                 
             except Exception as e:
-                print(f"    Error parsing Crypto.com trade: {e}")
+                logger.warning("Error parsing Crypto.com trade: %s", e)
         
         return transactions
     
@@ -355,7 +358,7 @@ class TransactionHistory:
                 transactions.append(txn)
                 
             except Exception as e:
-                print(f"    Error parsing Gemini trade: {e}")
+                logger.warning("Error parsing Gemini trade: %s", e)
         
         return transactions
     
@@ -669,7 +672,7 @@ class TransactionHistory:
             return True
             
         except Exception as e:
-            print(f"Error loading transaction history: {e}")
+            logger.warning("Error loading transaction history: %s", e)
             return False
 
 

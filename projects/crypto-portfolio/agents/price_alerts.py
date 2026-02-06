@@ -10,6 +10,7 @@ Supports:
 
 import asyncio
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
@@ -18,6 +19,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Callable, Any
 
 from data.prices import PriceService
+
+logger = logging.getLogger(__name__)
 from agents.alerts import alert_manager, Alert, AlertType
 
 
@@ -105,7 +108,7 @@ class PriceAlertManager:
                         k: Decimal(v) for k, v in data.get("reference_prices", {}).items()
                     }
             except Exception as e:
-                print(f"Failed to load alerts: {e}")
+                logger.warning("Failed to load alerts: %s", e)
                 self._alerts = []
     
     def _save_alerts(self):

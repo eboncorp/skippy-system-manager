@@ -15,6 +15,7 @@ Supported formats:
 
 import csv
 import io
+import logging
 import os
 import re
 import zipfile
@@ -23,6 +24,8 @@ from datetime import datetime
 from typing import List, Optional, Tuple
 
 from transaction_history import Transaction
+
+logger = logging.getLogger(__name__)
 
 # Try openpyxl for XLSX support
 try:
@@ -61,6 +64,7 @@ def import_coinbase_csv(filepath: str) -> List[Transaction]:
              Price Currency, Price at Transaction, Subtotal, Total, Fees, Notes
     """
     transactions = []
+    skipped = 0
 
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.readlines()
@@ -194,9 +198,12 @@ def import_coinbase_csv(filepath: str) -> List[Transaction]:
             transactions.append(txn)
 
         except Exception as e:
-            # Skip malformed rows
+            skipped += 1
+            logger.warning("Skipped Coinbase row: %s", e)
             continue
 
+    if skipped:
+        logger.warning("Coinbase import: skipped %d of %d rows", skipped, skipped + len(transactions))
     return transactions
 
 
@@ -237,6 +244,7 @@ def import_kraken_ledger(filepath: str) -> List[Transaction]:
     Trades are paired as spend+receive sharing the same refid.
     """
     transactions = []
+    skipped = 0
 
     with open(filepath, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -356,8 +364,13 @@ def import_kraken_ledger(filepath: str) -> List[Transaction]:
 
             transactions.append(txn)
 
-        except Exception:
+        except Exception as e:
+            skipped += 1
+            logger.warning("Skipped Kraken paired row: %s", e)
             continue
+
+    if skipped:
+        logger.warning("Kraken import: skipped %d paired rows", skipped)
 
     # Process standalone entries (deposits, withdrawals, earn, transfers)
     for row in standalone:
@@ -414,8 +427,8 @@ def _add_kraken_standalone(row: dict, transactions: List[Transaction]):
         )
         transactions.append(txn)
 
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Skipped Kraken standalone row: %s", e)
 
 
 # =============================================================================
@@ -434,6 +447,7 @@ def import_gemini_xlsx(filepath: str) -> List[Transaction]:
         raise ImportError("openpyxl is required for XLSX parsing: pip install openpyxl")
 
     transactions = []
+    skipped = 0
     wb = openpyxl.load_workbook(filepath)
     ws = wb.active
 
@@ -566,9 +580,13 @@ def import_gemini_xlsx(filepath: str) -> List[Transaction]:
                             transactions.append(txn)
                             break
 
-        except Exception:
+        except Exception as e:
+            skipped += 1
+            logger.warning("Skipped Gemini trade row: %s", e)
             continue
 
+    if skipped:
+        logger.warning("Gemini trade import: skipped %d of %d rows", skipped, skipped + len(transactions))
     wb.close()
     return transactions
 
@@ -589,6 +607,7 @@ def import_gemini_staking_xlsx(filepath: str) -> List[Transaction]:
         raise ImportError("openpyxl is required for XLSX parsing: pip install openpyxl")
 
     transactions = []
+    skipped = 0
     wb = openpyxl.load_workbook(filepath)
     ws = wb.active
 
@@ -663,9 +682,13 @@ def import_gemini_staking_xlsx(filepath: str) -> List[Transaction]:
             )
             transactions.append(txn)
 
-        except Exception:
+        except Exception as e:
+            skipped += 1
+            logger.warning("Skipped Gemini staking row: %s", e)
             continue
 
+    if skipped:
+        logger.warning("Gemini staking import: skipped %d of %d rows", skipped, skipped + len(transactions))
     wb.close()
     return transactions
 
@@ -682,6 +705,7 @@ def import_crypto_com_csv(filepath: str) -> List[Transaction]:
              Native Amount (in USD), Transaction Kind, Transaction Hash
     """
     transactions = []
+    skipped = 0
 
     with open(filepath, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -937,9 +961,13 @@ def import_crypto_com_csv(filepath: str) -> List[Transaction]:
 
             # else: skip unknown kinds
 
-        except Exception:
+        except Exception as e:
+            skipped += 1
+            logger.warning("Skipped Crypto.com row: %s", e)
             continue
 
+    if skipped:
+        logger.warning("Crypto.com import: skipped %d of %d rows", skipped, skipped + len(transactions))
     return transactions
 
 
@@ -977,8 +1005,8 @@ def detect_format(filepath: str) -> Optional[str]:
                     return "gemini_staking"
                 if "Account History" in title or any("Trading Fee Rate" in h for h in header):
                     return "gemini"
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Could not detect Gemini XLSX format: %s", e)
         return "gemini"  # Default for .xlsx
 
     if filepath.endswith(".csv"):
@@ -993,8 +1021,8 @@ def detect_format(filepath: str) -> Optional[str]:
                 return "kraken"
             if "Transaction Kind" in combined or "Native Amount (in USD)" in combined:
                 return "crypto_com"
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Could not detect CSV format: %s", e)
 
     return None
 
@@ -1087,6 +1115,7 @@ def import_all(file_paths: List[str], exchange_override: Optional[str] = None) -
             all_transactions.extend(txns)
 
         except Exception as e:
+            logger.warning("Failed to import %s: %s", filepath, e)
             summary["files_failed"].append({"file": filepath, "error": str(e)})
 
     # Deduplicate and sort

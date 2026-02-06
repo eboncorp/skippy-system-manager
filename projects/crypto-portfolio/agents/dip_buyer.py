@@ -17,6 +17,7 @@ Strategy:
 
 import asyncio
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -29,6 +30,8 @@ from agents.market_intel import MarketIntelAgent
 from agents.alerts import alert_manager, AlertType, Alert
 from agents.advanced_conditions import AdvancedMarketAnalyzer, ComprehensiveAnalysis
 from config import TARGET_ALLOCATION, DCA_ALLOCATION
+
+logger = logging.getLogger(__name__)
 
 
 class MarketCondition(Enum):
@@ -153,7 +156,7 @@ class DipBuyingAgent:
                             for h in history
                         ]
             except Exception as e:
-                print(f"Failed to load dip buyer state: {e}")
+                logger.warning("Failed to load dip buyer state: %s", e)
     
     def _save_state(self):
         """Save state to disk."""
@@ -277,9 +280,10 @@ class DipBuyingAgent:
             fg_data = await self._market_intel.get_fear_greed_index()
             fear_greed = fg_data.get("value", 50)
             fg_label = fg_data.get("label", "Neutral")
-        except:
-            fear_greed = 50
-            fg_label = "Neutral"
+        except Exception as e:
+            logger.warning("Failed to fetch Fear & Greed index: %s", e)
+            fear_greed = None
+            fg_label = "Unavailable"
         
         # Analyze each asset
         asset_analyses = {}

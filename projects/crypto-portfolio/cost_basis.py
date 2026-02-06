@@ -9,6 +9,7 @@ Supports:
 - Tax report generation (Form 8949 format)
 """
 
+import logging
 import os
 import json
 import sqlite3
@@ -17,6 +18,8 @@ from typing import Optional, List, Dict, Tuple
 from dataclasses import dataclass, asdict
 from enum import Enum
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class AccountingMethod(Enum):
@@ -564,7 +567,7 @@ class CostBasisTracker:
                     )
                     sales += 1
                 except ValueError as e:
-                    print(f"Warning: Could not record sale - {e}")
+                    logger.warning("Could not record sale: %s", e)
         
         return purchases, sales
     
