@@ -14,6 +14,7 @@ Usage:
     tokens = client.get_token_list(wallet_address)
 """
 
+import json
 import os
 import time
 import requests
@@ -265,18 +266,17 @@ class DeBankClient:
         return results
 
 
-# Wallet label mapping (can be loaded from config)
-WALLET_LABELS = {
-    "0x19C3136369bb33cDFa409b3Adbf962BA97Ec1985": "gti-inc.eth",
-    "0x34C761EDAfCBA14e7D921C3b1C38bD267498498d": "ebon.eth",
-    "0x73732CC83a75FeC009D646A777993959d769E21f": "paperwerk.eth",
-    "0xCA4cac9A3190aC5A863cb0E174d420E616Dd55Bc": "biggers.eth",
-    "0x46A15b9002291d619D86164C6606185B6d6e27a0": "parkfield.eth",
-    "0x9D552E0D404e20ef7480535CF42813ecFEdC0feF": "pennybrooke.eth",
-    "0x8e7F9112D44e122b2Ae0f2f8c0A255dD60E78798": "ebon-link.eth",
-    "0xd2Ef13A83bABb4776D85BBC136646071F2cFF5f7": "exodus-evm",
-    "0x5a94861e9f99fC8749C9e55eC1BfA774a498E296": "crypto-defi-wallet",
-}
+# Wallet label mapping - loaded from WALLET_LABELS env var (JSON) or empty
+# Format: WALLET_LABELS='{"0xAddress": "label", ...}'
+def _load_wallet_labels() -> dict:
+    """Load wallet labels from environment variable."""
+    labels_json = os.getenv("WALLET_LABELS", "{}")
+    try:
+        return json.loads(labels_json)
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+WALLET_LABELS = _load_wallet_labels()
 
 
 def main():
