@@ -22,7 +22,7 @@ FROM python:3.11-slim as production
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 curl && rm -rf /var/lib/apt/lists/* && \
+    libpq5 curl tini && rm -rf /var/lib/apt/lists/* && \
     useradd --create-home --shell /bin/bash appuser
 
 COPY --from=builder /opt/venv /opt/venv
@@ -45,4 +45,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 EXPOSE 8080
 
+# Use tini as init to properly reap zombie processes
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["python", "crypto_portfolio_mcp.py", "--http", "--port", "8080"]
