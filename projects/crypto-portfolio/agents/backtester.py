@@ -11,6 +11,7 @@ Features:
 - Detailed trade logs and reporting
 """
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_DOWN
@@ -22,6 +23,8 @@ import json
 import math
 import statistics
 from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 
 # Import trading components
 from .trading_agent import (
@@ -233,7 +236,7 @@ class HistoricalDataProvider:
                 
                 data = await response.json()
         except Exception as e:
-            print(f"Error fetching {asset} data: {e}")
+            logger.warning("Error fetching %s data: %s", asset, e)
             return []
         
         # Parse into OHLCV (CoinGecko gives price, market_cap, volume)
@@ -288,7 +291,7 @@ class HistoricalDataProvider:
                         dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
                     else:
                         dt = datetime.strptime(date_str, '%Y-%m-%d')
-                except:
+                except (ValueError, TypeError, AttributeError):
                     continue
                 
                 candles.append(OHLCV(

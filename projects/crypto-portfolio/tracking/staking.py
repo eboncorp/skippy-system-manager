@@ -6,6 +6,7 @@ values them in USD at time of receipt, and provides tax reporting.
 """
 
 import asyncio
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -14,6 +15,8 @@ import json
 from pathlib import Path
 
 from exchanges import ExchangeClient, StakingReward
+
+logger = logging.getLogger(__name__)
 from data.prices import PriceService
 
 
@@ -139,7 +142,7 @@ class StakingTracker:
         all_rewards: List[StakingReward] = []
         for exchange, result in zip(self.exchanges, results):
             if isinstance(result, Exception):
-                print(f"Warning: Failed to get rewards from {exchange.name}: {result}")
+                logger.warning("Failed to get rewards from %s: %s", exchange.name, result)
                 continue
             all_rewards.extend(result)
         

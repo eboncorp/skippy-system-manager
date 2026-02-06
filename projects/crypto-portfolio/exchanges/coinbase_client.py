@@ -6,6 +6,7 @@ Supports both personal Coinbase accounts and institutional Coinbase Prime accoun
 
 import hmac
 import hashlib
+import logging
 import time
 import base64
 import json
@@ -15,6 +16,8 @@ from typing import Dict, List, Optional
 import aiohttp
 
 from .base import ExchangeClient, Balance, StakingReward, Trade, OrderResult
+
+logger = logging.getLogger(__name__)
 
 
 class CoinbaseClient(ExchangeClient):
@@ -143,7 +146,7 @@ class CoinbaseClient(ExchangeClient):
                     
             except Exception as e:
                 # If endpoint not available, try alternative
-                print(f"Warning: Could not fetch staking rewards: {e}")
+                logger.warning("Could not fetch staking rewards: %s", e)
                 break
         
         return rewards
@@ -186,7 +189,7 @@ class CoinbaseClient(ExchangeClient):
                     fee_asset="USD",
                 ))
         except Exception as e:
-            print(f"Warning: Could not fetch trade history: {e}")
+            logger.warning("Could not fetch trade history: %s", e)
         
         return trades
     
@@ -367,7 +370,7 @@ class CoinbasePrimeClient(ExchangeClient):
                     source="coinbase_prime",
                 ))
         except Exception as e:
-            print(f"Warning: Could not fetch staking rewards: {e}")
+            logger.warning("Could not fetch staking rewards: %s", e)
         
         return rewards
     
@@ -410,7 +413,7 @@ class CoinbasePrimeClient(ExchangeClient):
                     fee_asset="USD",
                 ))
         except Exception as e:
-            print(f"Warning: Could not fetch trade history: {e}")
+            logger.warning("Could not fetch trade history: %s", e)
         
         return trades
     
@@ -471,7 +474,7 @@ class CoinbasePrimeClient(ExchangeClient):
             )
             return True
         except Exception as e:
-            print(f"Staking failed: {e}")
+            logger.warning("Staking failed: %s", e)
             return False
     
     async def unstake(self, asset: str, amount: Decimal) -> bool:
@@ -489,7 +492,7 @@ class CoinbasePrimeClient(ExchangeClient):
             )
             return True
         except Exception as e:
-            print(f"Unstaking failed: {e}")
+            logger.warning("Unstaking failed: %s", e)
             return False
     
     async def close(self):

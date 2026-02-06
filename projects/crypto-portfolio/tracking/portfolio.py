@@ -6,6 +6,7 @@ calculates allocation drift, and provides analytics.
 """
 
 import asyncio
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
@@ -13,6 +14,8 @@ from typing import Dict, List, Optional, Tuple
 from collections import defaultdict
 
 from config import TARGET_ALLOCATION, REBALANCE_RULES, get_net_staking_yield
+
+logger = logging.getLogger(__name__)
 from exchanges import Balance, ExchangeClient
 from data.prices import PriceService
 
@@ -141,7 +144,7 @@ class Portfolio:
         
         for exchange, result in zip(self.exchanges, results):
             if isinstance(result, Exception):
-                print(f"Warning: Failed to get balances from {exchange.name}: {result}")
+                logger.warning("Failed to get balances from %s: %s", exchange.name, result)
                 continue
             
             for asset, balance in result.items():

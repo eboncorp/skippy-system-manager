@@ -19,6 +19,7 @@ License: MIT
 """
 
 import json
+import logging
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -26,6 +27,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -747,7 +750,7 @@ async def app_lifespan(app):
             config["manual_sources_configured"] = list(_aggregator.manual_holdings.keys()) if _aggregator.manual_holdings else []
             config["use_real_data"] = len(_aggregator.exchanges) > 0
         except Exception as e:
-            print(f"Warning: Failed to initialize portfolio aggregator: {e}")
+            logger.warning("Failed to initialize portfolio aggregator: %s", e)
             _aggregator = None
 
     # Fallback: Check environment variables and key files
@@ -774,7 +777,7 @@ async def app_lifespan(app):
             else:
                 config["transaction_history_loaded"] = 0
         except Exception as e:
-            print(f"Warning: Failed to initialize transaction history: {e}")
+            logger.warning("Failed to initialize transaction history: %s", e)
             _transaction_history = None
 
     yield {"config": config}
@@ -2165,8 +2168,8 @@ class ETFRebalanceInput(BaseModel):
     )
 
 
-async def _get_fear_greed() -> int:
-    """Fetch current Fear & Greed index."""
+async def _get_fear_greed() -> Optional[int]:
+    """Fetch current Fear & Greed index. Returns None on failure."""
     import aiohttp
     try:
         async with aiohttp.ClientSession() as session:
@@ -2176,8 +2179,9 @@ async def _get_fear_greed() -> int:
             ) as resp:
                 data = await resp.json()
                 return int(data['data'][0]['value'])
-    except Exception:
-        return 50
+    except Exception as e:
+        logger.warning("Failed to fetch Fear & Greed index: %s", e)
+        return None
 
 
 async def _get_etf_portfolio_data():

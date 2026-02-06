@@ -6,6 +6,7 @@ with caching to minimize API calls.
 """
 
 import asyncio
+import logging
 import time
 from datetime import datetime
 from decimal import Decimal
@@ -13,6 +14,8 @@ from typing import Dict, List, Optional
 import aiohttp
 
 from config import COINGECKO_IDS, settings
+
+logger = logging.getLogger(__name__)
 
 
 class PriceCache:
@@ -169,8 +172,8 @@ class PriceService:
                         try:
                             await asyncio.sleep(1)
                             prices[asset] = await self.get_price(asset)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning("Failed to fetch price for %s: %s", asset, e)
                     return prices
                 
                 data = await resp.json()
@@ -187,7 +190,7 @@ class PriceService:
                 self.cache.set_many(fetched_prices)
                 
         except Exception as e:
-            print(f"Warning: Failed to fetch prices: {e}")
+            logger.warning("Failed to fetch prices: %s", e)
         
         return prices
     
@@ -226,7 +229,8 @@ class PriceService:
                     return Decimal(str(data["market_data"]["current_price"]["usd"]))
                 
                 return None
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to fetch historical price for %s: %s", asset, e)
             return None
     
     async def close(self):
