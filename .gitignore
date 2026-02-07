@@ -137,6 +137,11 @@ media/
 archives/
 websites/
 rundaverun_local_site/
+data/
+Downloads/
+
+# Upload archives
+claude/uploads/
 
 # Operations (local only)
 operations/
