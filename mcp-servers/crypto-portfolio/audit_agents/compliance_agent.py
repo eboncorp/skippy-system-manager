@@ -113,18 +113,26 @@ class ComplianceAuditAgent(AuditAgent):
                     recommendation="Remove any methods that delete audit entries",
                 ))
 
+    # Files that define data/config but don't perform operations
+    _NON_OPERATIONAL_PATTERNS = {
+        "config", "settings", "targets", "signals", "analyzer",
+        "models", "schema", "types", "constants", "utils", "helpers",
+        "test_", "conftest", "__init__", "cli", "dashboard",
+        "rate_limiter", "cache", "providers", "storage",
+    }
+
     def _check_audit_log_coverage(self, py_files: List[str]):
         """Check that key operations are audit-logged."""
         self.report.checks_performed += 1
 
-        # Operations that MUST be logged for financial compliance
+        # Operations that MUST be logged -- use function def patterns to find
+        # actual implementations, not just keyword mentions
         critical_operations = {
-            "trade execution": ["place_order", "execute_trade", "market_order", "limit_order"],
-            "fund transfer": ["withdraw", "deposit", "transfer"],
-            "staking operation": ["stake", "unstake"],
-            "configuration change": ["update_config", "set_mode", "change_mode"],
-            "DCA execution": ["run_dca", "execute_dca", "dca_buy"],
-            "rebalancing": ["rebalance", "rebalance_portfolio"],
+            "trade execution": [r'def\s+(?:place_order|execute_trade|market_order|limit_order)\b'],
+            "fund transfer": [r'def\s+(?:withdraw|deposit|transfer)\b'],
+            "staking operation": [r'def\s+(?:stake|unstake|stake_asset|unstake_asset)\b'],
+            "DCA execution": [r'def\s+(?:run_dca|execute_dca|dca_buy)\b'],
+            "rebalancing": [r'def\s+(?:rebalance|rebalance_portfolio)\b'],
         }
 
         audit_calls_found = set()
@@ -134,28 +142,28 @@ class ComplianceAuditAgent(AuditAgent):
                 rel_path = os.path.relpath(filepath, self.project_root)
                 audit_calls_found.add(rel_path)
 
-        # Check each critical operation category
-        for operation, keywords in critical_operations.items():
-            operation_files = []
+        for operation, patterns in critical_operations.items():
             for filepath in py_files:
-                content = self._read_file(filepath)
-                if any(kw in content.lower() for kw in keywords):
-                    rel_path = os.path.relpath(filepath, self.project_root)
-                    if "test" not in rel_path:
-                        operation_files.append(rel_path)
+                rel_path = os.path.relpath(filepath, self.project_root)
+                basename = os.path.basename(filepath).lower()
 
-            for op_file in operation_files:
-                if op_file not in audit_calls_found:
-                    content = self._read_file(
-                        os.path.join(self.project_root, op_file)
-                    )
+                # Skip non-operational files
+                if any(p in basename for p in self._NON_OPERATIONAL_PATTERNS):
+                    continue
+
+                content = self._read_file(filepath)
+                has_operation = any(
+                    re.search(pat, content) for pat in patterns
+                )
+
+                if has_operation and rel_path not in audit_calls_found:
                     if "audit" not in content.lower():
                         self.report.add_finding(AuditFinding(
                             severity=Severity.MEDIUM,
                             category="Audit Coverage",
                             title=f"'{operation}' may lack audit logging",
-                            description=f"File {op_file} contains {operation} but no audit log calls",
-                            file_path=op_file,
+                            description=f"File {rel_path} defines {operation} functions but no audit log calls",
+                            file_path=rel_path,
                             recommendation=f"Add audit_log.log_change() calls for {operation} events",
                         ))
 
@@ -371,7 +379,7 @@ class ComplianceAuditAgent(AuditAgent):
                             file_path=audit_path,
                         ))
 
-                        # Verify chain integrity
+                        # Verify chain integrity (links + hash recomputation)
                         import hashlib
                         prev_checksum = ""
                         broken_links = 0
@@ -379,7 +387,22 @@ class ComplianceAuditAgent(AuditAgent):
                         for i, entry in enumerate(entries):
                             if entry.get("prev_checksum", "") != prev_checksum:
                                 broken_links += 1
-                            prev_checksum = entry.get("checksum", "")
+                            # Recompute hash to detect data tampering
+                            entry_data = {
+                                k: v for k, v in entry.items()
+                                if k not in ("checksum", "prev_checksum")
+                            }
+                            payload = json.dumps(
+                                entry_data, sort_keys=True,
+                                separators=(",", ":"), default=str,
+                            )
+                            expected = hashlib.sha256(
+                                f"{prev_checksum}|{payload}".encode()
+                            ).hexdigest()
+                            stored = entry.get("checksum", "")
+                            if stored and stored != expected:
+                                broken_links += 1
+                            prev_checksum = stored
 
                         if broken_links > 0:
                             self.report.add_finding(AuditFinding(

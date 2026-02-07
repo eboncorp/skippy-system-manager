@@ -189,9 +189,10 @@ class AuditReport:
 class AuditAgent(ABC):
     """Abstract base class for all audit agents."""
 
-    def __init__(self, project_root: str):
+    def __init__(self, project_root: str, file_cache: Optional[Dict[str, str]] = None):
         self.project_root = project_root
         self.report = AuditReport(agent_name=self.name)
+        self._file_cache = file_cache if file_cache is not None else {}
 
     @property
     @abstractmethod
@@ -216,10 +217,14 @@ class AuditAgent(ABC):
         return sorted(glob.glob(f"{self.project_root}/**/*.py", recursive=True))
 
     def _read_file(self, path: str) -> str:
-        """Read a file safely."""
+        """Read a file safely, using shared cache if available."""
+        if path in self._file_cache:
+            return self._file_cache[path]
         try:
             with open(path, "r", encoding="utf-8", errors="replace") as f:
-                return f.read()
+                content = f.read()
+            self._file_cache[path] = content
+            return content
         except OSError as e:
             self.report.errors.append(f"Cannot read {path}: {e}")
             return ""

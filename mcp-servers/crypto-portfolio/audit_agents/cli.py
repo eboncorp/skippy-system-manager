@@ -115,8 +115,13 @@ Examples:
     else:
         unified = orchestrator.run()
 
-    # Filter by severity
+    # Filter findings by minimum severity
     min_sev = Severity(args.min_severity)
+    min_weight = min_sev.weight
+    for report in unified.agent_reports:
+        report.findings = [
+            f for f in report.findings if f.severity.weight >= min_weight
+        ]
 
     # Output
     if args.format == "json":

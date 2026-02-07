@@ -11,11 +11,10 @@ Validates MCP tool definitions and API surface:
 - Tool annotation accuracy (readOnlyHint, destructiveHint)
 """
 
-import ast
 import json
 import os
 import re
-from typing import Dict, List, Optional, Set
+from typing import Dict, List
 
 from .base import AuditAgent, AuditFinding, AuditReport, Severity
 
@@ -152,7 +151,6 @@ class APIAuditAgent(AuditAgent):
             in_tool = False
             func_name = ""
             func_line = 0
-            brace_depth = 0
             has_try = False
 
             for i, line in enumerate(lines):
@@ -165,7 +163,6 @@ class APIAuditAgent(AuditAgent):
                     match = re.match(r'\s*(?:async\s+)?def\s+(\w+)', line)
                     func_name = match.group(1)
                     func_line = i + 1
-                    indent = len(line) - len(line.lstrip())
                     continue
 
                 if in_tool and func_name:
