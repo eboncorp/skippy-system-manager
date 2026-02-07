@@ -465,9 +465,10 @@ async def get_health():
 
 ## 10. Background Job System
 
-**File:** `automation/worker.py`
+**File:** `scheduler.py`
 
-Async task processing for scheduled operations.
+APScheduler-based task scheduler for recurring operations.
+The `automation/worker.py` module has been archived.
 
 ### Default Jobs
 
@@ -484,45 +485,19 @@ Async task processing for scheduled operations.
 ### Usage
 
 ```python
-from automation import JobScheduler, PriceCacheJob, AlertCheckJob
+from scheduler import Scheduler
 
-scheduler = JobScheduler()
-scheduler.add_job(PriceCacheJob())
-scheduler.add_job(AlertCheckJob())
-
-# Start (runs until stopped)
-await scheduler.start()
+# scheduler.py runs all jobs automatically via APScheduler
+# See scheduler.py for job configuration
 ```
 
 ### Run as Standalone Worker
 
 ```bash
-python -m automation.worker
+python scheduler.py
 ```
 
-### Custom Jobs
-
-```python
-from automation import BaseJob, JobResult, JobFrequency, JobStatus
-
-class MyCustomJob(BaseJob):
-    def __init__(self):
-        super().__init__(
-            name="my_custom_job",
-            frequency=JobFrequency.MINUTES_5,
-        )
-    
-    async def execute(self) -> JobResult:
-        # Your logic here
-        return JobResult(
-            job_name=self.name,
-            status=JobStatus.SUCCESS,
-            started_at=datetime.utcnow(),
-            message="Completed successfully"
-        )
-
-scheduler.add_job(MyCustomJob())
-```
+See `scheduler.py` for adding new scheduled tasks.
 
 ---
 
