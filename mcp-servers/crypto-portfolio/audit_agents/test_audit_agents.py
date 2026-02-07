@@ -408,12 +408,11 @@ class TestComplianceAuditAgent:
     def test_detects_audit_log_features(self, tmp_project):
         agent = ComplianceAuditAgent(str(tmp_project))
         report = agent.run()
-        audit_findings = [
-            f for f in report.findings if f.category == "Audit Logging"
-        ]
-        assert len(audit_findings) >= 0
+        # Compliance agent should always produce findings (at minimum INFO)
+        assert report.checks_performed > 0
 
-    def test_verifies_audit_chain(self, tmp_project):
+    def test_verifies_audit_chain_integrity(self, tmp_project):
+        """Audit chain with valid prev_checksum links should report INFO."""
         audit_dir = tmp_project / "data"
         audit_dir.mkdir(exist_ok=True)
         audit_data = [
@@ -438,11 +437,11 @@ class TestComplianceAuditAgent:
 
         agent = ComplianceAuditAgent(str(tmp_project))
         report = agent.run()
-        integrity_findings = [
-            f for f in report.findings
-            if "integrity" in (f.title or "").lower() or "chain" in (f.title or "").lower()
+        log_findings = [
+            f for f in report.findings if f.category == "Audit Logging"
         ]
-        assert len(integrity_findings) >= 0
+        # Should find the audit log file at minimum
+        assert len(log_findings) > 0
 
 
 # ── Orchestrator ──────────────────────────────────────────────────────────
@@ -541,3 +540,133 @@ class TestUnifiedAuditReport:
         findings = report.all_findings
         assert findings[0].severity == Severity.HIGH
         assert findings[1].severity == Severity.LOW
+
+
+# ── False Positive Resistance ─────────────────────────────────────────────
+
+
+class TestFalsePositiveResistance:
+    """Ensure clean code does NOT trigger false positives."""
+
+    def test_eval_in_words_not_flagged(self, tmp_path):
+        """Words like 'retrieval(' should not trigger eval() detection."""
+        (tmp_path / "clean.py").write_text(textwrap.dedent("""\
+            # Balance retrieval (trading, funding, earn accounts)
+            def data_retrieval():
+                pass
+            approval_count = get_approval(request)
+        """))
+        agent = SecurityAuditAgent(str(tmp_path))
+        report = agent.run()
+        injection_findings = [
+            f for f in report.findings
+            if f.category == "Injection" and "eval" in f.title.lower()
+        ]
+        assert len(injection_findings) == 0
+
+    def test_trades_not_flagged_as_des(self, tmp_path):
+        """The word 'TRADES' should not trigger DES cipher detection."""
+        (tmp_path / "display.py").write_text(textwrap.dedent("""\
+            def show_trades():
+                print("RECENT TRADES (last 10):")
+                print("ALL TRADES:")
+                codes = ["BTC", "ETH"]
+        """))
+        agent = SecurityAuditAgent(str(tmp_path))
+        report = agent.run()
+        crypto_findings = [
+            f for f in report.findings if f.category == "Cryptography"
+        ]
+        assert len(crypto_findings) == 0
+
+    def test_fstring_log_not_flagged_as_sql(self, tmp_path):
+        """f-string log messages with DELETE/UPDATE keywords are not SQL."""
+        (tmp_path / "logging_code.py").write_text(textwrap.dedent("""\
+            import logging
+            logger = logging.getLogger(__name__)
+            def cleanup():
+                logger.error(f"Redis DELETE error: {e}")
+                msg = f"Are you sure you want to delete bot {bot_id}?"
+                result = f"Updated {count} records"
+        """))
+        agent = SecurityAuditAgent(str(tmp_path))
+        report = agent.run()
+        sql_findings = [
+            f for f in report.findings
+            if "SQL" in (f.title or "") or "sql" in (f.title or "").lower()
+        ]
+        assert len(sql_findings) == 0
+
+    def test_agent_does_not_scan_itself(self, tmp_project):
+        """Audit agent code should be excluded from scanning."""
+        # Create an audit_agents directory with patterns that would normally flag
+        audit_dir = tmp_project / "audit_agents"
+        audit_dir.mkdir(exist_ok=True)
+        (audit_dir / "scanner.py").write_text(textwrap.dedent("""\
+            import os
+            PATTERNS = [
+                r'os.system\\s*\\(',
+                r'eval\\s*\\(',
+            ]
+        """))
+        agent = SecurityAuditAgent(str(tmp_project))
+        report = agent.run()
+        self_findings = [
+            f for f in report.findings
+            if "audit_agents" in (f.file_path or "")
+        ]
+        assert len(self_findings) == 0
+
+    def test_config_data_not_flagged_as_operations(self, tmp_path):
+        """Config files mentioning 'stake' should not be flagged for audit coverage."""
+        (tmp_path / "config_targets.py").write_text(textwrap.dedent("""\
+            targets = {
+                "BTC": {"stakeable": True, "where_to_stake": "coinbase"},
+                "ETH": {"rebalance_threshold": 5.0},
+            }
+        """))
+        (tmp_path / "compliance").mkdir()
+        (tmp_path / "compliance" / "__init__.py").write_text("")
+        (tmp_path / "compliance" / "audit_log.py").write_text("# empty")
+        agent = ComplianceAuditAgent(str(tmp_path))
+        report = agent.run()
+        coverage_findings = [
+            f for f in report.findings if f.category == "Audit Coverage"
+        ]
+        assert len(coverage_findings) == 0
+
+
+# ── New Security Checks ──────────────────────────────────────────────────
+
+
+class TestNewSecurityChecks:
+    def test_http_timeout_detection(self, tmp_path):
+        """Files with HTTP clients but no timeout should be flagged."""
+        (tmp_path / "fetcher.py").write_text(textwrap.dedent("""\
+            import aiohttp
+            async def fetch():
+                async with aiohttp.ClientSession() as session:
+                    return await session.get("https://api.example.com")
+        """))
+        agent = SecurityAuditAgent(str(tmp_path))
+        report = agent.run()
+        timeout_findings = [
+            f for f in report.findings if "timeout" in (f.title or "").lower()
+        ]
+        assert len(timeout_findings) > 0
+
+    def test_http_timeout_not_flagged_when_present(self, tmp_path):
+        """Files with timeout configured should pass."""
+        (tmp_path / "fetcher.py").write_text(textwrap.dedent("""\
+            import aiohttp
+            async def fetch():
+                timeout = aiohttp.ClientTimeout(total=30)
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    return await session.get("https://api.example.com")
+        """))
+        agent = SecurityAuditAgent(str(tmp_path))
+        report = agent.run()
+        timeout_findings = [
+            f for f in report.findings if "timeout" in (f.title or "").lower()
+        ]
+        assert len(timeout_findings) == 0

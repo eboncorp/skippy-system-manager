@@ -257,11 +257,12 @@ class AuditOrchestrator:
         return unified
 
     def _run_sequential(self) -> List[AuditReport]:
-        """Run agents one at a time."""
+        """Run agents one at a time with shared file cache."""
         reports = []
+        file_cache: dict = {}
         for agent_class in self.agent_classes:
             try:
-                agent = agent_class(self.project_root)
+                agent = agent_class(self.project_root, file_cache=file_cache)
                 logger.info(f"Running {agent.name}...")
                 report = agent.run()
                 reports.append(report)

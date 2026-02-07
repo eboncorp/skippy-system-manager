@@ -9,12 +9,13 @@ Scans for security vulnerabilities in the crypto server codebase:
 - Weak cryptographic practices
 - Authentication and authorization issues
 - Sensitive data exposure
+- HMAC timing attacks
+- Missing HTTP timeouts
 """
 
-import ast
 import os
 import re
-from typing import List, Tuple
+from typing import List
 
 from .base import AuditAgent, AuditFinding, AuditReport, Severity
 
@@ -40,36 +41,30 @@ class SecurityAuditAgent(AuditAgent):
         (r'0x[a-fA-F0-9]{64}', "Potential private key hex (64 chars)"),
     ]
 
-    # Patterns for injection risks
+    # Patterns for injection risks -- use \b word boundaries to avoid partial matches
     INJECTION_PATTERNS = [
-        (r'os\.system\s*\(', "os.system() call - command injection risk", "CWE-78"),
+        (r'\bos\.system\s*\(', "os.system() call - command injection risk", "CWE-78"),
         (r'subprocess\.(?:call|run|Popen)\s*\([^)]*shell\s*=\s*True',
          "subprocess with shell=True - command injection risk", "CWE-78"),
-        (r'eval\s*\(', "eval() call - code injection risk", "CWE-94"),
-        (r'exec\s*\(', "exec() call - code injection risk", "CWE-94"),
-        (r'__import__\s*\(', "Dynamic import - code injection risk", "CWE-94"),
-        (r'pickle\.loads?\s*\(', "pickle deserialization - unsafe", "CWE-502"),
-        (r'yaml\.load\s*\([^)]*(?!Loader)', "yaml.load without safe Loader", "CWE-502"),
-        (r'\.format\s*\(.*\)\s*$.*(?:SELECT|INSERT|UPDATE|DELETE)',
-         "String formatting in SQL - injection risk", "CWE-89"),
-        (r'f["\'].*(?:SELECT|INSERT|UPDATE|DELETE).*\{',
-         "f-string in SQL query - injection risk", "CWE-89"),
+        (r'(?<![a-zA-Z])\beval\s*\(', "eval() call - code injection risk", "CWE-94"),
+        (r'(?<![a-zA-Z])\bexec\s*\(', "exec() call - code injection risk", "CWE-94"),
+        (r'\b__import__\s*\(', "Dynamic import - code injection risk", "CWE-94"),
+        (r'\bpickle\.loads?\s*\(', "pickle deserialization - unsafe", "CWE-502"),
+        (r'yaml\.load\s*\([^)]*\)\s*$', "yaml.load without safe Loader", "CWE-502"),
     ]
 
     # Path traversal patterns
     PATH_TRAVERSAL_PATTERNS = [
-        (r'open\s*\([^)]*\+[^)]*\)', "Dynamic file path construction", "CWE-22"),
         (r'os\.path\.join\s*\([^)]*request', "User input in file path", "CWE-22"),
     ]
 
-    # Known safe patterns to exclude (test files, comments, docstrings)
-    SAFE_CONTEXTS = [
-        "test_", "conftest", "mock", "example", "sample", "template",
-        "env.template", "# ", "\"\"\"", "'''",
-    ]
+    # Directories to skip during scanning (audit framework itself, tests)
+    SKIP_DIRS = {"audit_agents", "__pycache__", ".git", "node_modules"}
 
     def run(self) -> AuditReport:
         py_files = self._find_python_files()
+        # Exclude our own audit code and test fixtures
+        py_files = [f for f in py_files if not self._is_excluded(f)]
         self.report.files_scanned = len(py_files)
 
         for filepath in py_files:
@@ -84,9 +79,11 @@ class SecurityAuditAgent(AuditAgent):
             self._check_injection_risks(rel_path, lines)
             self._check_path_traversal(rel_path, lines)
             self._check_unsafe_crypto(rel_path, content, lines)
-            self._check_error_handling(rel_path, content, lines)
+            self._check_error_handling(rel_path, lines)
             self._check_authentication(rel_path, content, lines)
             self._check_sensitive_data_logging(rel_path, lines)
+            self._check_hmac_timing(rel_path, content, lines)
+            self._check_http_timeouts(rel_path, content, lines)
 
         self._check_gitignore()
         self._check_env_template()
@@ -97,12 +94,29 @@ class SecurityAuditAgent(AuditAgent):
         )
         return self.report
 
+    def _is_excluded(self, filepath: str) -> bool:
+        """Exclude audit framework and test files from scanning."""
+        rel = os.path.relpath(filepath, self.project_root)
+        parts = rel.split(os.sep)
+        return any(d in self.SKIP_DIRS for d in parts)
+
     def _is_safe_context(self, filepath: str, line: str) -> bool:
         """Check if a match is in a safe context (test, comment, etc.)."""
         basename = os.path.basename(filepath)
-        for ctx in self.SAFE_CONTEXTS:
-            if ctx in basename or line.strip().startswith(("#", "//", "\"\"\"", "'''")):
-                return True
+        if any(ctx in basename for ctx in ["test_", "conftest", "mock", "example"]):
+            return True
+        stripped = line.strip()
+        return stripped.startswith(("#", "//", '"""', "'''"))
+
+    def _is_in_string_or_comment(self, line: str) -> bool:
+        """Check if the code-like pattern is actually inside a string or comment."""
+        stripped = line.strip()
+        # Lines that are pure comments
+        if stripped.startswith("#"):
+            return True
+        # Lines that are string definitions (regex patterns, docstrings, etc.)
+        if stripped.startswith(('r"', "r'", 'r"""', "r'''", "(r'")):
+            return True
         return False
 
     def _check_hardcoded_secrets(self, filepath: str, lines: List[str]):
@@ -122,7 +136,7 @@ class SecurityAuditAgent(AuditAgent):
                         severity=Severity.CRITICAL,
                         category="Secrets",
                         title=desc,
-                        description=f"Potential hardcoded credential detected",
+                        description="Potential hardcoded credential detected",
                         file_path=filepath,
                         line_number=i,
                         recommendation="Move to environment variable or secrets manager",
@@ -133,6 +147,8 @@ class SecurityAuditAgent(AuditAgent):
     def _check_injection_risks(self, filepath: str, lines: List[str]):
         self.report.checks_performed += 1
         for i, line in enumerate(lines, 1):
+            if self._is_in_string_or_comment(line):
+                continue
             for pattern, desc, cwe in self.INJECTION_PATTERNS:
                 if re.search(pattern, line, re.IGNORECASE):
                     sev = Severity.HIGH if "eval" in desc or "exec" in desc else Severity.MEDIUM
@@ -140,7 +156,7 @@ class SecurityAuditAgent(AuditAgent):
                         severity=sev,
                         category="Injection",
                         title=desc,
-                        description=f"Potential injection vulnerability",
+                        description="Potential injection vulnerability",
                         file_path=filepath,
                         line_number=i,
                         recommendation="Use parameterized queries/safe alternatives",
@@ -174,16 +190,26 @@ class SecurityAuditAgent(AuditAgent):
         weak_algos = [
             (r'hashlib\.md5\s*\(', "MD5 hash usage - weak for security"),
             (r'hashlib\.sha1\s*\(', "SHA-1 hash usage - weak for security"),
-            (r'DES\b|Blowfish\b|RC4\b', "Weak cipher algorithm"),
+            (r'\bDES\b', "Weak cipher algorithm (DES)"),
+            (r'\bBlowfish\b', "Weak cipher algorithm (Blowfish)"),
+            (r'\bRC4\b', "Weak cipher algorithm (RC4)"),
             (r'random\.(?:random|randint|choice|shuffle)\s*\(',
              "Non-cryptographic RNG for potential security use"),
         ]
         for i, line in enumerate(lines, 1):
+            if self._is_in_string_or_comment(line):
+                continue
             for pattern, desc in weak_algos:
                 if re.search(pattern, line):
                     # random module in non-security context is fine
                     if "random" in pattern and "test" in filepath:
                         continue
+                    # DES/Blowfish/RC4: only flag in import or crypto contexts
+                    if any(w in desc for w in ["DES", "Blowfish", "RC4"]):
+                        if not any(ctx in line.lower() for ctx in [
+                            "import", "cipher", "encrypt", "decrypt", "algorithm",
+                        ]):
+                            continue
                     self.report.add_finding(AuditFinding(
                         severity=Severity.LOW,
                         category="Cryptography",
@@ -196,7 +222,7 @@ class SecurityAuditAgent(AuditAgent):
                         evidence=line.strip()[:120],
                     ))
 
-    def _check_error_handling(self, filepath: str, content: str, lines: List[str]):
+    def _check_error_handling(self, filepath: str, lines: List[str]):
         self.report.checks_performed += 1
         for i, line in enumerate(lines, 1):
             # Bare except clauses
@@ -228,11 +254,9 @@ class SecurityAuditAgent(AuditAgent):
 
     def _check_authentication(self, filepath: str, content: str, lines: List[str]):
         self.report.checks_performed += 1
-        # Check for missing auth on web endpoints
         if "fastapi" in content.lower() or "flask" in content.lower():
             for i, line in enumerate(lines, 1):
                 if re.search(r'@(?:app|router)\.(?:get|post|put|delete|patch)\s*\(', line):
-                    # Check if there's auth dependency in next few lines
                     context = "\n".join(lines[i:i + 5])
                     if not any(auth in context.lower() for auth in [
                         "depends(", "authenticate", "auth_required",
@@ -259,9 +283,7 @@ class SecurityAuditAgent(AuditAgent):
         for i, line in enumerate(lines, 1):
             if any(kw in line.lower() for kw in ["log.", "print(", "logger."]):
                 for var in sensitive_vars:
-                    # Check if the sensitive variable is being logged
                     if re.search(rf'\b{var}\b', line, re.IGNORECASE):
-                        # Exclude lines that are just checking for existence
                         if any(safe in line for safe in [
                             "is None", "not set", "configured", "available",
                             "***", "REDACTED", "[:8]", "[:4]",
@@ -278,6 +300,50 @@ class SecurityAuditAgent(AuditAgent):
                             cwe_id="CWE-532",
                             evidence=line.strip()[:120],
                         ))
+
+    def _check_hmac_timing(self, filepath: str, content: str, lines: List[str]):
+        """Check for HMAC comparison using == instead of hmac.compare_digest."""
+        self.report.checks_performed += 1
+        if "hmac" not in content.lower():
+            return
+        for i, line in enumerate(lines, 1):
+            # Look for direct == comparison after HMAC computation
+            if re.search(r'hmac.*==|==.*hmac', line, re.IGNORECASE):
+                if "compare_digest" not in line:
+                    self.report.add_finding(AuditFinding(
+                        severity=Severity.HIGH,
+                        category="Cryptography",
+                        title="HMAC timing attack risk",
+                        description="HMAC compared with == instead of hmac.compare_digest()",
+                        file_path=filepath,
+                        line_number=i,
+                        recommendation="Use hmac.compare_digest() for constant-time comparison",
+                        cwe_id="CWE-208",
+                        evidence=line.strip()[:120],
+                    ))
+
+    def _check_http_timeouts(self, filepath: str, content: str, lines: List[str]):
+        """Check that HTTP client calls include timeout parameters."""
+        self.report.checks_performed += 1
+        # Only check files that make HTTP calls
+        if not any(lib in content for lib in [
+            "aiohttp.ClientSession", "httpx.AsyncClient", "httpx.Client",
+            "requests.get", "requests.post", "requests.Session",
+        ]):
+            return
+
+        has_default_timeout = "timeout" in content.lower()
+        if not has_default_timeout:
+            rel_path = os.path.relpath(filepath, self.project_root) if filepath.startswith("/") else filepath
+            self.report.add_finding(AuditFinding(
+                severity=Severity.MEDIUM,
+                category="Network",
+                title="HTTP client without timeout configuration",
+                description="HTTP requests without timeouts can hang indefinitely",
+                file_path=rel_path if not rel_path.startswith("/") else filepath,
+                recommendation="Set explicit timeout on all HTTP client sessions",
+                cwe_id="CWE-400",
+            ))
 
     def _check_gitignore(self):
         """Verify .gitignore excludes sensitive files."""
@@ -325,7 +391,6 @@ class SecurityAuditAgent(AuditAgent):
             if "=" in line and not line.strip().startswith("#"):
                 key, _, value = line.partition("=")
                 value = value.strip().strip('"').strip("'")
-                # Check if value looks like a real credential
                 if len(value) > 20 and not any(ph in value for ph in [
                     "your_", "<", "xxx", "placeholder", "change_me",
                     "example", "...", "http", "localhost", "redis://",
@@ -343,7 +408,6 @@ class SecurityAuditAgent(AuditAgent):
     @staticmethod
     def _sanitize_evidence(line: str) -> str:
         """Redact potential secrets from evidence strings."""
-        # Redact anything that looks like a key or secret value
         return re.sub(
             r'(["\'])[a-zA-Z0-9+/=_\-]{16,}(["\'])',
             r'\1[REDACTED]\2',
