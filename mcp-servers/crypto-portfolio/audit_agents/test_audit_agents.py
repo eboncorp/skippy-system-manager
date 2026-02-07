@@ -21,7 +21,9 @@ from audit_agents.api_agent import APIAuditAgent
 from audit_agents.config_agent import ConfigAuditAgent
 from audit_agents.dependency_agent import DependencyAuditAgent
 from audit_agents.compliance_agent import ComplianceAuditAgent
-from audit_agents.orchestrator import AuditOrchestrator, UnifiedAuditReport
+from audit_agents.bash_agent import BashAuditAgent
+from audit_agents.infrastructure_agent import InfrastructureAuditAgent
+from audit_agents.orchestrator import AuditOrchestrator, UnifiedAuditReport, ALL_AGENTS
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
@@ -488,7 +490,7 @@ class TestAuditOrchestrator:
         orchestrator = AuditOrchestrator(str(tmp_project))
         unified = orchestrator.run()
         md = unified.to_markdown()
-        assert "Crypto Server Audit Report" in md
+        assert "Audit Report" in md
         assert "Executive Summary" in md
         assert "Agent Results" in md
 
@@ -670,3 +672,301 @@ class TestNewSecurityChecks:
             f for f in report.findings if "timeout" in (f.title or "").lower()
         ]
         assert len(timeout_findings) == 0
+
+
+# ── Bash Audit Agent ─────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def tmp_bash_project(tmp_path):
+    """Create a project with bash scripts for testing."""
+    # Clean script
+    (tmp_path / "clean.sh").write_text(textwrap.dedent("""\
+        #!/bin/bash
+        set -euo pipefail
+        TEMP_DIR=$(mktemp -d)
+        echo "Working in $TEMP_DIR"
+        rm -rf "$TEMP_DIR"
+    """))
+    # Script with issues
+    (tmp_path / "bad.sh").write_text(textwrap.dedent("""\
+        #!/bin/bash
+        # Missing safety flags
+        curl https://example.com/install.sh | sudo bash
+        eval "$USER_INPUT"
+        TARGET="/some/path"
+        rm -rf $TARGET
+        PASSWORD="supersecretpassword123"
+        if [ $UNQUOTED = "yes" ]; then
+            echo "yes"
+        fi
+        echo "result" > /tmp/myapp_output
+        # Needs at least 10 real lines
+        echo "line1"
+        echo "line2"
+        echo "line3"
+        echo "line4"
+        echo "line5"
+    """))
+    return tmp_path
+
+
+class TestBashAuditAgent:
+    def test_clean_script_passes(self, tmp_bash_project):
+        agent = BashAuditAgent(str(tmp_bash_project))
+        report = agent.run()
+        assert report.agent_name == "Bash Audit Agent"
+        assert report.files_scanned > 0
+
+    def test_detects_curl_pipe_bash(self, tmp_bash_project):
+        agent = BashAuditAgent(str(tmp_bash_project))
+        report = agent.run()
+        curl_findings = [
+            f for f in report.findings if "curl" in (f.title or "").lower()
+                                       or "pipe" in (f.title or "").lower()
+        ]
+        assert len(curl_findings) > 0
+
+    def test_detects_eval_with_variable(self, tmp_bash_project):
+        agent = BashAuditAgent(str(tmp_bash_project))
+        report = agent.run()
+        eval_findings = [
+            f for f in report.findings if "eval" in (f.title or "").lower()
+        ]
+        assert len(eval_findings) > 0
+
+    def test_detects_missing_set_e(self, tmp_bash_project):
+        agent = BashAuditAgent(str(tmp_bash_project))
+        report = agent.run()
+        safety_findings = [
+            f for f in report.findings if f.category == "Shell Safety"
+                                       and "set -e" in (f.title or "")
+        ]
+        assert len(safety_findings) > 0
+
+    def test_detects_unquoted_var_in_test(self, tmp_bash_project):
+        agent = BashAuditAgent(str(tmp_bash_project))
+        report = agent.run()
+        unquoted_findings = [
+            f for f in report.findings if "unquoted" in (f.title or "").lower()
+        ]
+        assert len(unquoted_findings) > 0
+
+    def test_detects_predictable_tmp(self, tmp_bash_project):
+        agent = BashAuditAgent(str(tmp_bash_project))
+        report = agent.run()
+        tmp_findings = [
+            f for f in report.findings if f.category == "Temp Files"
+        ]
+        assert len(tmp_findings) > 0
+
+    def test_detects_hardcoded_password(self, tmp_bash_project):
+        agent = BashAuditAgent(str(tmp_bash_project))
+        report = agent.run()
+        cred_findings = [
+            f for f in report.findings if f.category == "Secrets"
+        ]
+        assert len(cred_findings) > 0
+
+    def test_skips_comments(self, tmp_path):
+        """Comments should not trigger findings."""
+        (tmp_path / "commented.sh").write_text(textwrap.dedent("""\
+            #!/bin/bash
+            set -euo pipefail
+            # curl https://example.com | bash
+            # eval "$dangerous"
+            # PASSWORD="secret_value_here123"
+            echo "safe script"
+            echo "line1"
+            echo "line2"
+            echo "line3"
+            echo "line4"
+            echo "line5"
+            echo "line6"
+            echo "line7"
+            echo "line8"
+        """))
+        agent = BashAuditAgent(str(tmp_path))
+        report = agent.run()
+        dangerous_findings = [
+            f for f in report.findings
+            if f.category in ("Dangerous Command", "Secrets")
+        ]
+        assert len(dangerous_findings) == 0
+
+
+# ── Infrastructure Audit Agent ───────────────────────────────────────────
+
+
+@pytest.fixture
+def tmp_infra_project(tmp_path):
+    """Create a project with infrastructure files for testing."""
+    # .gitignore with gaps
+    (tmp_path / ".gitignore").write_text("__pycache__/\n*.pyc\n")
+
+    # SSH directory with keys
+    ssh_dir = tmp_path / ".ssh"
+    ssh_dir.mkdir()
+    (ssh_dir / "id_rsa").write_text("-----BEGIN RSA PRIVATE KEY-----\nfake\n-----END RSA PRIVATE KEY-----\n")
+    (ssh_dir / "id_rsa.pub").write_text("ssh-rsa AAAA... user@host\n")
+    (ssh_dir / "id_ed25519").write_text("fake ed25519 private key content\n")
+
+    # Dockerfile with issues
+    (tmp_path / "Dockerfile").write_text(textwrap.dedent("""\
+        FROM python:latest
+        ADD requirements.txt /app/
+        WORKDIR /app
+        RUN pip install -r requirements.txt
+        COPY . /app
+        CMD ["python", "server.py"]
+    """))
+
+    # docker-compose with issues
+    (tmp_path / "docker-compose.yml").write_text(textwrap.dedent("""\
+        version: "3.8"
+        services:
+          app:
+            build: .
+            privileged: true
+            network_mode: host
+            environment:
+              - DB_PASSWORD=productionsecret123
+    """))
+
+    # CI pipeline
+    gh_dir = tmp_path / ".github" / "workflows"
+    gh_dir.mkdir(parents=True)
+    (gh_dir / "ci.yml").write_text(textwrap.dedent("""\
+        name: CI
+        on: [push]
+        jobs:
+          test:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/checkout@v4
+              - run: pytest tests/
+    """))
+
+    # broken symlink
+    broken_link = tmp_path / "broken_link"
+    os.symlink("/nonexistent/target/file", str(broken_link))
+
+    # archived code
+    archive_dir = tmp_path / "scripts" / ".archived_old_versions"
+    archive_dir.mkdir(parents=True)
+    for i in range(25):
+        (archive_dir / f"old_script_{i}.py").write_text("# old\n")
+
+    return tmp_path
+
+
+class TestInfrastructureAuditAgent:
+    def test_runs_on_project(self, tmp_infra_project):
+        agent = InfrastructureAuditAgent(str(tmp_infra_project))
+        report = agent.run()
+        assert report.agent_name == "Infrastructure Audit Agent"
+        assert report.checks_performed > 0
+
+    def test_detects_ssh_keys(self, tmp_infra_project):
+        agent = InfrastructureAuditAgent(str(tmp_infra_project))
+        report = agent.run()
+        ssh_findings = [
+            f for f in report.findings if "SSH" in (f.title or "")
+        ]
+        assert len(ssh_findings) >= 2  # id_rsa + id_ed25519
+
+    def test_ssh_private_key_is_critical(self, tmp_infra_project):
+        agent = InfrastructureAuditAgent(str(tmp_infra_project))
+        report = agent.run()
+        critical_ssh = [
+            f for f in report.findings
+            if f.category == "Sensitive Files" and f.severity == Severity.CRITICAL
+        ]
+        assert len(critical_ssh) >= 1
+
+    def test_detects_docker_latest_tag(self, tmp_infra_project):
+        agent = InfrastructureAuditAgent(str(tmp_infra_project))
+        report = agent.run()
+        tag_findings = [
+            f for f in report.findings if "latest" in (f.title or "").lower()
+        ]
+        assert len(tag_findings) > 0
+
+    def test_detects_no_user_directive(self, tmp_infra_project):
+        agent = InfrastructureAuditAgent(str(tmp_infra_project))
+        report = agent.run()
+        root_findings = [
+            f for f in report.findings if "root" in (f.title or "").lower()
+        ]
+        assert len(root_findings) > 0
+
+    def test_detects_privileged_container(self, tmp_infra_project):
+        agent = InfrastructureAuditAgent(str(tmp_infra_project))
+        report = agent.run()
+        priv_findings = [
+            f for f in report.findings if "privileged" in (f.title or "").lower()
+        ]
+        assert len(priv_findings) > 0
+
+    def test_detects_host_network(self, tmp_infra_project):
+        agent = InfrastructureAuditAgent(str(tmp_infra_project))
+        report = agent.run()
+        net_findings = [
+            f for f in report.findings if "host network" in (f.title or "").lower()
+        ]
+        assert len(net_findings) > 0
+
+    def test_detects_gitignore_gaps(self, tmp_infra_project):
+        agent = InfrastructureAuditAgent(str(tmp_infra_project))
+        report = agent.run()
+        gi_findings = [
+            f for f in report.findings if ".gitignore" in (f.title or "")
+        ]
+        assert len(gi_findings) > 0
+
+    def test_detects_broken_symlinks(self, tmp_infra_project):
+        agent = InfrastructureAuditAgent(str(tmp_infra_project))
+        report = agent.run()
+        link_findings = [
+            f for f in report.findings if "symlink" in (f.title or "").lower()
+        ]
+        assert len(link_findings) > 0
+
+    def test_detects_archived_code(self, tmp_infra_project):
+        agent = InfrastructureAuditAgent(str(tmp_infra_project))
+        report = agent.run()
+        archive_findings = [
+            f for f in report.findings if "archived" in (f.title or "").lower()
+        ]
+        assert len(archive_findings) > 0
+
+    def test_detects_missing_security_scan(self, tmp_infra_project):
+        agent = InfrastructureAuditAgent(str(tmp_infra_project))
+        report = agent.run()
+        ci_findings = [
+            f for f in report.findings
+            if f.category == "CI/CD" and "security" in (f.title or "").lower()
+        ]
+        assert len(ci_findings) > 0
+
+    def test_clean_project_passes(self, tmp_path):
+        """Minimal clean project should not have critical findings."""
+        (tmp_path / ".gitignore").write_text(".env\n*.pem\n*.key\n__pycache__\n.ssh/\n")
+        (tmp_path / "Dockerfile").write_text("FROM python:3.11-slim\nUSER app\nCOPY . .\n")
+        agent = InfrastructureAuditAgent(str(tmp_path))
+        report = agent.run()
+        assert report.critical_count == 0
+
+
+# ── Full Orchestrator (all agents) ──────────────────────────────────────
+
+
+class TestFullOrchestrator:
+    def test_all_agents_run(self, tmp_project):
+        """Test that ALL_AGENTS (7 agents) can run together."""
+        orchestrator = AuditOrchestrator(str(tmp_project), agents=ALL_AGENTS)
+        unified = orchestrator.run()
+        assert len(unified.agent_reports) == 7
+        agent_names = [r.agent_name for r in unified.agent_reports]
+        assert "Bash Audit Agent" in agent_names
+        assert "Infrastructure Audit Agent" in agent_names

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Crypto Server Audit CLI
-========================
+Audit Agent CLI
+================
 
 Command-line interface for running the audit agent team.
 
 Usage:
-    python -m audit_agents.cli                    # Run all agents
+    python -m audit_agents.cli                    # Run Python-focused audit
+    python -m audit_agents.cli --full             # Run all agents (Bash + Infra)
     python -m audit_agents.cli --agents security  # Run specific agent
     python -m audit_agents.cli --parallel          # Run in parallel
     python -m audit_agents.cli --format json       # Output as JSON
@@ -19,12 +20,14 @@ import os
 import sys
 
 from .base import Severity
-from .orchestrator import AuditOrchestrator, DEFAULT_AGENTS
+from .orchestrator import AuditOrchestrator, PYTHON_AGENTS, ALL_AGENTS
 from .security_agent import SecurityAuditAgent
 from .api_agent import APIAuditAgent
 from .config_agent import ConfigAuditAgent
 from .dependency_agent import DependencyAuditAgent
 from .compliance_agent import ComplianceAuditAgent
+from .bash_agent import BashAuditAgent
+from .infrastructure_agent import InfrastructureAuditAgent
 
 AGENT_MAP = {
     "security": SecurityAuditAgent,
@@ -32,20 +35,24 @@ AGENT_MAP = {
     "config": ConfigAuditAgent,
     "dependency": DependencyAuditAgent,
     "compliance": ComplianceAuditAgent,
+    "bash": BashAuditAgent,
+    "infrastructure": InfrastructureAuditAgent,
 }
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Crypto Server Audit Agent Team",
+        description="Audit Agent Team",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s                          Run full audit
-  %(prog)s --agents security api    Run security and API audits only
-  %(prog)s --parallel --save        Run all in parallel, save reports
-  %(prog)s --format json            Output JSON report
-  %(prog)s --min-severity medium    Only show medium+ findings
+  %(prog)s                              Run Python-focused audit
+  %(prog)s --full                       Run ALL agents (Bash + Infrastructure)
+  %(prog)s --full -p /path/to/repo      Audit a different project
+  %(prog)s --agents security bash       Run security and bash audits only
+  %(prog)s --parallel --save            Run all in parallel, save reports
+  %(prog)s --format json                Output JSON report
+  %(prog)s --min-severity medium        Only show medium+ findings
         """,
     )
     parser.add_argument(
@@ -54,10 +61,15 @@ Examples:
         help="Project root directory (default: crypto-portfolio/)",
     )
     parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Run all agents including Bash and Infrastructure",
+    )
+    parser.add_argument(
         "--agents", "-a",
         nargs="+",
         choices=list(AGENT_MAP.keys()),
-        help="Specific agents to run (default: all)",
+        help="Specific agents to run (default: all python agents, or all with --full)",
     )
     parser.add_argument(
         "--parallel",
@@ -100,8 +112,10 @@ Examples:
     # Select agents
     if args.agents:
         agent_classes = [AGENT_MAP[name] for name in args.agents]
+    elif args.full:
+        agent_classes = ALL_AGENTS
     else:
-        agent_classes = DEFAULT_AGENTS
+        agent_classes = PYTHON_AGENTS
 
     # Run orchestrator
     orchestrator = AuditOrchestrator(
@@ -141,8 +155,9 @@ Examples:
 
 def _print_summary(unified):
     """Print a concise summary."""
+    project_name = os.path.basename(unified.project_root)
     print(f"\n{'=' * 60}")
-    print(f"  CRYPTO SERVER AUDIT SUMMARY")
+    print(f"  AUDIT SUMMARY: {project_name}")
     print(f"{'=' * 60}")
     print(f"  Overall Grade:  {unified.overall_grade}")
     print(f"  Risk Score:     {unified.overall_risk_score:.1f}/100")

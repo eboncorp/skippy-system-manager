@@ -21,18 +21,34 @@ from .api_agent import APIAuditAgent
 from .config_agent import ConfigAuditAgent
 from .dependency_agent import DependencyAuditAgent
 from .compliance_agent import ComplianceAuditAgent
+from .bash_agent import BashAuditAgent
+from .infrastructure_agent import InfrastructureAuditAgent
 
 logger = logging.getLogger(__name__)
 
 
-# Default agent registry
-DEFAULT_AGENTS: List[Type[AuditAgent]] = [
+# Default agent registry — Python-focused agents
+PYTHON_AGENTS: List[Type[AuditAgent]] = [
     SecurityAuditAgent,
     APIAuditAgent,
     ConfigAuditAgent,
     DependencyAuditAgent,
     ComplianceAuditAgent,
 ]
+
+# Full repo agents — includes Bash and infrastructure
+ALL_AGENTS: List[Type[AuditAgent]] = [
+    SecurityAuditAgent,
+    APIAuditAgent,
+    ConfigAuditAgent,
+    DependencyAuditAgent,
+    ComplianceAuditAgent,
+    BashAuditAgent,
+    InfrastructureAuditAgent,
+]
+
+# Backward compatibility
+DEFAULT_AGENTS = PYTHON_AGENTS
 
 
 @dataclass
@@ -126,7 +142,7 @@ class UnifiedAuditReport:
 
     def to_markdown(self) -> str:
         lines = []
-        lines.append("# Crypto Server Audit Report")
+        lines.append("# Audit Report")
         lines.append(f"\n**Date:** {self.started_at.strftime('%Y-%m-%d %H:%M:%S UTC')}")
         lines.append(f"**Duration:** {self.duration_seconds:.1f}s")
         lines.append(f"**Project:** {os.path.basename(self.project_root)}")
@@ -232,7 +248,7 @@ class AuditOrchestrator:
         unified = UnifiedAuditReport(project_root=self.project_root)
         start_time = time.monotonic()
 
-        logger.info(f"Starting crypto server audit with {len(self.agent_classes)} agents")
+        logger.info(f"Starting audit with {len(self.agent_classes)} agents")
         logger.info(f"Project root: {self.project_root}")
 
         if self.parallel:
