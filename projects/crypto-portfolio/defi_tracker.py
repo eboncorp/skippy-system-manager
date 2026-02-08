@@ -349,7 +349,10 @@ class LidoTracker:
         """Get current Lido staking APY."""
         try:
             response = self.session.get("https://stake.lido.fi/api/apr")
-            return response.json().get("apr", 4.0)
+            apr = response.json().get("apr")
+            if apr is None:
+                logger.warning("Lido APY not found in API response")
+            return apr
         except Exception as e:
             logger.warning("Failed to fetch Lido APY: %s", e)
             return None
