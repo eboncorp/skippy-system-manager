@@ -32,8 +32,8 @@ services:
     environment:
       - PAPER_TRADING=true
       - LOG_LEVEL=INFO
-      - DATABASE_URL=postgresql://crypto:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/crypto_portfolio
-      - REDIS_URL=redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@redis:6379/0
+      # App uses SQLite via data/storage.py (DATABASE_PATH env var, default: ./data/portfolio.db)
+      - DATABASE_PATH=/app/data/portfolio.db
       # Exchange API keys (from .env file)
       - COINBASE_API_KEY=${COINBASE_API_KEY:-}
       - COINBASE_API_SECRET=${COINBASE_API_SECRET:-}
@@ -53,11 +53,6 @@ services:
     volumes:
       - app-data:/app/data
       - app-logs:/app/logs
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -68,47 +63,10 @@ services:
       - crypto-net
 
   # ---------------------------------------------------------------------------
-  # PostgreSQL Database
+  # NOTE: PostgreSQL and Redis containers were removed. The application uses
+  # SQLite via data/storage.py. If you need PostgreSQL/Redis for scaling,
+  # migrate data/storage.py first, then re-add these services.
   # ---------------------------------------------------------------------------
-  postgres:
-    image: postgres:15-alpine
-    container_name: crypto-portfolio-db
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=crypto
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      - POSTGRES_DB=crypto_portfolio
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    ports:
-      - "127.0.0.1:5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U crypto -d crypto_portfolio"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - crypto-net
-
-  # ---------------------------------------------------------------------------
-  # Redis Cache
-  # ---------------------------------------------------------------------------
-  redis:
-    image: redis:7-alpine
-    container_name: crypto-portfolio-redis
-    restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
-    volumes:
-      - redis-data:/data
-    ports:
-      - "127.0.0.1:6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - crypto-net
 
   # ---------------------------------------------------------------------------
   # Background Worker (DCA, Alerts, Snapshots)
@@ -122,8 +80,7 @@ services:
     command: python scheduler.py
     environment:
       - PAPER_TRADING=true
-      - DATABASE_URL=postgresql://crypto:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/crypto_portfolio
-      - REDIS_URL=redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@redis:6379/0
+      - DATABASE_PATH=/app/data/portfolio.db
       - COINBASE_API_KEY=${COINBASE_API_KEY:-}
       - COINBASE_API_SECRET=${COINBASE_API_SECRET:-}
       - KRAKEN_API_KEY=${KRAKEN_API_KEY:-}
@@ -133,8 +90,6 @@ services:
       - app-logs:/app/logs
     depends_on:
       - mcp-server
-      - postgres
-      - redis
     networks:
       - crypto-net
 
@@ -191,10 +146,6 @@ volumes:
     name: crypto-portfolio-data
   app-logs:
     name: crypto-portfolio-logs
-  postgres-data:
-    name: crypto-portfolio-postgres
-  redis-data:
-    name: crypto-portfolio-redis
   prometheus-data:
     name: crypto-portfolio-prometheus
   grafana-data:

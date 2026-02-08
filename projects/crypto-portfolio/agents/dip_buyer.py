@@ -282,7 +282,7 @@ class DipBuyingAgent:
             fg_label = fg_data.get("label", "Neutral")
         except Exception as e:
             logger.warning("Failed to fetch Fear & Greed index: %s", e)
-            fear_greed = None
+            fear_greed = 50  # Default to neutral to avoid NoneType comparison crashes
             fg_label = "Unavailable"
         
         # Analyze each asset

@@ -458,7 +458,9 @@ class DataProviders:
         
         try:
             session = await self._get_session()
-            
+            avg_fee = 0
+            mempool_size = 0
+
             # Get recommended fees
             fees_url = "https://mempool.space/api/v1/fees/recommended"
             async with session.get(fees_url) as resp:
@@ -469,14 +471,14 @@ class DataProviders:
                         fees.get("halfHourFee", 0) +
                         fees.get("hourFee", 0)
                     ) / 3
-            
+
             # Get mempool stats
             mempool_url = "https://mempool.space/api/mempool"
             async with session.get(mempool_url) as resp:
                 if resp.status == 200:
                     mempool = await resp.json()
                     mempool_size = mempool.get("vsize", 0) / 1e6  # Convert to MB
-            
+
             result = {
                 "avg_fee_rate": avg_fee,
                 "mempool_size_mb": mempool_size,

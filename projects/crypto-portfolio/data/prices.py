@@ -64,7 +64,9 @@ class PriceService:
     
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            self._session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=30)
+            )
         return self._session
     
     def _get_coingecko_id(self, asset: str) -> Optional[str]:
@@ -108,8 +110,15 @@ class PriceService:
         
         async with session.get(url, params=params, headers=headers) as resp:
             if resp.status == 429:
-                # Rate limited - wait and retry
-                await asyncio.sleep(60)
+                if not hasattr(self, '_retry_count'):
+                    self._retry_count = 0
+                self._retry_count += 1
+                if self._retry_count > 3:
+                    self._retry_count = 0
+                    raise ValueError(f"CoinGecko rate limited for {asset} after 3 retries")
+                wait_time = 30 * self._retry_count
+                logger.warning("Rate limited by CoinGecko, retrying in %ds (attempt %d/3)", wait_time, self._retry_count)
+                await asyncio.sleep(wait_time)
                 return await self.get_price(asset)
             
             data = await resp.json()

@@ -18,6 +18,8 @@ import time
 import json
 import requests
 from datetime import datetime
+
+HTTP_TIMEOUT = 30  # seconds - prevent hanging on unresponsive APIs
 from typing import Optional, List, Dict
 from dataclasses import dataclass, asdict
 from dotenv import load_dotenv
@@ -69,7 +71,7 @@ class DefiLlamaClient:
     def get_protocol_tvl(self, protocol: str) -> Optional[dict]:
         """Get TVL and stats for a protocol."""
         try:
-            response = self.session.get(f"{self.BASE_URL}/protocol/{protocol}")
+            response = self.session.get(f"{self.BASE_URL}/protocol/{protocol}", timeout=HTTP_TIMEOUT)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -79,7 +81,7 @@ class DefiLlamaClient:
     def get_yields(self, pool_id: str = None) -> List[dict]:
         """Get yield/APY data for pools."""
         try:
-            response = self.session.get(f"{self.YIELDS_URL}/pools")
+            response = self.session.get(f"{self.YIELDS_URL}/pools", timeout=HTTP_TIMEOUT)
             response.raise_for_status()
             data = response.json().get("data", [])
             
@@ -148,11 +150,12 @@ class AaveTracker:
         try:
             response = self.session.post(
                 subgraph,
-                json={"query": query, "variables": {"user": address.lower()}}
+                json={"query": query, "variables": {"user": address.lower()}},
+                timeout=HTTP_TIMEOUT
             )
             response.raise_for_status()
             data = response.json().get("data", {})
-            
+
             health_factor = None
             if data.get("user"):
                 hf = data["user"].get("healthFactor")
@@ -252,7 +255,8 @@ class UniswapTracker:
         try:
             response = self.session.post(
                 subgraph,
-                json={"query": query, "variables": {"owner": address.lower()}}
+                json={"query": query, "variables": {"owner": address.lower()}},
+                timeout=HTTP_TIMEOUT
             )
             response.raise_for_status()
             data = response.json().get("data", {})
@@ -308,7 +312,8 @@ class LidoTracker:
                     "address": address,
                     "tag": "latest",
                     "apikey": self.etherscan_key
-                }
+                },
+                timeout=HTTP_TIMEOUT
             )
             response.raise_for_status()
             data = response.json()
@@ -317,13 +322,14 @@ class LidoTracker:
                 balance = float(data.get("result", 0)) / 1e18
                 
                 if balance > 0:
+                    eth_price = self._get_eth_price()
                     return DeFiPosition(
                         protocol="Lido",
                         chain="ethereum",
                         position_type="stake",
                         asset="stETH",
                         amount=balance,
-                        usd_value=balance * self._get_eth_price(),
+                        usd_value=balance * eth_price if eth_price else 0,
                         apy=self._get_lido_apy(),
                         metadata={"underlying": "ETH"}
                     )
@@ -338,7 +344,8 @@ class LidoTracker:
         try:
             response = self.session.get(
                 "https://api.coingecko.com/api/v3/simple/price",
-                params={"ids": "ethereum", "vs_currencies": "usd"}
+                params={"ids": "ethereum", "vs_currencies": "usd"},
+                timeout=HTTP_TIMEOUT
             )
             return response.json().get("ethereum", {}).get("usd", 0)
         except Exception as e:
@@ -348,7 +355,7 @@ class LidoTracker:
     def _get_lido_apy(self) -> float:
         """Get current Lido staking APY."""
         try:
-            response = self.session.get("https://stake.lido.fi/api/apr")
+            response = self.session.get("https://stake.lido.fi/api/apr", timeout=HTTP_TIMEOUT)
             apr = response.json().get("apr")
             if apr is None:
                 logger.warning("Lido APY not found in API response")
@@ -369,7 +376,7 @@ class YearnTracker:
     def get_vaults(self) -> List[dict]:
         """Get all Yearn vaults with APY."""
         try:
-            response = self.session.get(self.API_URL)
+            response = self.session.get(self.API_URL, timeout=HTTP_TIMEOUT)
             response.raise_for_status()
             return response.json()
         except Exception as e:

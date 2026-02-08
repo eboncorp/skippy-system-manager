@@ -510,7 +510,7 @@ def register_trading_tools(mcp: FastMCP):
         import os
 
         # Paper trading mode for testing
-        if os.getenv("PAPER_TRADING", "false").lower() == "true":
+        if os.getenv("PAPER_TRADING", "true").lower() == "true":
             return json.dumps({
                 "status": "success",
                 "mode": "paper_trading",

@@ -33,7 +33,7 @@ class CoinbaseClient(ExchangeClient):
     
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30))
         return self._session
     
     def _sign_request(self, timestamp: str, method: str, path: str, body: str = "") -> str:
@@ -275,7 +275,7 @@ class CoinbasePrimeClient(ExchangeClient):
     
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30))
         return self._session
     
     def _sign_request(self, timestamp: str, method: str, path: str, body: str = "") -> str:

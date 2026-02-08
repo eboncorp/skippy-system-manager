@@ -17,6 +17,8 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+HTTP_TIMEOUT = 30  # seconds - prevent hanging on unresponsive APIs
+
 
 def load_crypto_com_credentials(filepath: str = None) -> Dict[str, str]:
     """Load Crypto.com API credentials from JSON file."""
@@ -132,7 +134,8 @@ class CryptoComClient:
             response = self.session.post(
                 f"{self.BASE_URL}/{method}",
                 json=payload,
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
+                timeout=HTTP_TIMEOUT
             )
             response.raise_for_status()
             result = response.json()
@@ -172,7 +175,7 @@ class CryptoComClient:
     def get_instruments(self) -> Optional[List[Dict[str, Any]]]:
         """Get available trading instruments (public endpoint)."""
         try:
-            response = self.session.get(f"{self.BASE_URL}/public/get-instruments")
+            response = self.session.get(f"{self.BASE_URL}/public/get-instruments", timeout=HTTP_TIMEOUT)
             response.raise_for_status()
             result = response.json()
             if result.get("code") == 0:
@@ -187,7 +190,7 @@ class CryptoComClient:
             url = f"{self.BASE_URL}/public/get-tickers"
             if instrument_name:
                 url += f"?instrument_name={instrument_name}"
-            response = self.session.get(url)
+            response = self.session.get(url, timeout=HTTP_TIMEOUT)
             response.raise_for_status()
             result = response.json()
             if result.get("code") == 0:
