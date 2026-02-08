@@ -64,7 +64,7 @@ except ImportError:
 
 # On-chain and DeFi trackers for real wallet data
 try:
-    from defi_tracker import DeFiTracker
+    from defi_tracker import DeFiPortfolioTracker as DeFiTracker
     from onchain_tracker import OnChainWalletManager
     ONCHAIN_TRACKING_AVAILABLE = True
 except ImportError:

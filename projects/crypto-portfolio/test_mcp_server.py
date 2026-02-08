@@ -110,6 +110,53 @@ def transaction_input():
     return TransactionHistoryInput()
 
 
+@pytest.fixture(autouse=True)
+def mock_transaction_history():
+    """Populate _transaction_history global with mock data for tests."""
+    import crypto_portfolio_mcp as mcp_mod
+    from transaction_history import TransactionHistory, Transaction
+
+    mock_th = TransactionHistory.__new__(TransactionHistory)
+    mock_th.transactions = [
+        Transaction(
+            id="test-001",
+            exchange="Coinbase",
+            timestamp=datetime(2025, 6, 15, 10, 30, 0),
+            type="buy",
+            asset="BTC",
+            amount=0.01,
+            price_usd=65000.0,
+            total_usd=650.0,
+            fee_usd=6.50,
+            fee_asset="USD",
+            related_asset="USD",
+            related_amount=650.0,
+        ),
+        Transaction(
+            id="test-002",
+            exchange="Kraken",
+            timestamp=datetime(2025, 7, 1, 14, 0, 0),
+            type="buy",
+            asset="ETH",
+            amount=0.5,
+            price_usd=3400.0,
+            total_usd=1700.0,
+            fee_usd=8.50,
+            fee_asset="USD",
+            related_asset="USD",
+            related_amount=1700.0,
+        ),
+    ]
+    mock_th.clients = {}
+    mock_th.cost_tracker = MagicMock()
+    mock_th.save_path = "/tmp/test_transactions.json"
+
+    old_th = mcp_mod._transaction_history
+    mcp_mod._transaction_history = mock_th
+    yield
+    mcp_mod._transaction_history = old_th
+
+
 @pytest.fixture
 def alerts_input():
     """Default alerts input."""

@@ -23,7 +23,13 @@ from dotenv import load_dotenv
 logger = logging.getLogger(__name__)
 
 # Import exchange clients
-from exchanges import CoinbaseClient, KrakenClient, CryptoComClient, GeminiClient
+from exchanges import CoinbaseClient, KrakenClient
+from crypto_com_client import CryptoComClient
+
+try:
+    from _archive.gemini_client import GeminiClient
+except ImportError:
+    GeminiClient = None
 
 
 class CostBasisMethod(Enum):
@@ -135,12 +141,13 @@ class TransactionHistory:
             self.clients["Crypto.com"] = CryptoComClient(api_key, api_secret)
             connected += 1
         
-        # Gemini
-        api_key = os.getenv("GEMINI_API_KEY")
-        api_secret = os.getenv("GEMINI_API_SECRET")
-        if api_key and api_secret:
-            self.clients["Gemini"] = GeminiClient(api_key, api_secret)
-            connected += 1
+        # Gemini (archived - only connect if client available)
+        if GeminiClient is not None:
+            api_key = os.getenv("GEMINI_API_KEY")
+            api_secret = os.getenv("GEMINI_API_SECRET")
+            if api_key and api_secret:
+                self.clients["Gemini"] = GeminiClient(api_key, api_secret)
+                connected += 1
         
         return connected
     
