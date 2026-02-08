@@ -5,7 +5,7 @@ cat > /usr/local/etc/no-ip2.conf << EOF
 UPDATE_INTERVAL=5
 HOST=eboneth.ddns.net
 USERNAME=eboncorp
-PASSWORD=REDACTED_SERVER_PASSWORD
+PASSWORD=${NOIP_PASSWORD:?Set NOIP_PASSWORD environment variable}
 INTERFACE=eno1
 EOF
 

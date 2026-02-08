@@ -2,7 +2,7 @@
 
 ## Overview
 Automation suite: infrastructure, WordPress (rundaverun.org), backups, security, MCP servers.
-1,600+ scripts (Python: 1,422, Bash: 224) | 146 MCP tools | 8 CI/CD stages
+1,600+ scripts (Python: 1,422, Bash: 224) | 147 MCP tools | 8 CI/CD stages
 
 ## Directory Structure
 ```
@@ -41,8 +41,8 @@ ShellCheck → Tests → Security Scan (Bandit, TruffleHog, Safety) → WP Valid
 |--------|-------|------------|
 | general-server | 67 | Files, System, WordPress, Git, Docker, Skippy |
 | github | 26 | Repos, PRs, Issues, Code Search |
-| chrome-devtools | 26 | Browser, Screenshots, Performance |
-| crypto-portfolio | 11 | Portfolio, Staking, DeFi, Cronos AI |
+| chrome-devtools | 25 | Browser, Screenshots, Performance |
+| crypto-portfolio | 28 | Portfolio, Staking, DeFi, Cronos AI |
 | brave-search | 2 | Web/local search |
 | coinbase-agentkit | 14 | Wallet, ERC-20, NFT, WETH |
 

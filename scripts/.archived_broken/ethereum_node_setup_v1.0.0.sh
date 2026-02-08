@@ -16,7 +16,7 @@ ETHEREUM_NETWORK="mainnet"
 GETH_DATA_DIR="/var/lib/goethereum"
 BACKUP_DIR="/var/backups/ethereum"
 NOIP_USERNAME="eboncorp"
-NOIP_PASSWORD="REDACTED_SERVER_PASSWORD"  # Replace this with your actual No-IP password
+NOIP_PASSWORD="${NOIP_PASSWORD:?Set NOIP_PASSWORD environment variable}"
 
 # Function to log messages
 log_message() {

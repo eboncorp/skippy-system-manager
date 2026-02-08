@@ -277,7 +277,7 @@ def create_app(
             admin_user_id = security_manager.create_user(
                 username="admin",
                 email="admin@nexus.local",
-                password="REDACTED_NEXUS_PASSWORD",  # Should be changed on first login
+                password=os.environ.get("NEXUS_ADMIN_PASSWORD", "CHANGE_ME_ON_FIRST_LOGIN"),
                 roles=[UserRole.SUPER_ADMIN]
             )
             security_logger.info(f"Created default admin user with ID: {admin_user_id}")

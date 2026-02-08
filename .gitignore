@@ -56,11 +56,15 @@ htmlcov/
 # Private/sensitive (CRITICAL - never commit)
 business/
 personal/
+.ssh/
+google_drive/
+networks_files/
 .env
 .env.*
 !.env.example
 credentials/
 .credentials/
+.gnupg/
 *.key
 *.pem
 *.p12

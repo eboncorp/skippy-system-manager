@@ -481,7 +481,7 @@ if __name__ == "__main__":
         )
         
         # Hash password
-        password = "REDACTED_NEXUS_PASSWORD"
+        password = os.environ.get("NEXUS_ADMIN_PASSWORD", "CHANGE_ME_ON_FIRST_LOGIN")
         hashed = SecurityService.hash_password(password)
         print(f"Password hashed: {hashed[:20]}...")
         

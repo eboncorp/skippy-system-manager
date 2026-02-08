@@ -17,7 +17,7 @@ GETH_DATA_DIR="/var/lib/goethereum"
 PRYSM_DATA_DIR="/var/lib/prysm"
 BACKUP_DIR="/var/backups/ethereum"
 NOIP_USERNAME="eboncorp"
-NOIP_PASSWORD="REDACTED_SERVER_PASSWORD"  # Consider using an environment variable for this in production
+NOIP_PASSWORD="${NOIP_PASSWORD:?Set NOIP_PASSWORD environment variable}"
 
 # Function to log messages
 log_message() {

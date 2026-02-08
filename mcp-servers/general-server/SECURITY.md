@@ -13,8 +13,8 @@
 
 **Format**:
 ```
-EBON_HOST=ebon@10.0.0.29
-EBON_PASSWORD=REDACTED_SERVER_PASSWORD
+EBON_HOST=ebon@<your-server-ip>
+EBON_PASSWORD=<your-secure-password>
 ```
 
 **Security Measures**:

@@ -148,41 +148,10 @@ skip_glob = [
 ]
 
 # ============================================================================
-# pytest - Testing Framework
+# pytest - See pytest.ini for full configuration
 # ============================================================================
-[tool.pytest.ini_options]
-minversion = "7.0"
-testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*", "*Tests"]
-python_functions = ["test_*"]
-addopts = [
-    "-v",
-    "-l",
-    "-ra",
-    "--strict-markers",
-    "--cov=lib/python",
-    "--cov=mcp_servers",
-    "--cov-report=html:htmlcov",
-    "--cov-report=term-missing",
-    "--cov-fail-under=60",
-]
-markers = [
-    "unit: Unit tests (fast, isolated)",
-    "integration: Integration tests (slower, require external services)",
-    "slow: Slow-running tests",
-    "security: Security-related tests",
-    "wordpress: WordPress-specific tests",
-    "network: Tests requiring network access",
-    "ssh: Tests requiring SSH connectivity",
-    "docker: Tests requiring Docker",
-    "smoke: Smoke tests (quick validation)",
-]
-filterwarnings = [
-    "error",
-    "ignore::UserWarning",
-    "ignore::DeprecationWarning",
-]
+# Note: pytest.ini is the canonical config (has pythonpath, norecursedirs,
+# coverage sections). Do not duplicate settings here.
 
 # ============================================================================
 # mypy - Type Checking

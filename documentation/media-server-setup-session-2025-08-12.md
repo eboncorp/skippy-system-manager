@@ -57,7 +57,7 @@ Comprehensive media server organization, USB music transfer setup, and home dire
 - Media server ready for expansion
 
 ### Network Access Setup (In Progress)
-- **No-IP Credentials Found**: eboneth.ddns.net / eboncorp / REDACTED_SERVER_PASSWORD
+- **No-IP Credentials Found**: eboneth.ddns.net / eboncorp / [REDACTED - see .env]
 - **Client Downloaded**: noip-duc-linux.tar.gz extracted and compiled
 - **Service Creation**: systemd service configured but needs manual setup
 - **Alternative**: OpenVPN server setup available as backup option
@@ -173,7 +173,7 @@ rmdir ~/Audiobooks ~/Movies ~/Recordings
 # Found in /home/dave/Skippy/Development/Scripts/
 DOMAIN="eboneth.ddns.net"
 NOIP_USERNAME="eboncorp"
-NOIP_PASSWORD="REDACTED_SERVER_PASSWORD"
+NOIP_PASSWORD="${NOIP_PASSWORD}"  # Set via environment variable
 ```
 
 **Installation Progress:**

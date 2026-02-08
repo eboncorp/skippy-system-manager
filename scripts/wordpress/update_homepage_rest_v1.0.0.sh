@@ -5,8 +5,8 @@
 # Configuration
 SITE_URL="https://rundaverun.org"
 PAGE_ID="105"
-USERNAME="rundaverun"
-PASSWORD="REDACTED_WP_PASSWORD"
+USERNAME="${WP_ADMIN_USERNAME:?Set WP_ADMIN_USERNAME environment variable}"
+PASSWORD="${WP_ADMIN_PASSWORD:?Set WP_ADMIN_PASSWORD environment variable}"
 HTML_FILE="UPDATED_HOMEPAGE_LOUISVILLE_COLORS.html"
 
 # Read the HTML content and escape it for JSON
